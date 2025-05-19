@@ -1,0 +1,3 @@
+[submodule "PyPruning"]
+	path = PyPruning
+	url = https://git.tu-berlin.de/joshuacar/PyPruning.git
