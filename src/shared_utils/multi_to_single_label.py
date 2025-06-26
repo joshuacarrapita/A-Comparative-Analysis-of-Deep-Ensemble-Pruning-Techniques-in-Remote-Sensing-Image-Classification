@@ -3,13 +3,31 @@ import rasterio
 import numpy as np
 import pandas as pd
 
+#-----------------------------------------------------------------------------
+
 # INIT
 # TODO: Adjust path for docker container
 # Utility so dataframe print shows the whole patch_id 
 pd.set_option('display.max_colwidth', None)
 
 # Set entrypoint for recursive path search
-entrypoint = Path('/home') / 'user' / 'Documents' / 'backups' / 'datasets' / 'Reference_Maps' 
+while True:
+    entrypoint = Path(input('\nEnter a path to the reference maps root directory: ')).resolve()
+    print(f"\nWill read reference maps from: \n{entrypoint}")
+    if input('\nConfirm the path is correct (y/n): ') == 'y':
+        break
+
+assert entrypoint.exists() and entrypoint.is_absolute(), "Invalid Path."
+
+# Set save path for single label parquet file
+while True:
+    parquets_root = Path(input('\nEnter a path to where the single label parquet file should be saved: ')).resolve()
+    print(f"\nWill save parquet files to: \n{parquets_root}")
+    if input('\nConfirm the path is correct (y/n): ') == 'y':
+        break
+
+assert entrypoint.exists() and entrypoint.is_absolute(), "Invalid Path."
+
 
 # Obtain the paths to all reference maps
 image_patch_file_paths = list(entrypoint.rglob('*.tif'))
@@ -136,7 +154,13 @@ clc_lvl_3_to_19_class_label_dictionary = {
     999: 2,
 }
 
+#-----------------------------------------------------------------------------
+
 # EXEC
+
+# vectorize the dictionary mapping function
+vectorized_dict_get = np.vectorize(clc_lvl_3_to_19_class_label_dictionary.get)
+
 for file_path in image_patch_file_paths:
    
     # add patch_name to list
@@ -147,14 +171,12 @@ for file_path in image_patch_file_paths:
         # read tif image
         data = src.read(1)
 
-        # vectorize the dictionary mapping function
-        vectorized_dict = np.vectorize(clc_lvl_3_to_19_class_label_dictionary.get)
-
         # convert the data according to mapping
-        mapped_data = vectorized_dict(data)
+        mapped_data = vectorized_dict_get(data)
 
         # get unique labels with counts
         unique_labels, label_counts = np.unique(mapped_data, return_counts=True)
+        assert None not in unique_labels, "Dict data mapping returned None."
 
         # get index, then number and then text of most common label
         max_count_index = np.argmax(label_counts)
@@ -163,8 +185,17 @@ for file_path in image_patch_file_paths:
 
         # add this label to list
         patch_labels.append([max_count_label])
+    
+    if __debug__:
+        break
 
 # create a pandas dataframe based on the patch_id and labels list
 df = pd.DataFrame(list(zip(patch_names,patch_labels)), columns=['patch_id', 'labels'])
+
+df.to_parquet(parquets_root / 'single_lables.parquet.gzip', compression='gzip')
+
+if __debug__:
+    print(df)
+    print(pd.read_parquet(parquets_root / 'single_lables.parquet.gzip'))
 
 # TODO: Replace the patch_id and label columns of the metadata_parquet / dataframe with updated single labels
