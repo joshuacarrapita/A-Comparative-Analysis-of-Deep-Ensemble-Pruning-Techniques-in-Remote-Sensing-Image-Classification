@@ -1,3 +1,6 @@
 [submodule "PyPruning"]
 	path = src/pruning_submodules/PyPruning
 	url = https://git.tu-berlin.de/joshuacar/PyPruning.git
+[submodule "ConfigILM"]
+	path = src/training_submodules/ConfigILM
+	url = https://git.tu-berlin.de/joshuacar/ConfigILM.git
