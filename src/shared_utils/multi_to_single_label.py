@@ -6,7 +6,11 @@ import pandas as pd
 #-----------------------------------------------------------------------------
 
 # INIT
-# TODO: Adjust path for docker container
+if __debug__:
+    print ("\n--DEBUG ON--")
+else:
+    print ("\n--DEBUG OFF--")
+
 # Utility so dataframe print shows the whole patch_id 
 pd.set_option('display.max_colwidth', None)
 
@@ -28,6 +32,11 @@ while True:
 
 assert entrypoint.exists() and entrypoint.is_absolute(), "Invalid Path."
 
+while True:
+    parquet_name = input('\nEnter a parquet name: ') + '.parquet.gzip'
+    print(f"\nWill save parquet file as: \n{parquet_name}")
+    if input('\nConfirm the name is correct (y/n): ') == 'y':
+        break
 
 # Obtain the paths to all reference maps
 image_patch_file_paths = list(entrypoint.rglob('*.tif'))
@@ -161,10 +170,12 @@ clc_lvl_3_to_19_class_label_dictionary = {
 # vectorize the dictionary mapping function
 vectorized_dict_get = np.vectorize(clc_lvl_3_to_19_class_label_dictionary.get)
 
+if __debug__:
+    rounds = 10
+
+print('\nExtracting single labels, please be patient...')
+
 for file_path in image_patch_file_paths:
-   
-    # add patch_name to list
-    patch_names.append(file_path.stem.removesuffix('_reference_map'))
 
     with rasterio.open(file_path) as src:
 
@@ -176,26 +187,59 @@ for file_path in image_patch_file_paths:
 
         # get unique labels with counts
         unique_labels, label_counts = np.unique(mapped_data, return_counts=True)
-        assert None not in unique_labels, "Dict data mapping returned None."
+        # TODO: check if total_labels is always the same as the pixels are always the same
 
-        # get index, then number and then text of most common label
+        # Make sure the data mapping works
+        assert None not in unique_labels, "Dict data mapping returned None."
+        # Find out what percentage of the image each label covers
+        label_percentages = label_counts * 100 / np.sum(label_counts)
+
+        if __debug__:
+            print(unique_labels)
+            print(label_counts)
+            print(np.sum(label_counts))
+            print(label_percentages)
+
+        # Get the index of the count for 'Unlabeled' if it exists
+        unlabeled_index, = np.where(unique_labels == 2)
+
+        # Make sure that no patches with more than 25% 'Unlabeled' pixels are included
+        if unlabeled_index.size > 0 and label_percentages[unlabeled_index] >= 25:
+            continue
+
+        # Get index, then number and then text of most common label
         max_count_index = np.argmax(label_counts)
+
+        # Make sure that found majority label has more than 50% share or so of image pixels cause otherwise it might impact learning performance
+        if label_percentages[max_count_index] <= 50:
+            continue
+
+        # Check that we skip images where the majority class is unlabeled (afaik after the first two checks, this should never occur and this part of the code is unecessary
         max_count_label_no = unique_labels[max_count_index]
         max_count_label = nineteen_class_label_dictionary[max_count_label_no]
+        if max_count_label == 'Unlabeled':
+            continue
+
+        # add patch_name to list
+        patch_names.append(file_path.stem.removesuffix('_reference_map'))
 
         # add this label to list
         patch_labels.append([max_count_label])
     
     if __debug__:
-        break
+        if rounds > 0:
+            rounds -= 1
+        else:
+            break
 
 # create a pandas dataframe based on the patch_id and labels list
 df = pd.DataFrame(list(zip(patch_names,patch_labels)), columns=['patch_id', 'labels'])
 
-df.to_parquet(parquets_root / 'single_lables.parquet.gzip', compression='gzip')
+
+df.to_parquet(parquets_root / parquet_name, compression='gzip')
 
 if __debug__:
     print(df)
-    print(pd.read_parquet(parquets_root / 'single_lables.parquet.gzip'))
+    print(pd.read_parquet(parquets_root / parquet_name))
 
 # TODO: Replace the patch_id and label columns of the metadata_parquet / dataframe with updated single labels
