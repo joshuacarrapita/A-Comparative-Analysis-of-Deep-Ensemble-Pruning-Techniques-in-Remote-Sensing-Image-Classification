@@ -1,4 +1,5 @@
 from pathlib import Path
+from alive_progress import alive_bar
 import rasterio
 import numpy as np
 import pandas as pd
@@ -38,8 +39,13 @@ while True:
     if input('\nConfirm the name is correct (y/n): ') == 'y':
         break
 
+print('\nIndexing reference maps, please be patient...')
+
 # Obtain the paths to all reference maps
-image_patch_file_paths = list(entrypoint.rglob('*.tif'))
+with alive_bar() as bar:
+    image_patch_file_paths = list(entrypoint.rglob('*.tif'))
+
+print('\nFinished indexing reference maps.')
 
 patch_names = []
 patch_labels = []
@@ -175,71 +181,75 @@ if __debug__:
 
 print('\nExtracting single labels, please be patient...')
 
-for file_path in image_patch_file_paths:
+with alive_bar(len(image_patch_file_paths)) as bar:
+    for file_path in image_patch_file_paths:
 
-    with rasterio.open(file_path) as src:
+        with rasterio.open(file_path) as src:
 
-        # read tif image
-        data = src.read(1)
+            # update progress bar
+            bar()
 
-        # convert the data according to mapping
-        mapped_data = vectorized_dict_get(data)
+            # read tif image
+            data = src.read(1)
 
-        # get unique labels with counts
-        unique_labels, label_counts = np.unique(mapped_data, return_counts=True)
-        # TODO: check if total_labels is always the same as the pixels are always the same
+            # convert the data according to mapping
+            mapped_data = vectorized_dict_get(data)
 
-        # Make sure the data mapping works
-        assert None not in unique_labels, "Dict data mapping returned None."
-        # Find out what percentage of the image each label covers
-        label_percentages = label_counts * 100 / np.sum(label_counts)
+            # get unique labels with counts
+            unique_labels, label_counts = np.unique(mapped_data, return_counts=True)
+            # TODO: check if total_labels is always the same as the pixels are always the same
 
+            # Make sure the data mapping works
+            assert None not in unique_labels, "Dict data mapping returned None."
+            # Find out what percentage of the image each label covers
+            label_percentages = label_counts * 100 / np.sum(label_counts)
+
+            if __debug__:
+                print(unique_labels)
+                print(label_counts)
+                print(np.sum(label_counts))
+                print(label_percentages)
+
+            # Get the index of the count for 'Unlabeled' if it exists
+            unlabeled_index, = np.where(unique_labels == 2)
+
+            # Make sure that no patches with more than 25% 'Unlabeled' pixels are included
+            if unlabeled_index.size > 0 and label_percentages[unlabeled_index] >= 25:
+                continue
+
+            # Get index, then number and then text of most common label
+            max_count_index = np.argmax(label_counts)
+
+            # Make sure that found majority label has more than 50% share or so of image pixels cause otherwise it might impact learning performance
+            if label_percentages[max_count_index] <= 50:
+                continue
+
+            # Check that we skip images where the majority class is unlabeled (afaik after the first two checks, this should never occur and this part of the code is unecessary
+            max_count_label_no = unique_labels[max_count_index]
+            max_count_label = nineteen_class_label_dictionary[max_count_label_no]
+            if max_count_label == 'Unlabeled':
+                continue
+
+            # add patch_name to list
+            patch_names.append(file_path.stem.removesuffix('_reference_map'))
+
+            # add this label to list
+            patch_labels.append([max_count_label])
+        
         if __debug__:
-            print(unique_labels)
-            print(label_counts)
-            print(np.sum(label_counts))
-            print(label_percentages)
+            if rounds > 0:
+                rounds -= 1
+            else:
+                break
 
-        # Get the index of the count for 'Unlabeled' if it exists
-        unlabeled_index, = np.where(unique_labels == 2)
+    # create a pandas dataframe based on the patch_id and labels list
+    df = pd.DataFrame(list(zip(patch_names,patch_labels)), columns=['patch_id', 'labels'])
 
-        # Make sure that no patches with more than 25% 'Unlabeled' pixels are included
-        if unlabeled_index.size > 0 and label_percentages[unlabeled_index] >= 25:
-            continue
 
-        # Get index, then number and then text of most common label
-        max_count_index = np.argmax(label_counts)
+    df.to_parquet(parquets_root / parquet_name, compression='gzip')
 
-        # Make sure that found majority label has more than 50% share or so of image pixels cause otherwise it might impact learning performance
-        if label_percentages[max_count_index] <= 50:
-            continue
-
-        # Check that we skip images where the majority class is unlabeled (afaik after the first two checks, this should never occur and this part of the code is unecessary
-        max_count_label_no = unique_labels[max_count_index]
-        max_count_label = nineteen_class_label_dictionary[max_count_label_no]
-        if max_count_label == 'Unlabeled':
-            continue
-
-        # add patch_name to list
-        patch_names.append(file_path.stem.removesuffix('_reference_map'))
-
-        # add this label to list
-        patch_labels.append([max_count_label])
-    
     if __debug__:
-        if rounds > 0:
-            rounds -= 1
-        else:
-            break
+        print(df)
+        print(pd.read_parquet(parquets_root / parquet_name))
 
-# create a pandas dataframe based on the patch_id and labels list
-df = pd.DataFrame(list(zip(patch_names,patch_labels)), columns=['patch_id', 'labels'])
-
-
-df.to_parquet(parquets_root / parquet_name, compression='gzip')
-
-if __debug__:
-    print(df)
-    print(pd.read_parquet(parquets_root / parquet_name))
-
-# TODO: Replace the patch_id and label columns of the metadata_parquet / dataframe with updated single labels
+    # TODO: Replace the patch_id and label columns of the metadata_parquet / dataframe with updated single labels
