@@ -251,5 +251,3 @@ with alive_bar(len(image_patch_file_paths)) as bar:
     if __debug__:
         print(df)
         print(pd.read_parquet(parquets_root / parquet_name))
-
-    # TODO: Replace the patch_id and label columns of the metadata_parquet / dataframe with updated single labels
