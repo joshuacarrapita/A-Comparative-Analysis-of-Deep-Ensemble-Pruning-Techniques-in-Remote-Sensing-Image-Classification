@@ -3,6 +3,7 @@ from alive_progress import alive_bar
 import rasterio
 import numpy as np
 import pandas as pd
+import sys
 
 #-----------------------------------------------------------------------------
 
@@ -15,35 +16,28 @@ else:
 # Utility so dataframe print shows the whole patch_id 
 pd.set_option('display.max_colwidth', None)
 
-# Set entrypoint for recursive path search
-while True:
-    entrypoint = Path(input('\nEnter a path to the reference maps root directory: ')).resolve()
-    print(f"\nWill read reference maps from: \n{entrypoint}")
-    if input('\nConfirm the path is correct (y/n): ') == 'y':
-        break
-
-assert entrypoint.exists() and entrypoint.is_absolute(), "Invalid Path."
-
-# Set save path for single label parquet file
-while True:
-    parquets_root = Path(input('\nEnter a path to where the single label parquet file should be saved: ')).resolve()
-    print(f"\nWill save parquet files to: \n{parquets_root}")
-    if input('\nConfirm the path is correct (y/n): ') == 'y':
-        break
-
-assert entrypoint.exists() and entrypoint.is_absolute(), "Invalid Path."
-
-while True:
-    parquet_name = input('\nEnter a parquet name: ') + '.parquet.gzip'
-    print(f"\nWill save parquet file as: \n{parquet_name}")
-    if input('\nConfirm the name is correct (y/n): ') == 'y':
-        break
+try:
+    datapath = {
+        'reference_maps_root_dir_path': Path(sys.argv[1]).resolve(),
+        'outfile': Path(sys.argv[2]).resolve(),
+    }
+    for key, path in datapath.items():
+        if key != 'outfile':
+            assert path.is_dir(), f"Input directory does not exist or is not a directory: {path}"
+        else: 
+            if path.is_dir():
+                sys.exit(f'\nNo output filename provided. Exiting.')
+            else:
+                assert path.parent.is_dir(), f"Output directory does not exist or is not a directory: {path.parent}"
+                assert path.name, f"No output filename provided: {path}"
+except Exception as e:
+    sys.exit(f'\nAn error occured: {e}.\n\nUsage: python multi_to_single_label.py /path/to/reference_maps_dir/ /path/to/outfile.parquet\n')
 
 print('\nIndexing reference maps, please be patient...')
 
 # Obtain the paths to all reference maps
 with alive_bar() as bar:
-    image_patch_file_paths = list(entrypoint.rglob('*.tif'))
+    image_patch_file_paths = list(datapath['reference_maps_root_dir_path'].rglob('*.tif'))
 
 print('\nFinished indexing reference maps.')
 
@@ -176,12 +170,14 @@ clc_lvl_3_to_19_class_label_dictionary = {
 # vectorize the dictionary mapping function
 vectorized_dict_get = np.vectorize(clc_lvl_3_to_19_class_label_dictionary.get)
 
-if __debug__:
-    rounds = 10
-
 print('\nExtracting single labels, please be patient...')
 
-with alive_bar(len(image_patch_file_paths)) as bar:
+if __debug__:
+    rounds = 10
+else:
+    rounds = len(image_patch_file_paths)
+
+with alive_bar(rounds) as bar:
     for file_path in image_patch_file_paths:
 
         with rasterio.open(file_path) as src:
@@ -245,9 +241,9 @@ with alive_bar(len(image_patch_file_paths)) as bar:
     # create a pandas dataframe based on the patch_id and labels list
     df = pd.DataFrame(list(zip(patch_names,patch_labels)), columns=['patch_id', 'labels'])
 
-
-    df.to_parquet(parquets_root / parquet_name, compression='gzip')
+    # create and save a parquet file out of the dataframe
+    df.to_parquet(datapath['outfile'], compression='gzip')
 
     if __debug__:
         print(df)
-        print(pd.read_parquet(parquets_root / parquet_name))
+        print(pd.read_parquet(datapath['outfile']))
