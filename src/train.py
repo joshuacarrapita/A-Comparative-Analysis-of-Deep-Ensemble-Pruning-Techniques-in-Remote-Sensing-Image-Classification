@@ -40,21 +40,21 @@ train_ds = BENDataSet(
     BEN_lmdb_utils.resolve_data_dir(None, allow_mock=True),
     split="train",
     transform=train_transform,
-    image_size(number_of_channels, image_size, image_size),
+    image_size=(number_of_channels, image_size, image_size),
 )
 
 val_ds = BENDataSet(
     BEN_lmdb_utils.resolve_data_dir(None, allow_mock=True),
     split="val",
     transform=transform,
-    image_size(number_of_channels, image_size, image_size),
+    image_size=(number_of_channels, image_size, image_size),
 )
 
 test_ds = BENDataSet(
     BEN_lmdb_utils.resolve_data_dir(None, allow_mock=True),
     split="test",
-    transform=train_transform,
-    image_size(number_of_channels, image_size, image_size),
+    transform=transform,
+    image_size=(number_of_channels, image_size, image_size),
 )
 
 train_dl = DataLoader(
@@ -83,15 +83,17 @@ loss_fn = F.binary_cross_entropy_with_logits
 
 for epoch in range(10):
     running_loss = 0.0
-    #train loop
+    # --- train loop ---
     model.train()
     for i, batch in enumerate(train_dl):
         img, label = batch
         optim.zero_grad()
-        output=model(img)
-        loss=loss_fn(output,label)
+        output = model(img)
+        loss = loss_fn(output,label)
         loss.backward()
         optim.step()
+        
+        running_loss += loss.item()
         if i % 10 == 9 # print every 10 mini-batches:
             print(f"[{epoch + 1:3d}, {i + 1:5d}] loss: {running_loss / 10:.4f}")
             running_loss = 0.0
