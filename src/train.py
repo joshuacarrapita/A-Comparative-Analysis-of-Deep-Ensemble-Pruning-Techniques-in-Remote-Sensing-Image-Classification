@@ -94,7 +94,7 @@ for epoch in range(10):
         optim.step()
         
         running_loss += loss.item()
-        if i % 10 == 9 # print every 10 mini-batches:
+        if i % 10 == 9: # print every 10 mini-batches
             print(f"[{epoch + 1:3d}, {i + 1:5d}] loss: {running_loss / 10:.4f}")
             running_loss = 0.0
 
@@ -107,7 +107,7 @@ for epoch in range(10):
         loss = loss_fn(output, label)
         eval_loss += loss.item()
     eval_loss /= len(val_dl)
-    print(f"Eoch {epoch + 1:3d} validation loss: {eval_loss:.4f}")
+    print(f"Epoch {epoch + 1:3d} validation loss: {eval_loss:.4f}")
 
 #test
 model.eval()

@@ -13,7 +13,7 @@ try:
     for key, path in datapath.items():
         assert path.is_file(), f"Input file not found or not a file: {path}"
 except Exception as e:
-    sys.exit(f'\nAn error occured: {e}.\n\nUsage: python rewrite_metadata_parqet.py /path/to/multi_label.parquet /path/to/single_label.parquet /path/to/outfile.parquet\n')
+    sys.exit(f'\nAn error occured: {e}.\n\nUsage: python configilm_single_label_test.py /path/to/images.lmdb /path/to/metadata.parquet /path/to/metadata_snow.parquet\n')
 
 ds = BENv2_DataSet.BENv2DataSet(
     data_dirs=my_data_path, # path set by to dataset
