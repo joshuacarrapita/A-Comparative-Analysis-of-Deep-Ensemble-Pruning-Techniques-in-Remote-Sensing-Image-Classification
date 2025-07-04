@@ -1,0 +1,15 @@
+# Set Base Image
+FROM python:3.11.13-bookworm
+
+# Set WORKDIR
+WORKDIR /app
+
+# COPY and install requirements
+COPY ./build/requirements_prepare_train.txt ./build/requirements_prepare_train.txt
+RUN pip install --no-cache-dir -r ./build/requirements_prepare_train.txt
+
+# COPY files
+COPY ./src/* ./src/* 
+
+# Define entrypoint
+ENTRYPOINT ["/bin/bash"]
