@@ -5,11 +5,11 @@ FROM python:3.11.13-bookworm
 WORKDIR /app
 
 # COPY and install requirements
-COPY ./build/requirements_train.txt ./build/requirements_train.txt
-RUN pip install --no-cache-dir -r ./build/requirements_train.txt
+COPY build/requirements_train.txt /app/build/requirements_train.txt
+RUN pip install --no-cache-dir -r /app/build/requirements_train.txt
 
 # COPY files
-COPY ./src/train.py ./src/train.py
+COPY src/train.py /app/src/train.py
 
 # Define entrypoint
-CMD ["python","src/train.py"]
+CMD ["python","/app/src/train.py"]
