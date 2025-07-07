@@ -15,7 +15,6 @@ if __debug__:
     print('yay')
     sys.exit("Exiting cause of debug.")
 
-
 __author__ = "Leonard Hackel - BIFOLD/RSim TU Berlin"
 
 image_model = "resnet18"
@@ -32,6 +31,7 @@ model_config = ILMConfiguration(
 )
 model = ConfigILM.ConfigILM(model_config)
 
+# TODO: Are these affected by pre-selection of images?
 ben_mean, ben_std = BENv2_utils.band_combi_to_mean_std(number_of_channels)
 train_transform = default_train_transform(image_size=(image_size,image_size), mean=ben_mean, std=ben_std)
 transform = default_transform(image_size=(image_size,image_size), mean=ben_mean, std=ben_std)
@@ -79,7 +79,7 @@ test_dl = DataLoader(
 )
 
 optim = torch.optim.AdamW(model.parameters(), lr=5e-4, weight_decay=0.01)
-loss_fn = F.binary_cross_entropy_with_logits
+loss_fn = F.cross_entropy
 
 for epoch in range(10):
     running_loss = 0.0
@@ -87,8 +87,15 @@ for epoch in range(10):
     model.train()
     for i, batch in enumerate(train_dl):
         img, label = batch
+
+        # convert batch_size x classes label tensor to 
+        # batch_size x 1 label tensor
+        label = torch.argmax(label, dim=1)
+
         optim.zero_grad()
         output = model(img)
+        if __debug__:
+            print(f"\nOutput size: {output.size()}\nLabel size: {label.size()})
         loss = loss_fn(output,label)
         loss.backward()
         optim.step()
