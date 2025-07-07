@@ -31,7 +31,6 @@ model_config = ILMConfiguration(
 )
 model = ConfigILM.ConfigILM(model_config)
 
-# TODO: Are these affected by pre-selection of images?
 ben_mean, ben_std = BENv2_utils.band_combi_to_mean_std(number_of_channels)
 train_transform = default_train_transform(image_size=(image_size,image_size), mean=ben_mean, std=ben_std)
 transform = default_transform(image_size=(image_size,image_size), mean=ben_mean, std=ben_std)
