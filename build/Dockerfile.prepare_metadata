@@ -5,15 +5,15 @@ FROM python:3.11.13-bookworm
 WORKDIR /app
 
 # COPY and install requirements
-COPY build/requirements_prepare_train.txt /app/build/requirements_prepare_train.txt
-RUN pip install --no-cache-dir -r build/requirements_prepare_train.txt
+COPY build/requirements_prepare_metadata.txt /app/build/requirements_prepare_metadata.txt
+RUN pip install --no-cache-dir -r build/requirements_prepare_metadata.txt
 
 # COPY files
-COPY src/training_utils/prepare_train.sh /app/src/prepare_train.sh
+COPY src/training_utils/prepare_metadata.sh /app/src/prepare_metadata.sh
 COPY src/training_utils/parquettest.py /app/src/parquettest.py
 COPY src/training_utils/multi_to_single_label.py /app/src/multi_to_single_label.py
 COPY src/training_utils/rewrite_metadata_parquet.py /app/src/rewrite_metadata_parquet.py
-RUN chmod +x /app/src/prepare_train.sh
+RUN chmod +x /app/src/prepare_metadata.sh
 
 # Define entrypoint
-CMD ["/app/src/prepare_train.sh"]
+CMD ["/app/src/prepare_metadata.sh"]
