@@ -23,6 +23,12 @@ Within a particular ecosystem, there may be a common way of installing things, s
 
 - Follow "Cloning a Project with Submodules" [from here](https://git-scm.com/book/en/v2/Git-Tools-Submodules).
 - put all data like metadata.parquet, metadata_snow.parquet, reference_maps, bigearthnetv2 etc. in /data/
+- something like:
+```
+docker build -t prepare_metadata:0.1.0 -f Dockerfile.prepare_metadata ../
+docker image prune
+docker run --name prepare_metadata_container -v ../data/:/app/data/ joshuacar/prepare_metadata:0.1.0
+```
 
 ## Usage
 Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
