@@ -10,6 +10,6 @@ try:
 except Exception as e:
     sys.exit(f'\nAn error occured: {e}.\n\nUsage: python parquettest.py /path/to/parquetfile.parquet\n')
 
-df = pd.read_parquet(parquet_path)
+df = pd.read_parquet(parquet_path,columns=['patch_id','labels'])
 
 print(df)
