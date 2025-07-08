@@ -11,9 +11,29 @@ from configilm.extra._defaults import default_train_transform
 from configilm.extra._defaults import default_transform
 from configilm.extra.DataSets.BENv2_DataSet import BENv2DataSet
 
+from pathlib import Path
+
+from configilm import util
+util.MESSAGE_LEVEL = util.MessageLevel.INFO  # use INFO to see all messages
+
 if __debug__:
-    print('yay')
-    sys.exit("Exiting cause of debug.")
+    print ("\n--DEBUG ON--")
+else:
+    print ("\n--DEBUG OFF--")
+
+try:
+    datapath = {
+        'images_lmdb': Path(sys.argv[1]).resolve(),
+        'metadata_parquet': Path(sys.argv[2]).resolve(),
+        'metadata_snow_cloud_parquet': Path(sys.argv[3]).resolve(),
+    }
+    for key, path in datapath.items():
+        if key == 'images_lmdb':
+            assert path.is_dir(), f"Input directory does not exist or is not a directory: {path}"
+        else: 
+            assert path.is_file(), f"Input file does not exist or is not a file: {path}"
+except Exception as e:
+    sys.exit(f'\nAn error occured: {e}.\n\nUsage: python train.py /path/to/lmdb_dir/ /path/to/metadata.parquet /path/to/metadata_snow_cloud.parquet\n')
 
 __author__ = "Leonard Hackel - BIFOLD/RSim TU Berlin"
 
@@ -32,28 +52,28 @@ model_config = ILMConfiguration(
 model = ConfigILM.ConfigILM(model_config)
 
 ben_mean, ben_std = BENv2_utils.band_combi_to_mean_std(number_of_channels)
-train_transform = default_train_transform(image_size=(image_size,image_size), mean=ben_mean, std=ben_std)
-transform = default_transform(image_size=(image_size,image_size), mean=ben_mean, std=ben_std)
+train_transform = default_train_transform(img_size=(image_size,image_size), mean=ben_mean, std=ben_std)
+transform = default_transform(img_size=(image_size,image_size), mean=ben_mean, std=ben_std)
 
-train_ds = BENDataSet(
-    BENv2_utils.resolve_data_dir(None, allow_mock=True),
+train_ds = BENv2DataSet(
+    datapath,
     split="train",
     transform=train_transform,
-    image_size=(number_of_channels, image_size, image_size),
+    img_size=(number_of_channels, image_size, image_size),
 )
 
-val_ds = BENDataSet(
-    BENv2_utils.resolve_data_dir(None, allow_mock=True),
-    split="val",
+val_ds = BENv2DataSet(
+    datapath,
+    split="validation",
     transform=transform,
-    image_size=(number_of_channels, image_size, image_size),
+    img_size=(number_of_channels, image_size, image_size),
 )
 
-test_ds = BENDataSet(
-    BENv2_utils.resolve_data_dir(None, allow_mock=True),
+test_ds = BENv2DataSet(
+    datapath,
     split="test",
     transform=transform,
-    image_size=(number_of_channels, image_size, image_size),
+    img_size=(number_of_channels, image_size, image_size),
 )
 
 train_dl = DataLoader(
@@ -77,6 +97,11 @@ test_dl = DataLoader(
     num_workers=num_workers,
 )
 
+if __debug__:
+    print(f"Train dataset size: {len(train_dl)}")
+    print(f"Validation dataset size: {len(val_dl)}")
+    print(f"Test dataset size: {len(test_dl)}")
+
 optim = torch.optim.AdamW(model.parameters(), lr=5e-4, weight_decay=0.01)
 loss_fn = F.cross_entropy
 
@@ -93,8 +118,6 @@ for epoch in range(10):
 
         optim.zero_grad()
         output = model(img)
-        if __debug__:
-            print(f"\nOutput size: {output.size()}\nLabel size: {label.size()})
         loss = loss_fn(output,label)
         loss.backward()
         optim.step()
