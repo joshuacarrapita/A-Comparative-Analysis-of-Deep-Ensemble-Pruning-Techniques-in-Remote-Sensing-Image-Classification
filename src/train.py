@@ -15,10 +15,12 @@ from configilm.extra.DataSets.BENv2_DataSet import BENv2DataSet
 from pathlib import Path
 
 from configilm import util
-util.MESSAGE_LEVEL = util.MessageLevel.INFO  # use INFO to see all messages
+
+from alive_progress import alive_bar
 
 if __debug__:
     print ("\n--DEBUG ON--")
+    util.MESSAGE_LEVEL = util.MessageLevel.INFO  # use INFO to see all messages
 else:
     print ("\n--DEBUG OFF--")
 
@@ -112,30 +114,44 @@ for epoch in range(10):
     running_loss = 0.0
     # --- train loop ---
     model.train()
-    for i, batch in enumerate(train_dl):
+    print(f'Starting epoch {epoch + 1:3d} with {len(train_dl):5d} batches:')
+    with alive_bar (len(train_dl)) as bar:
+        for i, batch in enumerate(train_dl):
+            bar()
+            img, label = batch
+
+            # convert batch_size x classes label tensor to 
+            # batch_size x 1 label tensor
+            label = torch.argmax(label, dim=1)
+
+            optim.zero_grad()
+            output = model(img)
+            loss = loss_fn(output,label)
+            loss.backward()
+            optim.step()
+            
+            running_loss += loss.item()
+            if (i % 10) == 9: # print every 10 mini-batches
+                print(f"[{epoch + 1:3d}, {i + 1:5d}] loss: {running_loss / 10:.4f}")
+                if __debug__:
+                    print(f'[train] labelsize: {label.size()}, label: {label}')
+                    print(f'[train] outputsize: {output.size()}, output: {torch.argmax(output,dim=1)}')
+                running_loss = 0.0
+
+    # validation
+    model.eval()
+    eval_loss = 0.0
+    for i, batch in enumerate(val_dl):
         img, label = batch
 
         # convert batch_size x classes label tensor to 
         # batch_size x 1 label tensor
         label = torch.argmax(label, dim=1)
 
-        optim.zero_grad()
         output = model(img)
-        loss = loss_fn(output,label)
-        loss.backward()
-        optim.step()
-        
-        running_loss += loss.item()
-        if i % 10 == 9: # print every 10 mini-batches
-            print(f"[{epoch + 1:3d}, {i + 1:5d}] loss: {running_loss / 10:.4f}")
-            running_loss = 0.0
-
-    # validation
-    model.eval()
-    eval_loss = 0.0
-    for i, batch in enumerate(val_dl):
-        img. label = batch
-        output = model(img)
+        if __debug__:
+            print(f'[val] labelsize: {label.size()}, label: {label}')
+            print(f'[val] outputsize: {output.size()}, output: {torch.argmax(output,dim=1)}')
         loss = loss_fn(output, label)
         eval_loss += loss.item()
     eval_loss /= len(val_dl)
@@ -146,7 +162,15 @@ model.eval()
 test_loss = 0.0
 for i, batch in enumerate(test_dl):
     img, label = batch
+
+    # convert batch_size x classes label tensor to 
+    # batch_size x 1 label tensor
+    label = torch.argmax(label, dim=1)
+
     output = model(img)
+    if __debug__:
+        print(f'[test] labelsize: {label.size()}, label: {label}')
+        print(f'[test] outputsize: {output.size()}, output: {torch.argmax(output,dim=1)}')
     loss = loss_fn(output, label)
     test_loss += loss.item()
 test_loss /= len(test_dl)
