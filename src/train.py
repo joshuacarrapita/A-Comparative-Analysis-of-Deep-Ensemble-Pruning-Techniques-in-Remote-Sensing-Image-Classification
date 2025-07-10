@@ -1,4 +1,5 @@
 import sys
+import time
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
@@ -26,16 +27,18 @@ try:
         'images_lmdb': Path(sys.argv[1]).resolve(),
         'metadata_parquet': Path(sys.argv[2]).resolve(),
         'metadata_snow_cloud_parquet': Path(sys.argv[3]).resolve(),
+        'export': Path(sys.argv[4]).resolve()
     }
     for key, path in datapath.items():
         if key == 'images_lmdb':
             assert path.is_dir(), f"Input directory does not exist or is not a directory: {path}"
         else: 
-            assert path.is_file(), f"Input file does not exist or is not a file: {path}"
+            if key != 'export': 
+                assert path.is_file(), f"Input file does not exist or is not a file: {path}"
+            else:
+                assert not path.is_file(), f"Export needs to be a directory but is a file: {path}" 
 except Exception as e:
-    sys.exit(f'\nAn error occured: {e}.\n\nUsage: python train.py /path/to/lmdb_dir/ /path/to/metadata.parquet /path/to/metadata_snow_cloud.parquet\n')
-
-__author__ = "Leonard Hackel - BIFOLD/RSim TU Berlin"
+    sys.exit(f'\nAn error occured: {e}.\n\nUsage: python train.py /path/to/lmdb_dir/ /path/to/metadata.parquet /path/to/metadata_snow_cloud.parquet /path/to/export/dir/\n')
 
 image_model = "resnet18"
 number_of_channels = 3
@@ -127,7 +130,7 @@ for epoch in range(10):
             print(f"[{epoch + 1:3d}, {i + 1:5d}] loss: {running_loss / 10:.4f}")
             running_loss = 0.0
 
-    #validation
+    # validation
     model.eval()
     eval_loss = 0.0
     for i, batch in enumerate(val_dl):
@@ -138,7 +141,7 @@ for epoch in range(10):
     eval_loss /= len(val_dl)
     print(f"Epoch {epoch + 1:3d} validation loss: {eval_loss:.4f}")
 
-#test
+# test
 model.eval()
 test_loss = 0.0
 for i, batch in enumerate(test_dl):
@@ -148,3 +151,12 @@ for i, batch in enumerate(test_dl):
     test_loss += loss.item()
 test_loss /= len(test_dl)
 print(f"Test loss: {test_loss:.4f}")
+
+# saving
+time = time.strftime('%Y%m%d-%H%M%S')
+datapath['export'] /= time
+datapath['export'].mkdir(parents=True, exist_ok=True)
+model_outpath = datapath['export'] / ('model_resnet18_' + time + '.pt')
+optim_outpath = datapath['export'] / ('optimizer_resnet18_' + time + '.pt')
+torch.save(model.state_dict(),model_outpath)
+torch.save(optim.state_dict(),optim_outpath)
