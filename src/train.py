@@ -2,6 +2,7 @@ import sys
 import time
 import torch
 import torch.nn.functional as F
+import pandas as pd
 from torch.utils.data import DataLoader
 
 from configilm import ConfigILM
@@ -110,7 +111,17 @@ if __debug__:
 optim = torch.optim.AdamW(model.parameters(), lr=5e-4, weight_decay=0.01)
 loss_fn = F.cross_entropy
 
-for epoch in range(10):
+loss_log = []
+curr_impatience = 0
+max_impatience = 6
+best_eval = float('inf')
+best_model = model.state_dict()
+best_optim = optim.state_dict()
+
+
+for epoch in range(15):
+    if curr_impatience >= max_impatience:
+        break
     running_loss = 0.0
     # --- train loop ---
     model.train()
@@ -129,11 +140,12 @@ for epoch in range(10):
             loss = loss_fn(output,label)
             loss.backward()
             optim.step()
-            
             running_loss += loss.item()
+            loss_log.append([epoch+1, i+1, loss.item(), 'train'])
+
             if (i % 10) == 9: # print every 10 mini-batches
-                print(f"[{epoch + 1:3d}, {i + 1:5d}] loss: {running_loss / 10:.4f}")
                 if __debug__:
+                    print(f"[{epoch + 1:3d}, {i + 1:5d}] loss: {running_loss / 10:.4f}")
                     print(f'[train] labelsize: {label.size()}, label: {label}')
                     print(f'[train] outputsize: {output.size()}, output: {torch.argmax(output,dim=1)}')
                 running_loss = 0.0
@@ -155,9 +167,20 @@ for epoch in range(10):
         loss = loss_fn(output, label)
         eval_loss += loss.item()
     eval_loss /= len(val_dl)
-    print(f"Epoch {epoch + 1:3d} validation loss: {eval_loss:.4f}")
+    if eval_loss < best_eval:
+        best_eval = eval_loss
+        best_model = model.state_dict()
+        best_optim = optim.state_dict()
+        curr_impatience = 0
+        print(f"Epoch {epoch + 1:3d} validation loss: {eval_loss:.4f} (new best)")
+    else:
+        curr_impatience += 1
+        print(f"Epoch {epoch + 1:3d} validation loss: {eval_loss:.4f} (stagnant)")
+
+    loss_log.append([epoch+1, 0, eval_loss, 'validation'])
 
 # test
+model.load_state_dict(best_model)
 model.eval()
 test_loss = 0.0
 for i, batch in enumerate(test_dl):
@@ -174,13 +197,18 @@ for i, batch in enumerate(test_dl):
     loss = loss_fn(output, label)
     test_loss += loss.item()
 test_loss /= len(test_dl)
+loss_log.append([0, 0, test_loss, 'test'])
 print(f"Test loss: {test_loss:.4f}")
 
 # saving
+
 time = time.strftime('%Y%m%d-%H%M%S')
 datapath['export'] /= time
 datapath['export'].mkdir(parents=True, exist_ok=True)
 model_outpath = datapath['export'] / ('model_resnet18_' + time + '.pt')
 optim_outpath = datapath['export'] / ('optimizer_resnet18_' + time + '.pt')
-torch.save(model.state_dict(),model_outpath)
-torch.save(optim.state_dict(),optim_outpath)
+loss_log_outpath = datapath['export'] / ('loss_log' + time + '.parquet')
+df = pd.DataFrame(loss_log, columns=['Epoch', 'Batch', 'Loss', 'Type'])
+df.to_parquet(loss_log_outpath, compression='gzip')
+torch.save(best_model,model_outpath)
+torch.save(best_optim,optim_outpath)
