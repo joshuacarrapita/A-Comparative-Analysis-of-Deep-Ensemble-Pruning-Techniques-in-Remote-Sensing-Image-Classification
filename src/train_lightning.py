@@ -8,8 +8,10 @@ from pathlib import Path
 from configilm import ConfigILM
 from configilm.ConfigILM import ILMConfiguration
 from configilm.ConfigILM import ILMType
-from configilm.extra.DataModules.BENv2_DataModule import BENv2_DataModule
+from configilm.extra.DataModules import BENv2_DataModule
 from configilm import util
+
+torch.backends.nnpack.enabled = False
 
 # General SETUP =============================================================
 
@@ -66,7 +68,7 @@ class LitImageEncoder(pl.LightningModule):
         self.model = ConfigILM.ConfigILM(config)
         self.val_output_list = []
         self.test_output_list = []
-        self.save_hyperparameters() # TODO: ignore=['loss_fn', 'config']?
+        self.save_hyperparameters() # TODO: ignore=['loss_fn', 'config']? Do I really have to include this saving at all or does the logger do it automatically?
 
     def configure_optimizers(self):
         # TODO: Shouldn't this be self.model.parameters()?
@@ -74,7 +76,7 @@ class LitImageEncoder(pl.LightningModule):
         return optimizer
 
     def training_step(self, batch, batch_idx):
-        img, label = batch_idx
+        img, label = batch
 
         # convert one-hot encoded label to class index (batch_size x classes label tensor to batch_size x 1 label tensor
         label = torch.argmax(label, dim=1)
@@ -118,7 +120,7 @@ class LitImageEncoder(pl.LightningModule):
         # self.test_output_list += [{"loss": loss, "outputs": output, "labels": label}] # in case I need the specific outputs and labels
         
     def on_test_epoch_start(self):
-        super.on_test_epoch_start()
+        super().on_test_epoch_start()
         self.test_output_list = []
 
     def on_test_epoch_end(self):
@@ -157,7 +159,7 @@ model_config = ILMConfiguration(
 model = LitImageEncoder(config=model_config, lr=lr)
 
 # generate lighting DataModule
-dm = BENv2_DataModule(
+dm = BENv2_DataModule.BENv2DataModule(
         data_dirs = datapath,
         img_size = (number_of_channels, image_size, image_size),
         batch_size = batch_size, # --> default 16 | TODO: Figure out good batch_size
@@ -165,20 +167,21 @@ dm = BENv2_DataModule(
         # num_workers_dataloader = num_workers, --> default is os.cpu_count() / 2 which I think is good
 )
 
-# dm.setup() # stage=None --> All datasets are loaded | TODO: maybe not necessary as trainer handles this?
+dm.prepare_data()
+dm.setup() # stage=None --> All datasets are loaded | TODO: maybe not necessary as trainer handles this?
 
 # instantiate trainer
 trainer = pl.Trainer(
-        max_epochs = epochs
+        max_epochs = epochs,
         accelerator = 'auto',
         devices = 'auto',
-        log_every_n_steps = 10
+        log_every_n_steps = 10,
         logger = True,
-        precision = 16 # for A100 GPUs (Automatic Mixed Precision)
+        precision = '16-mixed', # for A100 GPUs (Automatic Mixed Precision) TODO: /home/user/.pyenv/versions/ba_python_venv/lib/python3.11/site-packages/lightning/fabric/connector.py:571: `precision=16` is supported for historical reasons but its usage is discouraged. Please set your precision to 16-mixed instead!
         callbacks=[
         pl.callbacks.EarlyStopping(monitor="val/loss", patience=patience, mode="min"), 
         pl.callbacks.ModelCheckpoint(monitor="val/loss", mode="min", save_top_k=1), # saves best model
-        ]
+        ],
         default_root_dir=datapath['export'],
 )
 
@@ -189,7 +192,7 @@ trainer.fit(model, datamodule=dm)
 trainer.test(model, datamodule=dm) # automatically loads best model from checkpoint
 
 print('\nTraining complete.')
-print(f'Best model and logs saved in: {export_dir}')
+print(f'Best model and logs saved in: {datapath["export"]}')
 
 # SAVING ====================================================================
 
