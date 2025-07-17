@@ -112,14 +112,15 @@ optim = torch.optim.AdamW(model.parameters(), lr=5e-4, weight_decay=0.01)
 loss_fn = F.cross_entropy
 
 loss_log = []
+num_epochs = 10
 curr_impatience = 0
-max_impatience = 6
+max_impatience = 11
 best_eval = float('inf')
 best_model = model.state_dict()
 best_optim = optim.state_dict()
 
 
-for epoch in range(15):
+for epoch in range(num_epochs):
     if curr_impatience >= max_impatience:
         break
     running_loss = 0.0
