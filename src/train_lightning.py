@@ -125,10 +125,10 @@ def main():
         print(f'\n Seed set to {seed}.')
 
         # Validate Paths
-        assert datapath_args['images_lmdb'].is_dir(), f'Input directory does not exist or is not a directory: {datapath_args['images_lmdb']}'
-        assert datapath_args['metadata_parquet'].is_file(), f'Input file does not exist or is not a file: {datapath_args['metadata_parquet']}'
-        assert datapath_args['metadata_snow_cloud_parquet'].is_file(), f'Input file does not exist or is not a file: {datapath_args['metadata_snow_cloud_parquet']}'
-        assert not export_dir_root.is_file(), f'Export needs to be a directory but is a file: {export_dir_root}' 
+        assert datapath_args['images_lmdb'].is_dir(), f"Input directory does not exist or is not a directory: {datapath_args['images_lmdb']}"
+        assert datapath_args['metadata_parquet'].is_file(), f"Input file does not exist or is not a file: {datapath_args['metadata_parquet']}"
+        assert datapath_args['metadata_snow_cloud_parquet'].is_file(), f"Input file does not exist or is not a file: {datapath_args['metadata_snow_cloud_parquet']}"
+        assert not export_dir_root.is_file(), f"Export needs to be a directory but is a file: {export_dir_root}"
 
     except Exception as e:
         # Handle Input Errors
@@ -194,7 +194,7 @@ def main():
     trainer.test(model, datamodule=dm) # automatically loads best model from checkpoint
 
     print('\nTraining complete.')
-    print(f'Best model and logs saved in: {datapath_args['export']}')
+    print(f'Best model and logs saved in: {export_dir}')
 
 if __name__ == '__main__':
     main()
