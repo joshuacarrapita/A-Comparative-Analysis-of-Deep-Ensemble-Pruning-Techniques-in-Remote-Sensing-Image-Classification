@@ -2,6 +2,7 @@ import sys
 import time
 import torch
 import torch.nn.functional as F
+from torch.utils.tensorboard import SummaryWriter
 import pandas as pd
 from torch.utils.data import DataLoader
 
@@ -42,6 +43,10 @@ try:
                 assert not path.is_file(), f"Export needs to be a directory but is a file: {path}" 
 except Exception as e:
     sys.exit(f'\nAn error occured: {e}.\n\nUsage: python train.py /path/to/lmdb_dir/ /path/to/metadata.parquet /path/to/metadata_snow_cloud.parquet /path/to/export/dir/\n')
+
+time = time.strftime('%Y%m%d-%H%M%S')
+datapath['export'] /= time
+datapath['export'].mkdir(parents=True, exist_ok=True)
 
 image_model = "resnet18"
 number_of_channels = 3
@@ -119,11 +124,13 @@ best_eval = float('inf')
 best_model = model.state_dict()
 best_optim = optim.state_dict()
 
+writer = SummaryWriter(log_dir=datapath['export'])
 
 for epoch in range(num_epochs):
     if curr_impatience >= max_impatience:
         break
     running_loss = 0.0
+    loss_train_epoch = 0.0
     # --- train loop ---
     model.train()
     print(f'Starting epoch {epoch + 1:3d} with {len(train_dl):5d} batches:')
@@ -142,7 +149,9 @@ for epoch in range(num_epochs):
             loss.backward()
             optim.step()
             running_loss += loss.item()
-            loss_log.append([epoch+1, i+1, loss.item(), 'train'])
+            loss_train_epoch += loss.item()
+            writer.add_scalar(f"loss_train_step_epoch_{epoch+1}", loss.item(), i+1)
+            # loss_log.append([epoch+1, i+1, loss.item(), 'train'])
 
             if (i % 10) == 9: # print every 10 mini-batches
                 if __debug__:
@@ -150,6 +159,8 @@ for epoch in range(num_epochs):
                     print(f'[train] labelsize: {label.size()}, label: {label}')
                     print(f'[train] outputsize: {output.size()}, output: {torch.argmax(output,dim=1)}')
                 running_loss = 0.0
+    loss_train_epoch /= len(train_dl)
+    writer.add_scalar("loss_train_epoch", loss_train_epoch, epoch+1)
 
     # validation
     model.eval()
@@ -166,8 +177,10 @@ for epoch in range(num_epochs):
             print(f'[val] labelsize: {label.size()}, label: {label}')
             print(f'[val] outputsize: {output.size()}, output: {torch.argmax(output,dim=1)}')
         loss = loss_fn(output, label)
+        writer.add_scalar(f"loss_eval_step_epoch_{epoch+1}", loss.item(), i+1)
         eval_loss += loss.item()
     eval_loss /= len(val_dl)
+    writer.add_scalar(f"loss_eval_epoch", eval_loss, epoch+1)
     if eval_loss < best_eval:
         best_eval = eval_loss
         best_model = model.state_dict()
@@ -178,12 +191,14 @@ for epoch in range(num_epochs):
         curr_impatience += 1
         print(f"Epoch {epoch + 1:3d} validation loss: {eval_loss:.4f} (stagnant)")
 
-    loss_log.append([epoch+1, 0, eval_loss, 'validation'])
+    # loss_log.append([epoch+1, 0, eval_loss, 'validation'])
 
 # test
 model.load_state_dict(best_model)
 model.eval()
 test_loss = 0.0
+
+idx = 0
 for i, batch in enumerate(test_dl):
     img, label = batch
 
@@ -196,20 +211,22 @@ for i, batch in enumerate(test_dl):
         print(f'[test] labelsize: {label.size()}, label: {label}')
         print(f'[test] outputsize: {output.size()}, output: {torch.argmax(output,dim=1)}')
     loss = loss_fn(output, label)
+    
+    writer.add_scalar(f"loss_test_step_epoch_{epoch+1}", loss.item(), idx+1)
+    idx += 1
     test_loss += loss.item()
 test_loss /= len(test_dl)
-loss_log.append([0, 0, test_loss, 'test'])
+writer.add_scalar("loss_test_epoch", test_loss, epoch+1)
+# loss_log.append([0, 0, test_loss, 'test'])
 print(f"Test loss: {test_loss:.4f}")
 
 # saving
-
-time = time.strftime('%Y%m%d-%H%M%S')
-datapath['export'] /= time
-datapath['export'].mkdir(parents=True, exist_ok=True)
+writer.flush()
+writer.close()
 model_outpath = datapath['export'] / ('model_resnet18_' + time + '.pt')
 optim_outpath = datapath['export'] / ('optimizer_resnet18_' + time + '.pt')
-loss_log_outpath = datapath['export'] / ('loss_log' + time + '.parquet')
-df = pd.DataFrame(loss_log, columns=['Epoch', 'Batch', 'Loss', 'Type'])
-df.to_parquet(loss_log_outpath, compression='gzip')
+# loss_log_outpath = datapath['export'] / ('loss_log' + time + '.parquet')
+# df = pd.DataFrame(loss_log, columns=['Epoch', 'Batch', 'Loss', 'Type'])
+# df.to_parquet(loss_log_outpath, compression='gzip')
 torch.save(best_model,model_outpath)
 torch.save(best_optim,optim_outpath)
