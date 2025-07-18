@@ -3,6 +3,7 @@ import time
 import torch
 import torch.nn.functional as F
 import lightning.pytorch as pl
+from lightning.pytorch.loggers import TensorBoardLogger
 from pathlib import Path
 
 from configilm import ConfigILM, util
@@ -48,7 +49,7 @@ class LitImageEncoder(pl.LightningModule):
         output = self.model(img)
         loss = self.loss_fn(output, label)
 
-        self.log('train/loss', loss, on_step=True, on_epoch=True)
+        self.log('train_loss', loss, on_step=True, on_epoch=True)
         return {'loss': loss}
 
     def validation_step(self, batch, batch_idx):
@@ -60,7 +61,7 @@ class LitImageEncoder(pl.LightningModule):
         output = self.model(img)
         loss = self.loss_fn(output,label)
 
-        self.log('val/loss', loss, on_epoch=True) 
+        self.log('val_loss', loss, on_epoch=True) 
        
     def test_step(self, batch, batch_idx):
         img, label = batch
@@ -71,7 +72,7 @@ class LitImageEncoder(pl.LightningModule):
         output = self.model(img)
         loss = self.loss_fn(output,label)
 
-        self.log('test/loss', loss, on_epoch=True) 
+        self.log('test_loss', loss, on_epoch=True) 
         
     def forward(self, batch):
         # because we are a wrapper, we call the inner function manually
@@ -151,21 +152,23 @@ def main():
             # num_workers_dataloader = num_workers, --> default is os.cpu_count() / 2 which I think is good
     )
 
+    # Instantiate Logger
+    logger = TensorBoardLogger(export_dir)
+
     # Instantiate Trainer
     trainer = pl.Trainer(
             max_epochs = epochs,
             accelerator = 'auto',
             devices = 'auto',
             log_every_n_steps = 10,
-            logger = True,
+            logger = logger,
             precision = '16-mixed', # for A100 GPUs (Automatic Mixed Precision) TODO: /home/user/.pyenv/versions/ba_python_venv/lib/python3.11/site-packages/lightning/fabric/connector.py:571: `precision=16` is supported for historical reasons but its usage is discouraged. Please set your precision to 16-mixed instead!
             callbacks=[
-            pl.callbacks.EarlyStopping(monitor='val/loss', patience=patience, mode='min'), 
-            pl.callbacks.ModelCheckpoint(monitor='val/loss', mode='min', save_top_k=1), # saves best model
+            pl.callbacks.EarlyStopping(monitor='val_loss', patience=patience, mode='min'), 
+            pl.callbacks.ModelCheckpoint(monitor='val_loss', mode='min', save_top_k=1), # saves best model
             ],
             default_root_dir=export_dir,
     )
-
 
     # --- Training And Testing ---
     trainer.fit(model, datamodule=dm)
