@@ -22,7 +22,7 @@ class LitImageEncoder(pl.LightningModule):
     def __init__(
         self,
         config: ConfigILM.ILMConfiguration,
-        lr: float = 1e-3,
+        lr: float = 5e-4,
         loss_fn: callable = F.cross_entropy,
     ):
         super().__init__()
@@ -33,10 +33,9 @@ class LitImageEncoder(pl.LightningModule):
         self.test_output_list = []
 
         self.loss_fn = loss_fn
-        self.save_hyperparameters() # TODO: ignore=['loss_fn', 'config']? Do I really have to include this saving at all or does the logger do it automatically?
+        self.save_hyperparameters() 
 
     def configure_optimizers(self):
-        # TODO: Shouldn't this be self.model.parameters()?
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=0.01)
         return optimizer
 
@@ -49,7 +48,7 @@ class LitImageEncoder(pl.LightningModule):
         output = self.model(img)
         loss = self.loss_fn(output, label)
 
-        self.log('train/loss', loss, prog_bar=True, on_step=True, on_epoch=True)
+        self.log('train/loss', loss, on_step=True, on_epoch=True)
         return {'loss': loss}
 
     def validation_step(self, batch, batch_idx):
@@ -61,19 +60,8 @@ class LitImageEncoder(pl.LightningModule):
         output = self.model(img)
         loss = self.loss_fn(output,label)
 
-        self.val_output_list.append({'loss': loss})
-        # self.val_output_list += [{'loss': loss, 'outputs': output, 'labels': label}] # in case I need the specific outputs and labels
-        # TODO: self.log('val/loss', loss, prog_bar=True, on_epoch=True, sync_dist=True)?
-
-    def on_validation_epoch_start(self):
-        super().on_validation_epoch_start()
-        self.val_output_list = []
-
-    def on_validation_epoch_end(self):
-        avg_loss = torch.stack([x['loss'] for x in self.val_output_list]).mean()
-        self.log('val/loss', avg_loss, prog_bar=True, on_epoch=True) 
-        # self.log('val/loss', avg_loss, prog_bar=True, on_epoch=True, sync_dist=True) # sync_dist (bool) – if True, reduces the metric across devices. Use with care as this may lead to a significant communication overhead.
-        
+        self.log('val/loss', loss, on_epoch=True) 
+       
     def test_step(self, batch, batch_idx):
         img, label = batch
 
@@ -82,18 +70,9 @@ class LitImageEncoder(pl.LightningModule):
 
         output = self.model(img)
         loss = self.loss_fn(output,label)
-        self.test_output_list.append({'loss': loss})
-        # self.test_output_list += [{'loss': loss, 'outputs': output, 'labels': label}] # in case I need the specific outputs and labels
+
+        self.log('test/loss', loss, on_epoch=True) 
         
-    def on_test_epoch_start(self):
-        super().on_test_epoch_start()
-        self.test_output_list = []
-
-    def on_test_epoch_end(self):
-        avg_loss = torch.stack([x['loss'] for x in self.test_output_list]).mean()
-        self.log('test/loss', avg_loss, prog_bar=True)
-        # self.log('test/loss', avg_loss, prog_bar=True, sync_dist=True)
-
     def forward(self, batch):
         # because we are a wrapper, we call the inner function manually
         return self.model(batch)
@@ -161,7 +140,7 @@ def main():
     )
 
     # Retrieve Model
-    model = LitImageEncoder(config=model_config, lr=lr)
+    model = LitImageEncoder(config=model_config, lr=lr, loss_fn=F.cross_entropy)
 
     # Generate Lighting DataModule
     dm = BENv2_DataModule.BENv2DataModule(
