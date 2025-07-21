@@ -115,6 +115,7 @@ if __debug__:
 
 optim = torch.optim.AdamW(model.parameters(), lr=5e-4, weight_decay=0.01)
 loss_fn = F.cross_entropy
+# TODO: Do I also need to make sure the output values lie in a certain interval?
 
 loss_log = []
 num_epochs = 10
@@ -131,26 +132,31 @@ for epoch in range(num_epochs):
         break
     running_loss = 0.0
     loss_train_epoch = 0.0
+    acc_train_epoch = 0.0
     # --- train loop ---
     model.train()
     print(f'Starting epoch {epoch + 1:3d} with {len(train_dl):5d} batches:')
     with alive_bar (len(train_dl)) as bar:
         for i, batch in enumerate(train_dl):
             bar()
+            correct = 0
             img, label = batch
 
             # convert batch_size x classes label tensor to 
             # batch_size x 1 label tensor
-            label = torch.argmax(label, dim=1)
+            label = torch.argmax(label, dim=1) # 32 x 1
 
             optim.zero_grad()
-            output = model(img)
+            output = model(img) # 32 x C (#classes)
+            correct += (torch.argmax(output,dim=1) == label).float().sum()
+            acc_train_epoch += (100 * correct / output.shape[0])
+            print(f"\nacc train: {acc_train_epoch/(i+1)}, corr: {correct}, tot: {output.shape[0]}, i+1: {i+1}")
             loss = loss_fn(output,label)
             loss.backward()
             optim.step()
             running_loss += loss.item()
             loss_train_epoch += loss.item()
-            writer.add_scalar(f"loss_train_step_epoch_{epoch+1}", loss.item(), i+1)
+            # writer.add_scalar(f"loss_train_step_epoch_{epoch+1}", loss.item(), i+1)
             # loss_log.append([epoch+1, i+1, loss.item(), 'train'])
 
             if (i % 10) == 9: # print every 10 mini-batches
@@ -159,27 +165,42 @@ for epoch in range(num_epochs):
                     print(f'[train] labelsize: {label.size()}, label: {label}')
                     print(f'[train] outputsize: {output.size()}, output: {torch.argmax(output,dim=1)}')
                 running_loss = 0.0
-    loss_train_epoch /= len(train_dl)
+    loss_train_epoch /= len(train_dl) 
+    acc_train_epoch /= len(train_dl)
+    print(f"\nacc train: {acc_train_epoch}")
+    writer.add_scalar("acc_train_epoch", acc_train_epoch, epoch+1)
     writer.add_scalar("loss_train_epoch", loss_train_epoch, epoch+1)
 
     # validation
     model.eval()
     eval_loss = 0.0
+    acc_val_epoch = 0.0
+    
     for i, batch in enumerate(val_dl):
         img, label = batch
+        correct = 0
 
         # convert batch_size x classes label tensor to 
         # batch_size x 1 label tensor
         label = torch.argmax(label, dim=1)
 
         output = model(img)
+
+        correct += (torch.argmax(output,dim=1) == label).float().sum()
+        acc_val_epoch += (100 * correct / output.shape[0])
+        print(f"\nacc val: {acc_val_epoch/(i+1)}, corr: {correct}, tot: {output.shape[0]}, i+1: {i+1}")
+        writer.add_scalar(f"acc_val_batch_epoch-{epoch+1}", acc_val_epoch/(i+1), i+1)
+
         if __debug__:
             print(f'[val] labelsize: {label.size()}, label: {label}')
             print(f'[val] outputsize: {output.size()}, output: {torch.argmax(output,dim=1)}')
         loss = loss_fn(output, label)
-        writer.add_scalar(f"loss_eval_step_epoch_{epoch+1}", loss.item(), i+1)
+        # writer.add_scalar(f"loss_eval_step_epoch_{epoch+1}", loss.item(), i+1)
         eval_loss += loss.item()
     eval_loss /= len(val_dl)
+    acc_val_epoch /= len(val_dl)
+    print(f"\nacc val: {acc_val_epoch}")
+    writer.add_scalar("acc_val_epoch", acc_val_epoch, epoch+1)
     writer.add_scalar(f"loss_eval_epoch", eval_loss, epoch+1)
     if eval_loss < best_eval:
         best_eval = eval_loss
@@ -197,10 +218,12 @@ for epoch in range(num_epochs):
 model.load_state_dict(best_model)
 model.eval()
 test_loss = 0.0
+acc_test_epoch = 0.0
 
-idx = 0
+# idx = 0
 for i, batch in enumerate(test_dl):
     img, label = batch
+    correct = 0
 
     # convert batch_size x classes label tensor to 
     # batch_size x 1 label tensor
@@ -210,13 +233,22 @@ for i, batch in enumerate(test_dl):
     if __debug__:
         print(f'[test] labelsize: {label.size()}, label: {label}')
         print(f'[test] outputsize: {output.size()}, output: {torch.argmax(output,dim=1)}')
+
+    correct += (torch.argmax(output,dim=1) == label).float().sum()
+    acc_test_epoch += (100 * correct / output.shape[0])
+    print(f"\nacc test: {acc_test_epoch/(i+1)}, corr: {correct}, tot: {output.shape[0]}, i+1: {i+1}")
+    writer.add_scalar(f"acc_test_batch_epoch-{epoch+1}", acc_test_epoch/(i+1), i+1)
+
     loss = loss_fn(output, label)
     
-    writer.add_scalar(f"loss_test_step_epoch_{epoch+1}", loss.item(), idx+1)
-    idx += 1
+#   writer.add_scalar(f"loss_test_step_epoch_{epoch+1}", loss.item(), idx+1)
+#    idx += 1
     test_loss += loss.item()
 test_loss /= len(test_dl)
-writer.add_scalar("loss_test_epoch", test_loss, epoch+1)
+acc_test_epoch /= len(test_dl)
+print(f"\nacc test: {acc_test_epoch}")
+writer.add_scalar("acc_test", acc_test_epoch, epoch+1)
+writer.add_scalar("loss_test", test_loss, epoch+1)
 # loss_log.append([0, 0, test_loss, 'test'])
 print(f"Test loss: {test_loss:.4f}")
 
