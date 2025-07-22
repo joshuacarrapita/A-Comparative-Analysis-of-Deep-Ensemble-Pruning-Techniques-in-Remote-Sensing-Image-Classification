@@ -150,13 +150,14 @@ for epoch in range(num_epochs):
             output = model(img) # 32 x C (#classes)
             correct += (torch.argmax(output,dim=1) == label).float().sum()
             acc_train_epoch += (100 * correct / output.shape[0])
-            print(f"\nacc train: {acc_train_epoch/(i+1)}, corr: {correct}, tot: {output.shape[0]}, i+1: {i+1}")
+            if __debug__: print(f"\nacc train: {acc_train_epoch/(i+1)}, corr: {correct}, tot: {output.shape[0]}, i+1: {i+1}")
+            writer.add_scalar(f"acc_train_batch_epoch-{epoch+1}", acc_train_epoch/(i+1), i+1)
             loss = loss_fn(output,label)
             loss.backward()
             optim.step()
             running_loss += loss.item()
             loss_train_epoch += loss.item()
-            # writer.add_scalar(f"loss_train_step_epoch_{epoch+1}", loss.item(), i+1)
+            writer.add_scalar(f"loss_train_step_epoch-{epoch+1}", loss.item(), i+1)
             # loss_log.append([epoch+1, i+1, loss.item(), 'train'])
 
             if (i % 10) == 9: # print every 10 mini-batches
@@ -188,7 +189,7 @@ for epoch in range(num_epochs):
 
         correct += (torch.argmax(output,dim=1) == label).float().sum()
         acc_val_epoch += (100 * correct / output.shape[0])
-        print(f"\nacc val: {acc_val_epoch/(i+1)}, corr: {correct}, tot: {output.shape[0]}, i+1: {i+1}")
+        if __debug__: print(f"\nacc val: {acc_val_epoch/(i+1)}, corr: {correct}, tot: {output.shape[0]}, i+1: {i+1}")
         writer.add_scalar(f"acc_val_batch_epoch-{epoch+1}", acc_val_epoch/(i+1), i+1)
 
         if __debug__:
@@ -201,7 +202,7 @@ for epoch in range(num_epochs):
     acc_val_epoch /= len(val_dl)
     print(f"\nacc val: {acc_val_epoch}")
     writer.add_scalar("acc_val_epoch", acc_val_epoch, epoch+1)
-    writer.add_scalar(f"loss_eval_epoch", eval_loss, epoch+1)
+    writer.add_scalar(f"loss_val_epoch", eval_loss, epoch+1)
     if eval_loss < best_eval:
         best_eval = eval_loss
         best_model = model.state_dict()
@@ -236,7 +237,7 @@ for i, batch in enumerate(test_dl):
 
     correct += (torch.argmax(output,dim=1) == label).float().sum()
     acc_test_epoch += (100 * correct / output.shape[0])
-    print(f"\nacc test: {acc_test_epoch/(i+1)}, corr: {correct}, tot: {output.shape[0]}, i+1: {i+1}")
+    if __debug__: print(f"\nacc test: {acc_test_epoch/(i+1)}, corr: {correct}, tot: {output.shape[0]}, i+1: {i+1}")
     writer.add_scalar(f"acc_test_batch_epoch-{epoch+1}", acc_test_epoch/(i+1), i+1)
 
     loss = loss_fn(output, label)
