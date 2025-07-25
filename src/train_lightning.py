@@ -49,6 +49,10 @@ class LitImageEncoder(pl.LightningModule):
         output = self.model(img)
         loss = self.loss_fn(output, label)
 
+        correct = (torch.argmax(output,dim=1) == label).float().sum()
+        acc = 100 * correct / output.shape[0]
+
+        self.log('train_acc', acc, on_step=True, on_epoch=True)
         self.log('train_loss', loss, on_step=True, on_epoch=True)
         return {'loss': loss}
 
@@ -61,6 +65,10 @@ class LitImageEncoder(pl.LightningModule):
         output = self.model(img)
         loss = self.loss_fn(output,label)
 
+        correct = (torch.argmax(output,dim=1) == label).float().sum()
+        acc = 100 * correct / output.shape[0]
+
+        self.log('val_acc', acc, on_epoch=True)
         self.log('val_loss', loss, on_epoch=True) 
        
     def test_step(self, batch, batch_idx):
@@ -72,6 +80,10 @@ class LitImageEncoder(pl.LightningModule):
         output = self.model(img)
         loss = self.loss_fn(output,label)
 
+        correct = (torch.argmax(output,dim=1) == label).float().sum()
+        acc = 100 * correct / output.shape[0]
+
+        self.log('test_acc', acc, on_epoch=True)
         self.log('test_loss', loss, on_epoch=True) 
         
     def forward(self, batch):
