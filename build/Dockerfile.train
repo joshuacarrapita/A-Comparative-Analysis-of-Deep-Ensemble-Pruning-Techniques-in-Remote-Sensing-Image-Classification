@@ -12,4 +12,4 @@ RUN pip install --no-cache-dir -r /app/build/requirements_train.txt
 COPY src/train.py /app/src/train.py
 
 # Define entrypoint
-CMD ["python","/app/src/train.py"]
+CMD ["python", "-O", "src/train.py", "data/BENv2.lmdb/", "data/metadata.parquet", "data/metadata_for_patches_with_snow_cloud_or_shadow.parquet", "models/"]
