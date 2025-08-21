@@ -1,3 +1,4 @@
+import os
 import sys
 import time
 import torch
@@ -138,7 +139,7 @@ def main():
     epochs = 10
     batch_size = 32
     patience = 6
-    num_workers = 12 # experiment with this value to find most efficient cpu utilization
+    num_workers = max(1,min(os.cpu_count()-1,8)) # experiment with this value to find most efficient cpu utilization
 
     # Set Seed For Reproducibility
     pl.seed_everything(seed, workers=True)
@@ -161,7 +162,7 @@ def main():
             img_size = (number_of_channels, image_size, image_size),
             batch_size = batch_size, # --> default 16 | TODO: Figure out good batch_size
             # shuffle = None, --> default is None
-            # num_workers_dataloader = num_workers, --> default is os.cpu_count() / 2 which I think is good
+            num_workers_dataloader = num_workers, # --> default is os.cpu_count() / 2 which I think is good
     )
 
     # Instantiate Logger
@@ -172,6 +173,7 @@ def main():
             max_epochs = epochs,
             accelerator = 'auto',
             devices = 'auto',
+            strategy = 'auto',
             log_every_n_steps = 10,
             logger = logger,
             precision = '16-mixed', # for A100 GPUs (Automatic Mixed Precision) TODO: /home/user/.pyenv/versions/ba_python_venv/lib/python3.11/site-packages/lightning/fabric/connector.py:571: `precision=16` is supported for historical reasons but its usage is discouraged. Please set your precision to 16-mixed instead!
@@ -181,6 +183,28 @@ def main():
             ],
             default_root_dir=export_dir,
     )
+
+    # --- CPU/GPU INFO ---
+    if torch.cuda.is_available():
+        print(f"CUDA available: TRUE")
+        print(f"Number of GPUs available: {torch.cuda.device_count()}")
+        for i in range(torch.cuda.device_count()):
+            print(f"GPU {i}: {torch.cuda.get_device_name(i)}")
+            
+            # Get and print memory information for each GPU
+            total_memory = torch.cuda.get_device_properties(i).total_memory / (1024**3)
+            allocated_memory = torch.cuda.memory_allocated(i) / (1024**3)
+            cached_memory = torch.cuda.memory_cached(i) / (1024**3)
+            
+            print(f"  Total memory: {total_memory:.2f} GB")
+            print(f"  Allocated memory: {allocated_memory:.2f} GB")
+            print(f"  Cached memory: {cached_memory:.2f} GB")
+    else:
+        print(f"CUDA available: FALSE")
+        print("No GPUs found. Training on CPU.")
+
+    print(f"Number of workers dataloader: {dm.num_workers_dataloader}")
+    print(f"OS CPU count: {os.cpu_count()}")
 
     # --- Training And Testing ---
     trainer.fit(model, datamodule=dm)
