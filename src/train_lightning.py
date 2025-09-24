@@ -163,6 +163,8 @@ def main():
             batch_size = batch_size, # --> default 16 | TODO: Figure out good batch_size
             # shuffle = None, --> default is None
             num_workers_dataloader = num_workers, # --> default is os.cpu_count() / 2 which I think is good
+            bagging = True,
+            seed = seed,
     )
 
     # Instantiate Logger
@@ -213,6 +215,10 @@ def main():
 
     print('\nTraining complete.')
     print(f'Best model and logs saved in: {export_dir}')
+
+    if __debug__:
+        dm.save_dataset((export_dir / datasets))
+        print(f'Datasets saved in: {(export_dir / datasets)}')
 
 if __name__ == '__main__':
     main()
