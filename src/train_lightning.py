@@ -217,8 +217,10 @@ def main():
     print(f'Best model and logs saved in: {export_dir}')
 
     if __debug__:
-        dm.save_dataset((export_dir / datasets))
-        print(f'Datasets saved in: {(export_dir / datasets)}')
+        export_dir = export_dir / "datasets"
+        export_dir.mkdir(parents=True, exist_ok=True)
+        dm.save_metadata(export_dir)
+        print(f'Datasets saved in: {export_dir}')
 
 if __name__ == '__main__':
     main()
