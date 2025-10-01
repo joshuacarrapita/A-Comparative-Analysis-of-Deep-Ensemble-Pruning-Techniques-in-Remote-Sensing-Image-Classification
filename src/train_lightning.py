@@ -209,6 +209,13 @@ def main():
     print(f"Number of workers dataloader: {dm.num_workers_dataloader}")
     print(f"OS CPU count: {os.cpu_count()}")
 
+    if __debug__:
+        export_dir = export_dir / "datasets"
+        export_dir.mkdir(parents=True, exist_ok=True)
+        dm.setup()
+        dm.save_metadata(export_dir)
+        print(f'Datasets saved in: {export_dir}')
+
     # --- Training And Testing ---
     trainer.fit(model, datamodule=dm)
 
@@ -216,12 +223,6 @@ def main():
 
     print('\nTraining complete.')
     print(f'Best model and logs saved in: {export_dir}')
-
-    if __debug__:
-        export_dir = export_dir / "datasets"
-        export_dir.mkdir(parents=True, exist_ok=True)
-        dm.save_metadata(export_dir)
-        print(f'Datasets saved in: {export_dir}')
 
 if __name__ == '__main__':
     main()
