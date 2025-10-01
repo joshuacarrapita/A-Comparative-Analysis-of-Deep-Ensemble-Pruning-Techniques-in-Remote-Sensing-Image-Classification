@@ -142,7 +142,7 @@ def main():
     num_workers = max(1,min(os.cpu_count()-1,8)) # experiment with this value to find most efficient cpu utilization
 
     # Set Seed For Reproducibility
-    pl.seed_everything(seed, workers=True)
+    pl.seed_everything(seed, workers=True) # Function that sets seed for pseudo-random number generators in: pytorch, numpy, python.random 
 
     # Instantiate Model Config
     model_config = ILMConfiguration(
@@ -184,6 +184,7 @@ def main():
             pl.callbacks.ModelCheckpoint(monitor='val_loss', mode='min', save_top_k=1), # saves best model
             ],
             default_root_dir=export_dir,
+            deterministic=True,
     )
 
     # --- CPU/GPU INFO ---
