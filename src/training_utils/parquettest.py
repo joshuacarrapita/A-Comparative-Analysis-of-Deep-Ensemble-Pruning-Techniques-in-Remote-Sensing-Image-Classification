@@ -17,11 +17,13 @@ except Exception as e:
 if optarg == '--full':
     df = pd.read_parquet(parquet_path)
     print(df.to_string())
+    print(f'Items: {len(df)}')
     exit()
 elif optarg == '--unique':
     df = pd.read_parquet(parquet_path,columns=['patch_id','labels'])
-    df = df.drop_duplicates(subset='patch_id', keep=False)
+    df = df.drop_duplicates(subset='patch_id', keep="first")
 else:
     df = pd.read_parquet(parquet_path,columns=['patch_id','labels'])
 
 print(df)
+print(f'Items: {len(df)}')
