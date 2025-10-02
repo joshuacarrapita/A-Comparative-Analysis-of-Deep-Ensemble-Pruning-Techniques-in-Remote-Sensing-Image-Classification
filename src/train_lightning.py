@@ -38,7 +38,7 @@ class LitImageEncoder(pl.LightningModule):
         self.save_hyperparameters() 
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=0.01)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=0.01) # TODO add passing of optimizer in init
         return optimizer
 
     def training_step(self, batch, batch_idx):
@@ -65,6 +65,7 @@ class LitImageEncoder(pl.LightningModule):
 
         output = self.model(img)
         loss = self.loss_fn(output,label)
+        # TODO add custom weights here and in the other steps like so: loss = loss_fn(logits, y, weight=self.custom_weights)
 
         correct = (torch.argmax(output,dim=1) == label).float().sum()
         acc = 100 * correct / output.shape[0]
@@ -154,7 +155,7 @@ def main():
     )
 
     # Retrieve Model
-    model = LitImageEncoder(config=model_config, lr=lr, loss_fn=F.cross_entropy)
+    model = LitImageEncoder(config=model_config, lr=lr, loss_fn=F.cross_entropy) # TODO change to loss_fn=loss_fn? and add passing of custom weights)
 
     # Generate Lighting DataModule
     dm = BENv2_DataModule.BENv2DataModule(
@@ -162,6 +163,7 @@ def main():
             img_size = (number_of_channels, image_size, image_size),
             batch_size = batch_size, # --> default 16 | TODO: Figure out good batch_size
             # shuffle = None, --> default is None
+            # train_transforms = None,
             num_workers_dataloader = num_workers, # --> default is os.cpu_count() / 2 which I think is good
             bagging = True,
             seed = seed,
