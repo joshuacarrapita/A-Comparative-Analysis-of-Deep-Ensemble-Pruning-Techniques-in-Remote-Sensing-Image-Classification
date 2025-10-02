@@ -69,24 +69,126 @@ class TrainLightningConfiguration:
         # etc.: str = #TODO,
 
         # loss functions (e.g. different class weights, functions(dice, focal))
-        loss_fn: str = #TODO,
-        class_weights: dict[str] = #TODO,
+        loss_fn: callable = F.cross_entropy,
+        class_weights: Optional[torch.Tensor] = None,
         # etc.: str = #TODO,
 
         # optimizers 
         patience: int = 6,
-        optimizer: str = #TODO,
+        optimizer: callable = torch.optim.AdamW,
         # etc.: str = #TODO,
     ):
         """
-        This configuration class is designed to work with the train_lightning training script. 
+        This configuration class is designed to work with the train_lightning training script.
 
-        :param seed: Random seed for bagging for reproducibility, default is 42.
+        :param seed: Random seed for ensuring reproducibility across runs. This affects
+            weight initialization, dropout, and data shuffling.
 
             :default: 42
+
+        :param lr: The learning rate for the optimizer. It controls how much the model's
+            weights are adjusted with respect to the loss gradient.
+
+            :default: 5e-4
+
+        :param batch_size: The number of samples processed before the model is updated.
+
+            :default: 32
+
+        :param v_dropout_rate: Dropout rate for the visual branch of the model. Dropout is a
+            regularization technique to prevent overfitting.
+
+            :default: 0.25
+
+        :param t_dropout_rate: Dropout rate for the text branch of the model.
+
+            :default: 0.25
+
+        :param fusion_dropout_rate: Dropout rate applied after the fusion of multimodal features.
+
+            :default: 0.25
+
+        :param drop_rate: General dropout rate for layers within the model architecture,
+            if applicable.
+
+            :default: 0.2
+
+        :param drop_path_rate: Stochastic depth rate. If None, no drop path is applied.
+            Drop path randomly drops entire residual blocks during training.
+
+            :default: None
+
+        :param fusion_in: The number of input features to the fusion layer.
+
+            :default: 512
+
+        :param fusion_out: The number of output features from the fusion layer. If None,
+            the output dimension is the same as fusion_in.
+
+            :default: None
+
+        :param fusion_hidden: The number of neurons in the hidden layer of the final
+            classification head.
+
+            :default: 256
+
+        :param custom_fusion_method: A custom function or method to fuse tensors. If None,
+            a default fusion strategy should be implemented in the model.
+
+            :default: None
+
+        :param custom_fusion_activation: A custom activation function to apply after fusion.
+            If None, a default activation may be used or none at all.
+
+            :default: None
+
+        :param train_transforms: A callable (e.g., torchvision.transforms.Compose) for
+            training data augmentation. If None, default or no transformations are applied.
+
+            :default: None
+
+        :param shuffle: Whether to shuffle the training data. If None, the data is typically
+            shuffled for training and not for validation. Manual setting is not recommended.
+
+            :default: None
+
+        :param loss_fn: The loss function to use for training.
+
+            :default: F.cross_entropy
+
+        :param class_weights: A tensor of weights to apply to each class in the loss function,
+            useful for imbalanced datasets. If None, all classes are weighted equally.
+
+            :default: None
+
+        :param patience: Number of epochs to wait for improvement on the validation metric
+            before stopping the training early.
+
+            :default: 6
+
+        :param optimizer: The optimizer class to use for training.
+
+            :default: torch.optim.AdamW
         """
-        self.data_dirs = data_dirs
+        
+        self.seed = seed
+        self.lr = lr
         self.batch_size = batch_size
+        self.v_dropout_rate = v_dropout_rate
+        self.t_dropout_rate = t_dropout_rate
+        self.fusion_dropout_rate = fusion_dropout_rate
+        self.drop_rate = drop_rate
+        self.drop_path_rate = drop_path_rate
+        self.fusion_in = fusion_in
+        self.fusion_out = fusion_out
+        self.fusion_hidden = fusion_hidden
+        self.custom_fusion_method = custom_fusion_method
+        self.custom_fusion_activation = custom_fusion_activation
+        self.train_transforms = train_transforms
+        self.loss_fn = loss_fn
+        self.class_weights = class_weights
+        self.patience = patience
+        self.optimizer = optimizer
 
         self.shuffle = shuffle
         if self.shuffle is not None:
