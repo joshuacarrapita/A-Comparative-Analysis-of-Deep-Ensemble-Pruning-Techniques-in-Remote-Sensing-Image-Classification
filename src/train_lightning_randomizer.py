@@ -79,98 +79,113 @@ class TrainLightningConfiguration:
         # etc.: str = #TODO,
     ):
         """
-        This configuration class is designed to work with the train_lightning training script.
+            This configuration class is designed to work with the train_lightning training script.
 
-        :param seed: Random seed for ensuring reproducibility across runs. This affects
-            weight initialization, dropout, and data shuffling.
+            :param seed: Random seed for reproducibility.
 
-            :default: 42
+                :default: 42
 
-        :param lr: The learning rate for the optimizer. It controls how much the model's
-            weights are adjusted with respect to the loss gradient.
+            :param lr: The learning rate for the optimizer.
 
-            :default: 5e-4
+                :default: 5e-4
 
-        :param batch_size: The number of samples processed before the model is updated.
+            :param batch_size: The batch size to use for the dataloaders.
 
-            :default: 32
+                :default: 32
 
-        :param v_dropout_rate: Dropout rate for the visual branch of the model. Dropout is a
-            regularization technique to prevent overfitting.
+            :param v_dropout_rate: Dropout rate of the mapping from the timm image model to
+                the dimension of the fusion method.
 
-            :default: 0.25
+                :default: 0.25
 
-        :param t_dropout_rate: Dropout rate for the text branch of the model.
+            :param t_dropout_rate: Dropout rate of the mapping from the huggingface text
+                model to the dimension of the fusion method.
 
-            :default: 0.25
+                :default: 0.25
 
-        :param fusion_dropout_rate: Dropout rate applied after the fusion of multimodal features.
+            :param fusion_dropout_rate: Drop rate inside all classification head layers.
 
-            :default: 0.25
+                :default: 0.25
 
-        :param drop_rate: General dropout rate for layers within the model architecture,
-            if applicable.
+            :param drop_rate: Dropout rate for timm models.
 
-            :default: 0.2
+                :default: 0.2
 
-        :param drop_path_rate: Stochastic depth rate. If None, no drop path is applied.
-            Drop path randomly drops entire residual blocks during training.
+            :param drop_path_rate: Drop path rate for timm models.
 
-            :default: None
+                :default: None
 
-        :param fusion_in: The number of input features to the fusion layer.
+            :param fusion_in: Input dimension to the fusion method.
 
-            :default: 512
+                :default: 512
 
-        :param fusion_out: The number of output features from the fusion layer. If None,
-            the output dimension is the same as fusion_in.
+            :param fusion_out: Output dimension of the fusion method. If None, output will
+                be same as input (e.g. for point-wise operations).
 
-            :default: None
+                :default: None
 
-        :param fusion_hidden: The number of neurons in the hidden layer of the final
-            classification head.
+            :param fusion_hidden: Number of neurons inside the hidden layer of the
+                classification head.
 
-            :default: 256
+                :default: 256
 
-        :param custom_fusion_method: A custom function or method to fuse tensors. If None,
-            a default fusion strategy should be implemented in the model.
+            :param custom_fusion_method: Fusion method to combine text and image features. Callable
+                with two inputs (tensor, tensor) and a single output (tensor) where each
+                tensor is single dimension (plus batch dimension). First input is flatten
+                output of image model with dimension fusion_in, second input is flatten
+                output of the text model with dimension fusion_in. Output should have the
+                dimension fusion_out. Only used for initialization. After initialization, the
+                fusion method is accessible via the fusion_method property.
+                If a custom function is used, it has to be a callable with two inputs (tensor, tensor) and a single output
+                (tensor) where each tensor is single dimension (plus batch dimension). The fusion method is then
+                passed as a tuple (str, f) where str is the string representation of the function and f is the
+                callable, e.g. ("mul", torch.mul).
 
-            :default: None
+                :default: None
 
-        :param custom_fusion_activation: A custom activation function to apply after fusion.
-            If None, a default activation may be used or none at all.
+            :param custom_fusion_activation: Activation function inside all classification head
+                layers. Only used for initialization. After initialization, the fusion activation is
+                accessible via the fusion_activation property. Default options from torch.nn or torch.nn.functional
+                can be used as strings (e.g. "nn.Tanh()") or as callables (e.g. nn.Tanh()).
+                If a custom
+                function is used, it has to be a callable with a single input (tensor) and a single output
+                (tensor) where the input tensor is single dimension (plus batch dimension). The activation is then
+                passed as a tuple (str, m) where str is the string representation of the function and m is the
+                callable, which has to be a torch.nn.Module and initialized with the correct parameters, e.g.
+                ("tanh", nn.Tanh()).
 
-            :default: None
+                :default: None
 
-        :param train_transforms: A callable (e.g., torchvision.transforms.Compose) for
-            training data augmentation. If None, default or no transformations are applied.
+            :param train_transforms: A callable that is used to transform the training images.
+                If None is provided, the default train transform is used, that consists of
+                resizing, horizontal and vertical flipping and normalization.
 
-            :default: None
+                :default: None
 
-        :param shuffle: Whether to shuffle the training data. If None, the data is typically
-            shuffled for training and not for validation. Manual setting is not recommended.
+            :param shuffle: Whether to shuffle the data. If None is provided, the data is shuffled
+                for training and not shuffled for validation and test.
 
-            :default: None
+                :default: None
 
-        :param loss_fn: The loss function to use for training.
+            :param loss_fn: The loss function to use for training.
 
-            :default: F.cross_entropy
+                :default: F.cross_entropy
 
-        :param class_weights: A tensor of weights to apply to each class in the loss function,
-            useful for imbalanced datasets. If None, all classes are weighted equally.
+            :param class_weights: A manual rescaling weight given to each class. If given,
+                has to be a Tensor of size C (number of classes).
 
-            :default: None
+                :default: None
 
-        :param patience: Number of epochs to wait for improvement on the validation metric
-            before stopping the training early.
+            :param patience: Number of epochs with no improvement after which training may be stopped.
+                Used for EarlyStopping callbacks.
 
-            :default: 6
+                :default: 6
 
-        :param optimizer: The optimizer class to use for training.
+            :param optimizer: The optimizer algorithm to use for training the model.
 
-            :default: torch.optim.AdamW
+                :default: torch.optim.AdamW
         """
-        
+
         self.seed = seed
         self.lr = lr
         self.batch_size = batch_size
