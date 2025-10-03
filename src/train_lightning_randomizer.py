@@ -11,7 +11,6 @@ models: 
     - Variation in den loss functions (zB leicht unterschiedliche Klassengewichte und andere loss functions (dice, focal)
     - Variation in den optimizern (Adam vs. AdamW vs. SGD, Early stopping patience) 
 """
-
 import random
 from typing import Callable, Optional, Union, Tuple
 
@@ -30,6 +29,7 @@ class TrainLightningConfiguration:
         self,
 
         seed: int = 42,
+        num_classes: int = 19,
         
         # hyperparameters
         lr: float = 5e-4,
@@ -73,6 +73,10 @@ class TrainLightningConfiguration:
             :param seed: Random seed for reproducibility.
 
                 :default: 42
+            
+            :param num_classes: The number of classes in the dataset.
+
+                :default: 19
 
             :param lr: The learning rate for the optimizer.
 
@@ -176,6 +180,7 @@ class TrainLightningConfiguration:
         """
 
         self.seed = seed
+        self.num_classes = num_classes
         self.lr = lr
         self.batch_size = batch_size
         self.v_dropout_rate = v_dropout_rate
@@ -202,13 +207,11 @@ class TrainLightningConfiguration:
         np.random.seed(s)
         # Note: torch seeds should be set in the main training script
         
-    def randomize_all(self, seed: Optional[int] = None, num_classes: Optional[int] = None) -> None:
+    def randomize_all(self, seed: Optional[int] = None) -> None:
         """
         Runs all randomization methods.
 
         :param seed: The random seed to use for all operations.
-        :param num_classes: The number of classes, required for randomizing class weights.
-                            If None, class weight randomization is skipped.
         """
         self._set_seed(seed)
         print("Randomizing all hyperparameters...")
@@ -223,10 +226,7 @@ class TrainLightningConfiguration:
         self.randomize_shuffle()
         self.randomize_train_transforms()
         self.randomize_loss_fn()
-        if num_classes is not None:
-            self.randomize_class_weights(num_classes=num_classes)
-        else:
-            print("Skipping class weight randomization because num_classes was not provided.")
+        self.randomize_class_weights()
 
     def randomize_lr(self, seed: Optional[int] = None) -> None:
         """Randomizes the learning rate on a logarithmic scale."""
@@ -358,21 +358,18 @@ class TrainLightningConfiguration:
         ]
         self.loss_fn = random.choice(loss_functions)
     
-    def randomize_class_weights(self, num_classes: int, seed: Optional[int] = None) -> None:
+    def randomize_class_weights(self, seed: Optional[int] = None) -> None:
         """
         Randomizes the class weights for the loss function.
         This can either set weights to None (no weighting) or create a tensor
         of random weights.
-        :param num_classes: The number of classes in the dataset.
         """
         self._set_seed(seed)
-        # TODO: This function requires the number of classes to be provided.
-
         use_weights = random.choice([True, False])
 
         if use_weights:
             # Generate random weights, e.g., between 0.5 and 2.0
-            weights = torch.FloatTensor([random.uniform(0.5, 2.0) for _ in range(num_classes)])
+            weights = torch.FloatTensor([random.uniform(0.5, 2.0) for _ in range(self.num_classes)])
             self.class_weights = weights
         else:
             self.class_weights = None
@@ -397,6 +394,7 @@ class TrainLightningConfiguration:
         """Randomizes the data shuffling flag."""
         self._set_seed(seed)
         self.shuffle = random.choice([True, False])
+
 # --- Example Randomization Function ---
 #     def randomize_all(self, seed: Optional[int] = None, num_param: Optional[int] = None, num_categories: Optional[int] = None) -> None:
 #         
