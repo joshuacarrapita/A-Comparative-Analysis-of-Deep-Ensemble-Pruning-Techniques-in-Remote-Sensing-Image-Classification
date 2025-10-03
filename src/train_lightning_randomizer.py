@@ -1,36 +1,25 @@
 """
-Randomizer for the train_lightning script. Sets the seed and randomizes 
-the following parameters in order to create diversity between trained 
-models: 
+Randomizer for the train_lightning script. Sets the seed and randomizes 
+the following parameters in order to create diversity between trained 
+models: 
 
-    - verschiedene Data Augmentations
-    - leicht unterschiedliche Hyperparameter (Lernrate, dropout rates, batch size, etc.)
-    - unterschiedliches dropout
-    - kleine Änderungen der Architektur (layer width, normalization type, ...)
-    - unterschiedliches shuffling der Trainingsdaten
-    - Variation in den loss functions (zB leicht unterschiedliche Klassengewichte und andere loss functions (dice, focal)
-    - Variation in den optimizern (Adam vs. AdamW vs. SGD, Early stopping patience) 
+    - verschiedene Data Augmentations
+    - leicht unterschiedliche Hyperparameter (Lernrate, dropout rates, batch size, etc.)
+    - unterschiedliches dropout
+    - kleine Änderungen der Architektur (layer width, normalization type, ...)
+    - unterschiedliches shuffling der Trainingsdaten
+    - Variation in den loss functions (zB leicht unterschiedliche Klassengewichte und andere loss functions (dice, focal)
+    - Variation in den optimizern (Adam vs. AdamW vs. SGD, Early stopping patience) 
 """
 
-from pathlib import Path
-from typing import Callable
-from typing import Mapping
-from typing import Optional
-from typing import Union
+import random
+from typing import Callable, Optional, Union, Tuple
 
-
-try:
-    import lightning.pytorch as pl
-except ImportError:
-    import pytorch_lightning as pl
+import numpy as np
 import torch
-from torch.utils.data import DataLoader
-
-from configilm.extra._defaults import default_train_transform
-from configilm.extra._defaults import default_transform
-from configilm.extra.BENv2_utils import band_combi_to_mean_std
-from configilm.extra.DataSets.BENv2_DataSet import BENv2DataSet
-from configilm.util import Messages
+import torch.nn as nn
+import torch.nn.functional as F
+import torchvision.transforms as T
 
 
 class TrainLightningConfiguration:
@@ -73,7 +62,7 @@ class TrainLightningConfiguration:
         class_weights: Optional[torch.Tensor] = None,
         # etc.: str = #TODO,
 
-        # optimizers 
+        # optimizers 
         patience: int = 6,
         optimizer: callable = torch.optim.AdamW,
         # etc.: str = #TODO,
@@ -294,7 +283,6 @@ class TrainLightningConfiguration:
         """Randomizes the data shuffling flag."""
         self._set_seed(seed)
         self.shuffle = random.choice([True, False])
-
 # --- Example Randomization Function ---
 #     def randomize_all(self, seed: Optional[int] = None, num_param: Optional[int] = None, num_categories: Optional[int] = None) -> None:
 #         
