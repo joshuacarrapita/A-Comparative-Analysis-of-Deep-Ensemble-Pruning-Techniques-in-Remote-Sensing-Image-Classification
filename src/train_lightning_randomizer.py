@@ -202,10 +202,16 @@ class TrainLightningConfiguration:
         np.random.seed(s)
         # Note: torch seeds should be set in the main training script
         
-    def randomize_all(self, seed: Optional[int] = None) -> None:
-        """Runs all randomization methods."""
+    def randomize_all(self, seed: Optional[int] = None, num_classes: Optional[int] = None) -> None:
+        """
+        Runs all randomization methods.
+
+        :param seed: The random seed to use for all operations.
+        :param num_classes: The number of classes, required for randomizing class weights.
+                            If None, class weight randomization is skipped.
+        """
         self._set_seed(seed)
-        print("Randomizing all hyperparameters... 🎲")
+        print("Randomizing all hyperparameters...")
         self.randomize_lr()
         self.randomize_batch_size()
         self.randomize_dropout_rates()
@@ -215,6 +221,12 @@ class TrainLightningConfiguration:
         self.randomize_optimizer()
         self.randomize_patience()
         self.randomize_shuffle()
+        self.randomize_train_transforms()
+        self.randomize_loss_fn()
+        if num_classes is not None:
+            self.randomize_class_weights(num_classes=num_classes)
+        else:
+            print("Skipping class weight randomization because num_classes was not provided.")
 
     def randomize_lr(self, seed: Optional[int] = None) -> None:
         """Randomizes the learning rate on a logarithmic scale."""
@@ -262,6 +274,83 @@ class TrainLightningConfiguration:
             ("nn.SiLU()", torch.nn.SiLU()) # Also known as Swish
         ]
         self.custom_fusion_activation = random.choice(activations)
+    
+    def randomize_train_transforms(self, seed: Optional[int] = None) -> None:
+        """
+        Randomizes the image augmentation pipeline for training.
+        A set of potential augmentations is defined, and a random subset is
+        chosen and composed.
+        """
+        self._set_seed(seed)
+
+        # TODO: Add or modify your custom transformation functions here
+        potential_transforms = [
+            T.RandomHorizontalFlip(p=0.5),
+            T.RandomVerticalFlip(p=0.5),
+            T.RandomRotation(degrees=15),
+            T.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+            T.RandomAffine(degrees=0, translate=(0.1, 0.1)),
+            T.GaussianBlur(kernel_size=3),
+        ]
+
+        # Randomly select a number of transforms to apply (e.g., 2 to 4)
+        num_transforms_to_apply = random.randint(2, len(potential_transforms))
+        selected_transforms = random.sample(potential_transforms, num_transforms_to_apply)
+
+        # TODO: Adjust image size and normalization values for your dataset
+        img_size = 224
+        mean = [0.485, 0.456, 0.406]  # ImageNet mean
+        std = [0.229, 0.224, 0.225]   # ImageNet std
+
+        # Basic transforms that are almost always needed
+        final_transforms = [
+            T.Resize((img_size, img_size)),
+            # Add selected augmentations
+            *selected_transforms,
+            T.ToTensor(),
+            T.Normalize(mean=mean, std=std),
+        ]
+
+        self.train_transforms = T.Compose(final_transforms)
+
+    def randomize_loss_fn(self, seed: Optional[int] = None) -> None:
+        """
+        Randomizes the loss function from a predefined list.
+        Note: Ensure the chosen loss function is compatible with the model's output
+        and the task (e.g., BCE for multi-label, CrossEntropy for multi-class).
+        """
+        self._set_seed(seed)
+
+        # TODO: Implement and add custom loss functions if needed (e.g., FocalLoss)
+        # class FocalLoss(nn.Module):
+        #     ...
+        # focal_loss = FocalLoss()
+
+        loss_functions = [
+            F.cross_entropy,
+            nn.BCEWithLogitsLoss(),
+            # Add other implemented losses here, e.g., focal_loss
+        ]
+        self.loss_fn = random.choice(loss_functions)
+    
+    def randomize_class_weights(self, num_classes: int, seed: Optional[int] = None) -> None:
+        """
+        Randomizes the class weights for the loss function.
+        This can either set weights to None (no weighting) or create a tensor
+        of random weights.
+        :param num_classes: The number of classes in the dataset.
+        """
+        self._set_seed(seed)
+        # TODO: This function requires the number of classes to be provided.
+
+        use_weights = random.choice([True, False])
+
+        if use_weights:
+            # Generate random weights, e.g., between 0.5 and 2.0
+            weights = torch.FloatTensor([random.uniform(0.5, 2.0) for _ in range(num_classes)])
+            self.class_weights = weights
+        else:
+            self.class_weights = None
         
     def randomize_optimizer(self, seed: Optional[int] = None) -> None:
         """Randomizes the optimizer."""
