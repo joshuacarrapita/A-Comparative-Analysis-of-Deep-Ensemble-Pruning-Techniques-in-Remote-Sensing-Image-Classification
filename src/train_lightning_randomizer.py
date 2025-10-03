@@ -237,17 +237,42 @@ class TrainLightningConfiguration:
     def randomize_batch_size(self, seed: Optional[int] = None) -> None:
         """Randomizes the batch size from a set of common values (powers of 2)."""
         self._set_seed(seed)
-        self.batch_size = random.choice([16, 32, 64, 128])
+        self.batch_size = random.choice([16, 32, 64, 128, 256])
 
-    def randomize_dropout_rates(self, seed: Optional[int] = None) -> None:
-        """Randomizes all dropout-related rates."""
+    def randomize_v_dropout_rate(self, seed: Optional[int] = None) -> None:
+        """Randomizes the vision projection dropout rate."""
         self._set_seed(seed)
         self.v_dropout_rate = random.uniform(0.1, 0.5)
+
+    def randomize_t_dropout_rate(self, seed: Optional[int] = None) -> None:
+        """Randomizes the text projection dropout rate."""
+        self._set_seed(seed)
         self.t_dropout_rate = random.uniform(0.1, 0.5)
+
+    def randomize_fusion_dropout_rate(self, seed: Optional[int] = None) -> None:
+        """Randomizes the fusion head dropout rate."""
+        self._set_seed(seed)
         self.fusion_dropout_rate = random.uniform(0.1, 0.5)
+
+    def randomize_drop_rate(self, seed: Optional[int] = None) -> None:
+        """Randomizes the timm model's drop rate."""
+        self._set_seed(seed)
         self.drop_rate = random.uniform(0.1, 0.5)
+
+    def randomize_drop_path_rate(self, seed: Optional[int] = None) -> None:
+        """Randomizes the timm model's drop path rate."""
+        self._set_seed(seed)
         # drop_path_rate often benefits from being 0 or a low value
         self.drop_path_rate = random.choice([None, random.uniform(0.05, 0.2)])
+
+    def randomize_dropout_rates(self, seed: Optional[int] = None) -> None:
+        """Randomizes all dropout-related rates by calling individual randomizers."""
+        self._set_seed(seed)
+        self.randomize_v_dropout_rate()
+        self.randomize_t_dropout_rate()
+        self.randomize_fusion_dropout_rate()
+        self.randomize_drop_rate()
+        self.randomize_drop_path_rate()
         
     def randomize_fusion_hidden(self, seed: Optional[int] = None) -> None:
         """Randomizes the number of hidden neurons in the fusion layer."""
