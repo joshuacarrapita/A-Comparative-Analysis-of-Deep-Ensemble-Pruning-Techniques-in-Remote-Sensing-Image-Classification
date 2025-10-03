@@ -5,6 +5,8 @@ import torch
 import torch.nn.functional as F
 import lightning.pytorch as pl
 from lightning.pytorch.loggers import TensorBoardLogger
+from lightning.pytorch.profilers import SimpleProfiler
+from lightning.pytorch.callbacks import DeviceStatsMonitor
 from pathlib import Path
 
 from configilm import ConfigILM, util
@@ -172,6 +174,9 @@ def main():
     # Instantiate Logger
     logger = TensorBoardLogger(export_dir)
 
+    # Instantiate Profiler
+    profiler = SimpleProfiler(filename="perf_logs", extended=True)
+
     # Instantiate Trainer
     trainer = pl.Trainer(
             max_epochs = epochs,
@@ -180,10 +185,12 @@ def main():
             strategy = 'auto',
             log_every_n_steps = 10,
             logger = logger,
+            profiler = profiler,
             precision = '16-mixed', # for A100 GPUs (Automatic Mixed Precision) TODO: /home/user/.pyenv/versions/ba_python_venv/lib/python3.11/site-packages/lightning/fabric/connector.py:571: `precision=16` is supported for historical reasons but its usage is discouraged. Please set your precision to 16-mixed instead!
             callbacks=[
             pl.callbacks.EarlyStopping(monitor='val_loss', patience=patience, mode='min'), 
             pl.callbacks.ModelCheckpoint(monitor='val_loss', mode='min', save_top_k=1), # saves best model
+            DeviceStatsMonitor(cpu_stats=True),
             ],
             default_root_dir=export_dir,
             deterministic=True,
@@ -212,11 +219,14 @@ def main():
     print(f"OS CPU count: {os.cpu_count()}")
 
     if __debug__:
+        export_dir_tmp = export_dir
         export_dir = export_dir / "datasets"
         export_dir.mkdir(parents=True, exist_ok=True)
         dm.setup()
         dm.save_metadata(export_dir)
         print(f'Datasets saved in: {export_dir}')
+        export_dir = export_dir_tmp
+
 
     # --- Training And Testing ---
     trainer.fit(model, datamodule=dm)
