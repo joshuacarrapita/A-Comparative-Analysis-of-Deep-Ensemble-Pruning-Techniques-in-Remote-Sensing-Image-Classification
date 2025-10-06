@@ -136,6 +136,11 @@ def main():
     # --- Model, Dataset, Trainer Setup ---
     # Define Model Parameters
     model_name = 'resnet18'
+    """ about number_of_channels
+        ba-dataset #Frage-BA @{2025-05-27} ask ronny which channels I want to use in my thesis and also whether it should be multi-modal or separated by models etc.
+        ---> the two SAR sentinel 1 band (2) and the 10 optical sentinel 2 bands (10) (combined would be 12)
+        ---> they should be separated so that I have one ensemble for sar and one ensemble for optical input
+    """
     number_of_channels = 3
     image_size = 120
     lr = 5e-4
