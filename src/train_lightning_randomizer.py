@@ -15,6 +15,7 @@ import random
 from typing import Callable, Optional, Union, Tuple
 
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -199,6 +200,8 @@ class TrainLightningConfiguration:
         self.patience = patience
         self.optimizer = optimizer
         self.shuffle = shuffle
+
+        self._initial_params = self.__dict__.copy()
         
     def _set_seed(self, seed: Optional[int] = None) -> None:
         """Sets the random seed for reproducibility."""
@@ -232,7 +235,8 @@ class TrainLightningConfiguration:
         """Randomizes the learning rate on a logarithmic scale."""
         self._set_seed(seed)
         # Log-uniform distribution is common for learning rate searches
-        self.lr = float(np.random.loguniform(1e-5, 1e-2))
+        # self.lr = float(np.random.loguniform(1e-5, 1e-2))
+        self.lr = float(np.exp(np.random.uniform(np.log(1e-5), np.log(1e-2))))
 
     def randomize_batch_size(self, seed: Optional[int] = None) -> None:
         """Randomizes the batch size from a set of common values (powers of 2)."""
@@ -394,6 +398,73 @@ class TrainLightningConfiguration:
         """Randomizes the data shuffling flag."""
         self._set_seed(seed)
         self.shuffle = random.choice([True, False])
+
+    def info(self) -> None:
+        """
+        Prints a formatted table of all configuration parameters, their standard
+        (initial) values, and their current (potentially randomized) values
+        using the pandas library for clean formatting.
+        """
+        print("\n--- Configuration Parameter Info ---")
+
+        table_data = []
+
+        # Exclude the tracking dictionary itself from the report
+        params_to_report = {k: v for k, v in self._initial_params.items() if k != '_initial_params'}
+
+        for param, standard_value in params_to_report.items():
+            current_value = getattr(self, param)
+
+            def format_value(val):
+                """Helper to create a nice string representation for different types."""
+                if hasattr(val, '__name__'):
+                    return val.__name__
+                if isinstance(val, tuple) and len(val) > 0 and isinstance(val[0], str):
+                    return val[0] # For tuples like ("mul", torch.mul)
+                if isinstance(val, torch.Tensor):
+                    return f"Tensor(shape={val.shape})"
+                if val is None:
+                    return "None"
+                if isinstance(val, float):
+                    return f"{val:.6f}"
+                return str(val)
+
+            standard_value_str = format_value(standard_value)
+            current_value_str = format_value(current_value)
+
+            if standard_value_str == current_value_str:
+                new_value_display = "Not Randomized"
+            else:
+                new_value_display = current_value_str
+
+            table_data.append([param, standard_value_str, new_value_display])
+
+        # --- Create and print the table using pandas ---
+        df = pd.DataFrame(table_data, columns=["Parameter", "Standard Value", "New Value"])
+
+        with pd.option_context('display.max_rows', None, 'display.width', 1000):
+            print(df)
+        print("-" * 40)
+
+
+if __name__ == '__main__':
+    # --- Example Usage ---
+    
+    # 1. Create a config and show its initial state
+    print("--- 1. Initial Configuration State ---")
+    config = TrainLightningConfiguration()
+    config.info()
+    
+    # 2. Randomize all parameters and show the results
+    print("\n--- 2. Randomizing All Parameters ---")
+    config.randomize_all(seed=123)
+    config.info()
+    
+    # 3. Create a new instance and randomize only one parameter
+    print("\n--- 3. New Config, Randomizing Only Learning Rate ---")
+    config2 = TrainLightningConfiguration(seed=99)
+    config2.randomize_lr()
+    config2.info()
 
 # --- Example Randomization Function ---
 #     def randomize_all(self, seed: Optional[int] = None, num_param: Optional[int] = None, num_categories: Optional[int] = None) -> None:
