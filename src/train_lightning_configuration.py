@@ -29,6 +29,7 @@ class TrainLightningConfiguration:
     def __init__(
         self,
 
+        generator: Optional[random.Random] = None,
         seed: int = 42,
         num_classes: int = 19,
         
@@ -70,6 +71,10 @@ class TrainLightningConfiguration:
     ):
         """
             This configuration class is designed to work with the train_lightning training script.
+
+            :param generator: Variable to hold own instance of Random if preferred to use custom generators or generators that don't share state.
+
+                :default: None
 
             :param seed: Random seed for reproducibility.
 
@@ -180,6 +185,7 @@ class TrainLightningConfiguration:
                 :default: torch.optim.AdamW
         """
 
+        self.generator = generator
         self.seed = seed
         self.num_classes = num_classes
         self.lr = lr
@@ -202,13 +208,18 @@ class TrainLightningConfiguration:
         self.shuffle = shuffle
 
         self._initial_params = self.__dict__.copy()
+        self._set_seed(seed)
         
-    def _set_seed(self, seed: Optional[int] = None) -> None:
+    def _set_seed(self, seed, generator: Optional[random.Random] = None) -> None:
         """Sets the random seed for reproducibility."""
-        s = seed if seed is not None else self.seed
-        random.seed(s)
-        np.random.seed(s)
-        # Note: torch seeds should be set in the main training script
+        if generator is not None: 
+            generator.seed(seed)
+            if hasattr(generator, 'np'):
+                generator.np.random.seed(seed)
+        else: 
+            random.seed(seed)
+            np.random.seed(seed)
+        # torch seeds should be set in the main training script
         
     def randomize_all(self, seed: Optional[int] = None) -> None:
         """
@@ -216,7 +227,7 @@ class TrainLightningConfiguration:
 
         :param seed: The random seed to use for all operations.
         """
-        self._set_seed(seed)
+        if seed is not None: self._set_seed(seed)
         print("Randomizing all hyperparameters...")
         self.randomize_lr()
         self.randomize_batch_size()
@@ -233,45 +244,45 @@ class TrainLightningConfiguration:
 
     def randomize_lr(self, seed: Optional[int] = None) -> None:
         """Randomizes the learning rate on a logarithmic scale."""
-        self._set_seed(seed)
+        if seed is not None: self._set_seed(seed)
         # Log-uniform distribution is common for learning rate searches
         # self.lr = float(np.random.loguniform(1e-5, 1e-2))
         self.lr = float(np.exp(np.random.uniform(np.log(1e-5), np.log(1e-2))))
 
     def randomize_batch_size(self, seed: Optional[int] = None) -> None:
         """Randomizes the batch size from a set of common values (powers of 2)."""
-        self._set_seed(seed)
+        if seed is not None: self._set_seed(seed)
         self.batch_size = random.choice([16, 32, 64, 128, 256])
 
     def randomize_v_dropout_rate(self, seed: Optional[int] = None) -> None:
         """Randomizes the vision projection dropout rate."""
-        self._set_seed(seed)
+        if seed is not None: self._set_seed(seed)
         self.v_dropout_rate = random.uniform(0.1, 0.5)
 
     def randomize_t_dropout_rate(self, seed: Optional[int] = None) -> None:
         """Randomizes the text projection dropout rate."""
-        self._set_seed(seed)
+        if seed is not None: self._set_seed(seed)
         self.t_dropout_rate = random.uniform(0.1, 0.5)
 
     def randomize_fusion_dropout_rate(self, seed: Optional[int] = None) -> None:
         """Randomizes the fusion head dropout rate."""
-        self._set_seed(seed)
+        if seed is not None: self._set_seed(seed)
         self.fusion_dropout_rate = random.uniform(0.1, 0.5)
 
     def randomize_drop_rate(self, seed: Optional[int] = None) -> None:
         """Randomizes the timm model's drop rate."""
-        self._set_seed(seed)
+        if seed is not None: self._set_seed(seed)
         self.drop_rate = random.uniform(0.1, 0.5)
 
     def randomize_drop_path_rate(self, seed: Optional[int] = None) -> None:
         """Randomizes the timm model's drop path rate."""
-        self._set_seed(seed)
+        if seed is not None: self._set_seed(seed)
         # drop_path_rate often benefits from being 0 or a low value
         self.drop_path_rate = random.choice([None, random.uniform(0.05, 0.2)])
 
     def randomize_dropout_rates(self, seed: Optional[int] = None) -> None:
         """Randomizes all dropout-related rates by calling individual randomizers."""
-        self._set_seed(seed)
+        if seed is not None: self._set_seed(seed)
         self.randomize_v_dropout_rate()
         self.randomize_t_dropout_rate()
         self.randomize_fusion_dropout_rate()
@@ -280,12 +291,12 @@ class TrainLightningConfiguration:
         
     def randomize_fusion_hidden(self, seed: Optional[int] = None) -> None:
         """Randomizes the number of hidden neurons in the fusion layer."""
-        self._set_seed(seed)
+        if seed is not None: self._set_seed(seed)
         self.fusion_hidden = random.choice([128, 256, 512, 1024])
 
     def randomize_fusion_method(self, seed: Optional[int] = None) -> None:
         """Randomizes the fusion method from a list of common techniques."""
-        self._set_seed(seed)
+        if seed is not None: self._set_seed(seed)
         fusion_methods = [
             ("torch.mul", torch.mul),
             ("torch.add", torch.add),
@@ -295,7 +306,7 @@ class TrainLightningConfiguration:
 
     def randomize_fusion_activation(self, seed: Optional[int] = None) -> None:
         """Randomizes the activation function in the fusion layer."""
-        self._set_seed(seed)
+        if seed is not None: self._set_seed(seed)
         activations = [
             ("nn.ReLU()", torch.nn.ReLU()),
             ("nn.Tanh()", torch.nn.Tanh()),
@@ -310,9 +321,9 @@ class TrainLightningConfiguration:
         A set of potential augmentations is defined, and a random subset is
         chosen and composed.
         """
-        self._set_seed(seed)
+        if seed is not None: self._set_seed(seed)
 
-        # TODO: Add or modify your custom transformation functions here
+        # TODO: Add or modify custom transformation functions 
         potential_transforms = [
             T.RandomHorizontalFlip(p=0.5),
             T.RandomVerticalFlip(p=0.5),
@@ -326,7 +337,7 @@ class TrainLightningConfiguration:
         num_transforms_to_apply = random.randint(2, len(potential_transforms))
         selected_transforms = random.sample(potential_transforms, num_transforms_to_apply)
 
-        # TODO: Adjust image size and normalization values for your dataset
+        # TODO: Adjust image size and normalization values for dataset
         img_size = 224
         mean = [0.485, 0.456, 0.406]  # ImageNet mean
         std = [0.229, 0.224, 0.225]   # ImageNet std
@@ -348,7 +359,7 @@ class TrainLightningConfiguration:
         Note: Ensure the chosen loss function is compatible with the model's output
         and the task (e.g., BCE for multi-label, CrossEntropy for multi-class).
         """
-        self._set_seed(seed)
+        if seed is not None: self._set_seed(seed)
 
         # TODO: Implement and add custom loss functions if needed (e.g., FocalLoss)
         # class FocalLoss(nn.Module):
@@ -368,7 +379,7 @@ class TrainLightningConfiguration:
         This can either set weights to None (no weighting) or create a tensor
         of random weights.
         """
-        self._set_seed(seed)
+        if seed is not None: self._set_seed(seed)
         use_weights = random.choice([True, False])
 
         if use_weights:
@@ -380,7 +391,7 @@ class TrainLightningConfiguration:
         
     def randomize_optimizer(self, seed: Optional[int] = None) -> None:
         """Randomizes the optimizer."""
-        self._set_seed(seed)
+        if seed is not None: self._set_seed(seed)
         optimizers = [
             torch.optim.AdamW,
             torch.optim.Adam,
@@ -391,12 +402,12 @@ class TrainLightningConfiguration:
 
     def randomize_patience(self, seed: Optional[int] = None) -> None:
         """Randomizes the early stopping patience."""
-        self._set_seed(seed)
+        if seed is not None: self._set_seed(seed)
         self.patience = random.randint(3, 10)
 
     def randomize_shuffle(self, seed: Optional[int] = None) -> None:
         """Randomizes the data shuffling flag."""
-        self._set_seed(seed)
+        if seed is not None: self._set_seed(seed)
         self.shuffle = random.choice([True, False])
 
     def info(self) -> None:
@@ -445,7 +456,6 @@ class TrainLightningConfiguration:
         with pd.option_context('display.max_rows', None, 'display.width', 1000):
             print(df)
         print("-" * 40)
-
 
 if __name__ == '__main__':
     # --- Example Usage ---
