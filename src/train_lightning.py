@@ -8,10 +8,12 @@ from lightning.pytorch.loggers import TensorBoardLogger
 from lightning.pytorch.profilers import SimpleProfiler
 from lightning.pytorch.callbacks import DeviceStatsMonitor
 from pathlib import Path
+from typing import Optional
 
 from configilm import ConfigILM, util
 from configilm.ConfigILM import ILMConfiguration, ILMType
 from configilm.extra.DataModules import BENv2_DataModule
+from train_lightning_configuration import TrainLightningConfiguration
 
 # ===========================================================================
 # LightningModule Class Definition
@@ -28,6 +30,8 @@ class LitImageEncoder(pl.LightningModule):
         config: ConfigILM.ILMConfiguration,
         lr: float = 5e-4,
         loss_fn: callable = F.cross_entropy,
+        class_weights: Optional[torch.Tensor] = None,
+        optimizer: callable = torch.optim.AdamW,
     ):
         super().__init__()
         self.lr = lr
@@ -37,10 +41,12 @@ class LitImageEncoder(pl.LightningModule):
         self.test_output_list = []
 
         self.loss_fn = loss_fn
+        self.class_weights = class_weights
+        self.optimizer = optimizer
         self.save_hyperparameters() 
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=0.01) # TODO add passing of optimizer in init
+        optimizer = self.optimizer(self.parameters(), lr=self.lr, weight_decay=0.01) # DONE add passing of optimizer in init
         return optimizer
 
     def training_step(self, batch, batch_idx):
@@ -50,7 +56,7 @@ class LitImageEncoder(pl.LightningModule):
         label = torch.argmax(label, dim=1)
 
         output = self.model(img)
-        loss = self.loss_fn(output, label)
+        loss = self.loss_fn(output,label,weight=self.class_weights)
 
         correct = (torch.argmax(output,dim=1) == label).float().sum()
         acc = 100 * correct / output.shape[0]
@@ -66,8 +72,8 @@ class LitImageEncoder(pl.LightningModule):
         label = torch.argmax(label, dim=1)
 
         output = self.model(img)
-        loss = self.loss_fn(output,label)
-        # TODO add custom weights here and in the other steps like so: loss = loss_fn(logits, y, weight=self.custom_weights)
+        loss = self.loss_fn(output,label,weight=self.class_weights)
+        # DONE add custom weights here and in the other steps like so: loss = loss_fn(logits, y, weight=self.custom_weights)
 
         correct = (torch.argmax(output,dim=1) == label).float().sum()
         acc = 100 * correct / output.shape[0]
@@ -82,7 +88,7 @@ class LitImageEncoder(pl.LightningModule):
         label = torch.argmax(label, dim=1)
 
         output = self.model(img)
-        loss = self.loss_fn(output,label)
+        loss = self.loss_fn(output,label,weight=self.class_weights)
 
         correct = (torch.argmax(output,dim=1) == label).float().sum()
         acc = 100 * correct / output.shape[0]
@@ -94,6 +100,33 @@ class LitImageEncoder(pl.LightningModule):
         # because we are a wrapper, we call the inner function manually
         return self.model(batch)
 
+# ===========================================================================
+# Helper Functions
+# ===========================================================================
+
+def randomize_tc_for_benv2_ep(tc: TrainLightningConfiguration, seed: Optional[int] = None) -> None:
+    """
+        Runs all randomization methods for creation of a BENv2 image classifying ensemble.
+
+        :param tc: The traning configuration to randomize.
+
+        :param seed: The random seed to use for all operations.
+    """
+    tc._set_seed(seed)
+    print("\nRandomizing all hyperparameters...")
+    tc.randomize_lr()
+    tc.randomize_batch_size()
+    tc.randomize_dropout_rates()
+    tc.randomize_fusion_hidden()
+    #tc.randomize_fusion_method()
+    #tc.randomize_fusion_activation()
+    #tc.randomize_optimizer()
+    tc.randomize_patience()
+    #tc.randomize_shuffle()
+    #tc.randomize_train_transforms()
+    #tc.randomize_loss_fn()
+    #tc.randomize_class_weights()
+    
 # ===========================================================================
 # Main Training Script
 # ===========================================================================
@@ -118,7 +151,7 @@ def main():
         }
         export_dir_root = Path(sys.argv[4]).resolve()
         seed = int(sys.argv[6]) if len(sys.argv) > 5 else 42
-        print(f'\n Seed set to {seed}.')
+        print(f'\nSeed set to {seed}.')
 
         # Validate Paths
         assert datapath_args['images_lmdb'].is_dir(), f"Input directory does not exist or is not a directory: {datapath_args['images_lmdb']}"
@@ -134,6 +167,18 @@ def main():
     export_dir.mkdir(parents=True, exist_ok=True)
 
     # --- Model, Dataset, Trainer Setup ---
+
+    # Define Training Parameters
+    tc = TrainLightningConfiguration()
+    print("\nConfiguration before randomization:")
+    tc.info()
+    randomize_tc_for_benv2_ep(tc=tc, seed=seed)
+    print("\nConfiguration after randomization:")
+    tc.info()
+
+    # Set PL Seed For Training Reproducibility
+    pl.seed_everything(seed, workers=True) # Function that sets seed for pseudo-random number generators in: pytorch, numpy, python.random 
+
     # Define Model Parameters
     model_name = 'resnet18'
     """ about number_of_channels
@@ -143,34 +188,38 @@ def main():
     """
     number_of_channels = 3
     image_size = 120
-    lr = 5e-4
-    epochs = 10
-    batch_size = 32
-    patience = 6
+    epochs = 100
     num_workers = max(1,min(os.cpu_count()-1,8)) # experiment with this value to find most efficient cpu utilization
-
-    # Set Seed For Reproducibility
-    pl.seed_everything(seed, workers=True) # Function that sets seed for pseudo-random number generators in: pytorch, numpy, python.random 
 
     # Instantiate Model Config
     model_config = ILMConfiguration(
             timm_model_name=model_name,
-            classes=19,
+            classes=tc.num_classes,
             image_size=image_size,
             channels=number_of_channels,
             network_type=ILMType.IMAGE_CLASSIFICATION,
+            v_dropout_rate=tc.v_dropout_rate,
+            t_dropout_rate=tc.t_dropout_rate,
+            fusion_dropout_rate=tc.fusion_dropout_rate,           
+            drop_rate=tc.drop_rate,
+            drop_path_rate=tc.drop_path_rate,
+            fusion_in=tc.fusion_in,
+            fusion_out=tc.fusion_out,
+            fusion_hidden=tc.fusion_hidden,
+            custom_fusion_method=tc.custom_fusion_method,
+            custom_fusion_activation=tc.custom_fusion_activation,
     )
 
     # Retrieve Model
-    model = LitImageEncoder(config=model_config, lr=lr, loss_fn=F.cross_entropy) # TODO change to loss_fn=loss_fn? and add passing of custom weights)
+    model = LitImageEncoder(config=model_config, lr=tc.lr, loss_fn=tc.loss_fn, class_weights=tc.class_weights) # DONE change to loss_fn=loss_fn? and add passing of custom weights)
 
     # Generate Lighting DataModule
     dm = BENv2_DataModule.BENv2DataModule(
             data_dirs = datapath_args,
             img_size = (number_of_channels, image_size, image_size),
-            batch_size = batch_size, # --> default 16 | TODO: Figure out good batch_size
-            # shuffle = None, --> default is None
-            # train_transforms = None,
+            batch_size = tc.batch_size, # --> default 16 | TODO: Figure out good batch_size
+            shuffle = tc.shuffle, # --> default is None
+            train_transforms = tc.train_transforms,
             num_workers_dataloader = num_workers, # --> default is os.cpu_count() / 2 which I think is good
             bagging = True,
             seed = seed,
@@ -193,13 +242,19 @@ def main():
             profiler = profiler,
             precision = '16-mixed', # for A100 GPUs (Automatic Mixed Precision) TODO: /home/user/.pyenv/versions/ba_python_venv/lib/python3.11/site-packages/lightning/fabric/connector.py:571: `precision=16` is supported for historical reasons but its usage is discouraged. Please set your precision to 16-mixed instead!
             callbacks=[
-            pl.callbacks.EarlyStopping(monitor='val_loss', patience=patience, mode='min'), 
+            pl.callbacks.EarlyStopping(monitor='val_loss', patience=tc.patience, mode='min'), 
             pl.callbacks.ModelCheckpoint(monitor='val_loss', mode='min', save_top_k=1), # saves best model
             DeviceStatsMonitor(cpu_stats=True),
             ],
             default_root_dir=export_dir,
             deterministic=True,
     )
+
+    if __debug__:
+        WIDTH = 18
+        print(f"{'Accelerator':<{WIDTH}}{'Devices':<{WIDTH}}{'Strategy':<{WIDTH}}")
+        print(f"-" * (WIDTH * 3))
+        print(f"{trainer.accelerator.__class__.__name__:<{WIDTH}}{trainer.num_devices:<{WIDTH}}{trainer.strategy.__class__.__name__:<{WIDTH}}")
 
     # --- CPU/GPU INFO ---
     if torch.cuda.is_available():
