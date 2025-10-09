@@ -191,7 +191,7 @@ def main():
         ---> the two SAR sentinel 1 band (2) and the 10 optical sentinel 2 bands (10) (combined would be 12)
         ---> they should be separated so that I have one ensemble for sar and one ensemble for optical input
     """
-    number_of_channels = 3
+    number_of_channels = 10
     image_size = 120
     epochs = 100
     num_workers = max(1,min(os.cpu_count()-1,8)) # experiment with this value to find most efficient cpu utilization
@@ -244,12 +244,12 @@ def main():
             strategy = 'auto',
             log_every_n_steps = 10,
             logger = logger,
-            profiler = profiler,
+            #profiler = profiler,
             precision = '16-mixed', # for A100 GPUs (Automatic Mixed Precision) TODO: /home/user/.pyenv/versions/ba_python_venv/lib/python3.11/site-packages/lightning/fabric/connector.py:571: `precision=16` is supported for historical reasons but its usage is discouraged. Please set your precision to 16-mixed instead!
             callbacks=[
             pl.callbacks.EarlyStopping(monitor='val_loss', patience=tc.patience, mode='min'), 
             pl.callbacks.ModelCheckpoint(monitor='val_loss', mode='min', save_top_k=1), # saves best model
-            DeviceStatsMonitor(cpu_stats=True),
+            #DeviceStatsMonitor(cpu_stats=True),
             ],
             default_root_dir=export_dir,
             deterministic=True,
