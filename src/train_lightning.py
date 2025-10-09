@@ -194,7 +194,21 @@ def main():
     number_of_channels = 10
     image_size = 120
     epochs = 100
-    num_workers = max(1,min(os.cpu_count()-1,8)) # experiment with this value to find most efficient cpu utilization
+    slurm_cpus_per_task = os.getenv('SLURM_CPUS_PER_TASK')
+    if slurm_cpus_per_task is not None:
+        num_workers = int(slurm_cpus_per_task)-2 # -2 to keep some cores for main and other processes, experiment with this value to find most efficient cpu utilization
+        
+        print("Num_workers set with SLURM_CPUS_PER_TASK")
+    else:
+        num_workers = max(1,min(os.cpu_count()/4-2,10)) # /2 for two sockets and /2 cause os.cpu_count returns thread as multithreads (2 per core) and -2 to keep some for the main process
+        print("Num_workers set with max(1,min(os.cpu_count()/4-2,10))")
+
+    omp_num_threads = os.getenv('OMP_NUM_THREADS')
+    mkl_num_threads = os.getenv('MKL_NUM_THREADS')
+    print(f"OMP_NUM_THREADS: {omp_num_threads}")
+    print(f"MKL_NUM_THREADS: {mkl_num_threads}")
+    cuda_launch_blocking = os.getenv("CUDA_LAUNCH_BLOCKING")
+    print(f"\nCUDA_LAUNCH_BLOCKING: {cuda_launch_blocking}")
 
     # Instantiate Model Config
     model_config = ILMConfiguration(
