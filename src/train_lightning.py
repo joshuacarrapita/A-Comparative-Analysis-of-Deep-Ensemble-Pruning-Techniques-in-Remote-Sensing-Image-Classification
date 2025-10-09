@@ -162,8 +162,13 @@ def main():
     except Exception as e:
         # Handle Input Errors
         sys.exit(f'\nAn error occured: {e}.\n\nUsage: python train.py /path/to/lmdb_dir/ /path/to/metadata.parquet /path/to/metadata_snow_cloud.parquet /path/to/export/dir/ --seed [Number]\n')
-
-    export_dir = export_dir_root / f'resnet18_{start_time}_seed{seed}'
+    
+    slurm_job_id = os.getenv('SLURM_JOB_ID')
+    if slurm_job_id is not None:
+        slurm_job_id = int(slurm_job_id)
+        export_dir = export_dir_root / f'resnet18_{start_time}_seed{seed}_job{slurm_job_id}'
+    else:
+        export_dir = export_dir_root / f'resnet18_{start_time}_seed{seed}'
     export_dir.mkdir(parents=True, exist_ok=True)
 
     # --- Model, Dataset, Trainer Setup ---
