@@ -283,7 +283,7 @@ class TrainLightningConfiguration:
         # drop_path_rate often benefits from being 0 or a low value
         self.drop_path_rate = random.choice([None, random.uniform(0.0, 0.2)])
 
-    def randomize_dropout_rates(self, seed: Optional[int] = None) -> None:
+    def randomize_all_dropout_rates(self, seed: Optional[int] = None) -> None:
         """Randomizes all dropout-related rates by calling individual randomizers."""
         if seed is not None: self._set_seed(seed)
         self.randomize_v_dropout_rate()
@@ -291,7 +291,13 @@ class TrainLightningConfiguration:
         self.randomize_fusion_dropout_rate()
         self.randomize_drop_rate()
         self.randomize_drop_path_rate()
-        
+    
+    def randomize_backbone_dropout_rates(self, seed: Optional[int] = None) -> None:
+        """Randomizes backbone dropout-related rates by calling individual randomizers."""
+        if seed is not None: self._set_seed(seed)
+        self.randomize_drop_rate()
+        self.randomize_drop_path_rate()
+
     def randomize_fusion_hidden(self, seed: Optional[int] = None) -> None:
         """Randomizes the number of hidden neurons in the fusion layer."""
         if seed is not None: self._set_seed(seed)
