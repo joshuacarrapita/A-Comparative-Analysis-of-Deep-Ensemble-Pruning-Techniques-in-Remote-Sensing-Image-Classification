@@ -93,24 +93,24 @@ class TrainLightningConfiguration:
                 :default: 32
 
             :param v_dropout_rate: Dropout rate of the mapping from the timm image model to
-                the dimension of the fusion method.
+                the dimension of the fusion method. Applied to the output of the Timm Image Model's final embedding (the "mapping layer") before fusion. Regularizes the visual representation before it's combined with text.
 
                 :default: 0.25
 
             :param t_dropout_rate: Dropout rate of the mapping from the huggingface text
-                model to the dimension of the fusion method.
+                model to the dimension of the fusion method. Applied to the output of the Hugging Face Text Model's final embedding (the "mapping layer") before fusion. Regularizes the text representation before it's combined with vision.
 
                 :default: 0.25
 
-            :param fusion_dropout_rate: Drop rate inside all classification head layers.
+            :param fusion_dropout_rate: Drop rate inside all classification head layers. Applied inside the Classification Head (the final prediction layers) that operates on the combined visual and text features.	Regularizes the final decision-making layers after feature fusion.
 
                 :default: 0.25
 
-            :param drop_rate: Dropout rate for timm models.
+            :param drop_rate: Dropout rate for timm models. Applied internally within the layers of the Timm Image Model itself (e.g., standard dropout in the backbone). Standard backbone regularization for the image encoder.
 
                 :default: 0.2
 
-            :param drop_path_rate: Drop path rate for timm models.
+            :param drop_path_rate: Drop path rate for timm models. Applied internally within the layers of the Timm Image Model (specifically common in Vision Transformers and similar architectures).	A technique that randomly drops entire residual paths/branches within the network, often more effective than standard dropout in deep models.
 
                 :default: None
 
@@ -245,8 +245,7 @@ class TrainLightningConfiguration:
     def randomize_lr(self, seed: Optional[int] = None) -> None:
         """Randomizes the learning rate on a logarithmic scale."""
         if seed is not None: self._set_seed(seed)
-        # Log-uniform distribution is common for learning rate searches
-        # self.lr = float(np.random.loguniform(1e-5, 1e-2))
+        # Log-uniform distribution is common for learning rate searches, commonly 10^-5 <= lr <= 10^-1
         self.lr = float(np.exp(np.random.uniform(np.log(1e-5), np.log(1e-2))))
 
     def randomize_batch_size(self, seed: Optional[int] = None) -> None:
@@ -257,21 +256,25 @@ class TrainLightningConfiguration:
     def randomize_v_dropout_rate(self, seed: Optional[int] = None) -> None:
         """Randomizes the vision projection dropout rate."""
         if seed is not None: self._set_seed(seed)
+        # often 0.5 because of dense layer
         self.v_dropout_rate = random.uniform(0.1, 0.5)
 
     def randomize_t_dropout_rate(self, seed: Optional[int] = None) -> None:
         """Randomizes the text projection dropout rate."""
         if seed is not None: self._set_seed(seed)
+        # often 0.5 because of dense layer
         self.t_dropout_rate = random.uniform(0.1, 0.5)
 
     def randomize_fusion_dropout_rate(self, seed: Optional[int] = None) -> None:
         """Randomizes the fusion head dropout rate."""
         if seed is not None: self._set_seed(seed)
+        # often 0.1 or 0.2 or 0.5 for dense layers
         self.fusion_dropout_rate = random.uniform(0.1, 0.5)
 
     def randomize_drop_rate(self, seed: Optional[int] = None) -> None:
         """Randomizes the timm model's drop rate."""
         if seed is not None: self._set_seed(seed)
+        # often 0, 0.1 or 0.2
         self.drop_rate = random.uniform(0.1, 0.5)
 
     def randomize_drop_path_rate(self, seed: Optional[int] = None) -> None:
