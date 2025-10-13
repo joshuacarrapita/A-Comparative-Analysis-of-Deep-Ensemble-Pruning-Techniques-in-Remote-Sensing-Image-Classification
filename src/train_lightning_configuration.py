@@ -251,7 +251,7 @@ class TrainLightningConfiguration:
     def randomize_batch_size(self, seed: Optional[int] = None) -> None:
         """Randomizes the batch size from a set of common values (powers of 2)."""
         if seed is not None: self._set_seed(seed)
-        self.batch_size = random.choice([16, 32, 64, 128, 256])
+        self.batch_size = random.choice([16, 32, 64, 128, 256, 512, 1024])
 
     def randomize_v_dropout_rate(self, seed: Optional[int] = None) -> None:
         """Randomizes the vision projection dropout rate."""
