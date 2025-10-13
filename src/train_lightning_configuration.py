@@ -281,7 +281,7 @@ class TrainLightningConfiguration:
         """Randomizes the timm model's drop path rate."""
         if seed is not None: self._set_seed(seed)
         # drop_path_rate often benefits from being 0 or a low value
-        self.drop_path_rate = random.choice([None, random.uniform(0.05, 0.2)])
+        self.drop_path_rate = random.choice([None, random.uniform(0.0, 0.2)])
 
     def randomize_dropout_rates(self, seed: Optional[int] = None) -> None:
         """Randomizes all dropout-related rates by calling individual randomizers."""
