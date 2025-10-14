@@ -20,6 +20,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms as T
+from configilm.extra.BENv2_utils import band_combi_to_mean_std
+from configilm.extra.CustomTorchClasses import MyGaussianNoise
+from configilm.extra.CustomTorchClasses import MyRotateTransform
 
 
 class TrainLightningConfiguration:
@@ -74,6 +77,17 @@ class TrainLightningConfiguration:
             :param num_classes: The number of classes in the dataset.
 
                 :default: 19
+
+            :param img_size: The size of the images (c, h, w). Note that this includes the number of
+            channels (c). For example, if the images are RGB images, the size should be (3, h, w). The dataset can be loaded with different channel configurations. The channel configuration is defined by the first element of the img_size tuple (c, h, w). The available configurations are:
+                - 2 -> Sentinel-1 (VV, VH)
+                - 3 -> RGB
+                - 4 -> 10m Sentinel-2 (B, R, G, Ir)
+                - 10 -> 10m + 20m Sentinel-2 (in original order)
+                - 12 -> Sentinel-1 + 10m/20m Sentinel-2 (in original order)
+                - 14 -> Sentinel-1 + 10m/20m/60m Sentinel-2 (in original order)
+
+                :default: (10, 120, 120)
 
             :param lr: The learning rate for the optimizer.
 
@@ -134,6 +148,7 @@ class TrainLightningConfiguration:
         
     def _set_seed(self, seed, generator: Optional[random.Random] = None) -> None:
         """Sets the random seed for reproducibility."""
+        torch.manual_seed(seed)
         if generator is not None: 
             generator.seed(seed)
             if hasattr(generator, 'np'):
@@ -194,30 +209,27 @@ class TrainLightningConfiguration:
 
         # TODO: Add or modify custom transformation functions 
         potential_transforms = [
+            MyGaussianNoise(sigma=20.0),
             T.RandomHorizontalFlip(p=0.5),
             T.RandomVerticalFlip(p=0.5),
-            T.RandomRotation(degrees=15),
-            T.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
-            T.RandomAffine(degrees=0, translate=(0.1, 0.1)),
-            T.GaussianBlur(kernel_size=3),
+            MyRotateTransform([0, 90, 180, 270]),
+            # T.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1), # TODO: Check if it's possible to make it work on 10 Channel and not only RGB
+            # T.RandomAffine(degrees=0, translate=(0.1, 0.1)), not sure if this is applicable as it will result in image containing black space
+            # T.GaussianBlur(kernel_size=3,sigma=(0.1,2.0)), # TODO: check what small kernel size and sigma is and select that
+            # T.RandomErasing(p=0.5, scale=(0.02, 0.2), ratio=(0.3, 3.3), value=0), # TODO: Check that the values make sense. If your data is normalized to N(0,1) or similar, value=0 is correct, as it masks the erased area with the dataset's approximate mean. If your data is not normalized (e.g., pixel values from 0-255 or 0-1), value should be a tuple of 10 values corresponding to the approximate mean of each of your 10 channels. This prevents the erased patch from acting as an obvious artifact.
         ]
 
         # Randomly select a number of transforms to apply (e.g., 2 to 4)
         num_transforms_to_apply = random.randint(2, len(potential_transforms))
         selected_transforms = random.sample(potential_transforms, num_transforms_to_apply)
 
-        # TODO: Adjust image size and normalization values for dataset
-        img_size = 224
-        mean = [0.485, 0.456, 0.406]  # ImageNet mean
-        std = [0.229, 0.224, 0.225]   # ImageNet std
-
         # Basic transforms that are almost always needed
+        ben_mean, ben_std = band_combi_to_mean_std(self.img_size[0])
+
         final_transforms = [
-            T.Resize((img_size, img_size)),
-            # Add selected augmentations
+            T.Resize((self.img_size[1], self.img_size[2]), antialias=True),
             *selected_transforms,
-            T.ToTensor(),
-            T.Normalize(mean=mean, std=std),
+            T.Normalize(mean=ben_mean, std=ben_std),
         ]
 
         self.train_transforms = T.Compose(final_transforms)
