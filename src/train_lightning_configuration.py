@@ -32,31 +32,22 @@ class TrainLightningConfiguration:
         generator: Optional[random.Random] = None,
         seed: int = 42,
         num_classes: int = 19,
+        img_size: tuple = (10, 120, 120),
         
         # hyperparameters
         lr: float = 5e-4,
         batch_size: int = 32,
-        v_dropout_rate: float = 0.25,
-        t_dropout_rate: float = 0.25,
-        fusion_dropout_rate: float = 0.25,
         drop_rate: Optional[float] = 0.2,
         drop_path_rate: Optional[float] = None,
         # etc.: str = #TODO,
 
         # architecture
-        fusion_in: int = 512,
-        fusion_out: Optional[int] = None,  # if None, same as fusion_in
-        fusion_hidden: int = 256, # Number of neurons inside the hidden layer of the classification head a.k.a. layer width
-        #_fusion_method: str = "torch.mul", # DONE: Find out what the "_" does --> it indicates that this is supposed to be regarded as a private variable, "whatever that means in python"
-        #_fusion_activation: str = "nn.Tanh()", # TODO: Also check if applicable
-        custom_fusion_method: Optional[Union[Callable[[torch.Tensor, torch.Tensor], torch.Tensor], str, Tuple[str, Callable]]] = None,
-        custom_fusion_activation: Optional[Union[Callable[[torch.Tensor], torch.Tensor], str, Tuple[str, Callable]]] = None,
-        # normalization_type: int = #TODO implement in ConfigILM.py, # responsible for normalization in model architecture. Common normalization techniques include Batch Normalization, Layer Normalization, and Instance Normalization.
+        # normalization_type: int = #TODO implement in ConfigILM.py, # responsible for normalization in model architecture. Common normalization techniques include Batch Normalization, Layer Normalization, and Instance Normalization.,
+        # hidden_neurons: int = #TODO,
         # etc.: str = #TODO,
 
         # data
         train_transforms: Optional[Callable] = None,
-        shuffle: Optional[bool] = None,
         # etc.: str = #TODO,
 
         # loss functions (e.g. different class weights, functions(dice, focal))
@@ -92,20 +83,6 @@ class TrainLightningConfiguration:
 
                 :default: 32
 
-            :param v_dropout_rate: Dropout rate of the mapping from the timm image model to
-                the dimension of the fusion method. Applied to the output of the Timm Image Model's final embedding (the "mapping layer") before fusion. Regularizes the visual representation before it's combined with text.
-
-                :default: 0.25
-
-            :param t_dropout_rate: Dropout rate of the mapping from the huggingface text
-                model to the dimension of the fusion method. Applied to the output of the Hugging Face Text Model's final embedding (the "mapping layer") before fusion. Regularizes the text representation before it's combined with vision.
-
-                :default: 0.25
-
-            :param fusion_dropout_rate: Drop rate inside all classification head layers. Applied inside the Classification Head (the final prediction layers) that operates on the combined visual and text features.	Regularizes the final decision-making layers after feature fusion.
-
-                :default: 0.25
-
             :param drop_rate: Dropout rate for timm models. Applied internally within the layers of the Timm Image Model itself (e.g., standard dropout in the backbone). Standard backbone regularization for the image encoder.
 
                 :default: 0.2
@@ -114,55 +91,9 @@ class TrainLightningConfiguration:
 
                 :default: None
 
-            :param fusion_in: Input dimension to the fusion method.
-
-                :default: 512
-
-            :param fusion_out: Output dimension of the fusion method. If None, output will
-                be same as input (e.g. for point-wise operations).
-
-                :default: None
-
-            :param fusion_hidden: Number of neurons inside the hidden layer of the
-                classification head.
-
-                :default: 256
-
-            :param custom_fusion_method: Fusion method to combine text and image features. Callable
-                with two inputs (tensor, tensor) and a single output (tensor) where each
-                tensor is single dimension (plus batch dimension). First input is flatten
-                output of image model with dimension fusion_in, second input is flatten
-                output of the text model with dimension fusion_in. Output should have the
-                dimension fusion_out. Only used for initialization. After initialization, the
-                fusion method is accessible via the fusion_method property.
-                If a custom function is used, it has to be a callable with two inputs (tensor, tensor) and a single output
-                (tensor) where each tensor is single dimension (plus batch dimension). The fusion method is then
-                passed as a tuple (str, f) where str is the string representation of the function and f is the
-                callable, e.g. ("mul", torch.mul).
-
-                :default: None
-
-            :param custom_fusion_activation: Activation function inside all classification head
-                layers. Only used for initialization. After initialization, the fusion activation is
-                accessible via the fusion_activation property. Default options from torch.nn or torch.nn.functional
-                can be used as strings (e.g. "nn.Tanh()") or as callables (e.g. nn.Tanh()).
-                If a custom
-                function is used, it has to be a callable with a single input (tensor) and a single output
-                (tensor) where the input tensor is single dimension (plus batch dimension). The activation is then
-                passed as a tuple (str, m) where str is the string representation of the function and m is the
-                callable, which has to be a torch.nn.Module and initialized with the correct parameters, e.g.
-                ("tanh", nn.Tanh()).
-
-                :default: None
-
             :param train_transforms: A callable that is used to transform the training images.
                 If None is provided, the default train transform is used, that consists of
                 resizing, horizontal and vertical flipping and normalization.
-
-                :default: None
-
-            :param shuffle: Whether to shuffle the data. If None is provided, the data is shuffled
-                for training and not shuffled for validation and test.
 
                 :default: None
 
@@ -190,22 +121,13 @@ class TrainLightningConfiguration:
         self.num_classes = num_classes
         self.lr = lr
         self.batch_size = batch_size
-        self.v_dropout_rate = v_dropout_rate
-        self.t_dropout_rate = t_dropout_rate
-        self.fusion_dropout_rate = fusion_dropout_rate
         self.drop_rate = drop_rate
         self.drop_path_rate = drop_path_rate
-        self.fusion_in = fusion_in
-        self.fusion_out = fusion_out
-        self.fusion_hidden = fusion_hidden
-        self.custom_fusion_method = custom_fusion_method
-        self.custom_fusion_activation = custom_fusion_activation
         self.train_transforms = train_transforms
         self.loss_fn = loss_fn
         self.class_weights = class_weights
         self.patience = patience
         self.optimizer = optimizer
-        self.shuffle = shuffle
 
         self._initial_params = self.__dict__.copy()
         self._set_seed(seed)
@@ -231,16 +153,13 @@ class TrainLightningConfiguration:
         print("Randomizing all hyperparameters...")
         self.randomize_lr()
         self.randomize_batch_size()
-        self.randomize_dropout_rates()
-        self.randomize_fusion_hidden()
-        self.randomize_fusion_method()
-        self.randomize_fusion_activation()
-        self.randomize_optimizer()
-        self.randomize_patience()
-        self.randomize_shuffle()
+        self.randomize_drop_rate()
+        self.randomize_drop_path_rate()
         self.randomize_train_transforms()
         self.randomize_loss_fn()
         self.randomize_class_weights()
+        self.randomize_patience()
+        self.randomize_optimizer()
 
     def randomize_lr(self, seed: Optional[int] = None) -> None:
         """Randomizes the learning rate on a logarithmic scale."""
@@ -253,25 +172,7 @@ class TrainLightningConfiguration:
         if seed is not None: self._set_seed(seed)
         self.batch_size = random.choice([16, 32, 64, 128, 256, 512, 1024])
 
-    def randomize_v_dropout_rate(self, seed: Optional[int] = None) -> None:
-        """Randomizes the vision projection dropout rate."""
-        if seed is not None: self._set_seed(seed)
-        # often 0.5 because of dense layer
-        self.v_dropout_rate = random.uniform(0.1, 0.5)
-
-    def randomize_t_dropout_rate(self, seed: Optional[int] = None) -> None:
-        """Randomizes the text projection dropout rate."""
-        if seed is not None: self._set_seed(seed)
-        # often 0.5 because of dense layer
-        self.t_dropout_rate = random.uniform(0.1, 0.5)
-
-    def randomize_fusion_dropout_rate(self, seed: Optional[int] = None) -> None:
-        """Randomizes the fusion head dropout rate."""
-        if seed is not None: self._set_seed(seed)
-        # often 0.1 or 0.2 or 0.5 for dense layers
-        self.fusion_dropout_rate = random.uniform(0.1, 0.5)
-
-    def randomize_drop_rate(self, seed: Optional[int] = None) -> None:
+   def randomize_drop_rate(self, seed: Optional[int] = None) -> None:
         """Randomizes the timm model's drop rate."""
         if seed is not None: self._set_seed(seed)
         # often 0, 0.1 or 0.2
@@ -283,47 +184,6 @@ class TrainLightningConfiguration:
         # drop_path_rate often benefits from being 0 or a low value
         self.drop_path_rate = random.choice([None, random.uniform(0.0, 0.2)])
 
-    def randomize_all_dropout_rates(self, seed: Optional[int] = None) -> None:
-        """Randomizes all dropout-related rates by calling individual randomizers."""
-        if seed is not None: self._set_seed(seed)
-        self.randomize_v_dropout_rate()
-        self.randomize_t_dropout_rate()
-        self.randomize_fusion_dropout_rate()
-        self.randomize_drop_rate()
-        self.randomize_drop_path_rate()
-    
-    def randomize_backbone_dropout_rates(self, seed: Optional[int] = None) -> None:
-        """Randomizes backbone dropout-related rates by calling individual randomizers."""
-        if seed is not None: self._set_seed(seed)
-        self.randomize_drop_rate()
-        self.randomize_drop_path_rate()
-
-    def randomize_fusion_hidden(self, seed: Optional[int] = None) -> None:
-        """Randomizes the number of hidden neurons in the fusion layer."""
-        if seed is not None: self._set_seed(seed)
-        self.fusion_hidden = random.choice([128, 256, 512, 1024])
-
-    def randomize_fusion_method(self, seed: Optional[int] = None) -> None:
-        """Randomizes the fusion method from a list of common techniques."""
-        if seed is not None: self._set_seed(seed)
-        fusion_methods = [
-            ("torch.mul", torch.mul),
-            ("torch.add", torch.add),
-            # Concatenation would require changing fusion_out, so it's omitted here
-        ]
-        self.custom_fusion_method = random.choice(fusion_methods)
-
-    def randomize_fusion_activation(self, seed: Optional[int] = None) -> None:
-        """Randomizes the activation function in the fusion layer."""
-        if seed is not None: self._set_seed(seed)
-        activations = [
-            ("nn.ReLU()", torch.nn.ReLU()),
-            ("nn.Tanh()", torch.nn.Tanh()),
-            ("nn.GELU()", torch.nn.GELU()),
-            ("nn.SiLU()", torch.nn.SiLU()) # Also known as Swish
-        ]
-        self.custom_fusion_activation = random.choice(activations)
-    
     def randomize_train_transforms(self, seed: Optional[int] = None) -> None:
         """
         Randomizes the image augmentation pipeline for training.
@@ -413,11 +273,6 @@ class TrainLightningConfiguration:
         """Randomizes the early stopping patience."""
         if seed is not None: self._set_seed(seed)
         self.patience = random.randint(3, 10)
-
-    def randomize_shuffle(self, seed: Optional[int] = None) -> None:
-        """Randomizes the data shuffling flag."""
-        if seed is not None: self._set_seed(seed)
-        self.shuffle = random.choice([True, False])
 
     def info(self) -> None:
         """
