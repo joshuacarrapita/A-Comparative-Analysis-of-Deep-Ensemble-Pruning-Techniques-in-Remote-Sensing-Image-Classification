@@ -17,6 +17,7 @@ from typing import Callable, Optional, Union, Tuple
 import numpy as np
 import pandas as pd
 import torch
+from functools import partial
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms as T
@@ -237,8 +238,6 @@ class TrainLightningConfiguration:
     def randomize_loss_fn(self, seed: Optional[int] = None) -> None:
         """
         Randomizes the loss function from a predefined list.
-        Note: Ensure the chosen loss function is compatible with the model's output
-        and the task (e.g., BCE for multi-label, CrossEntropy for multi-class).
         """
         if seed is not None: self._set_seed(seed)
 
@@ -247,13 +246,20 @@ class TrainLightningConfiguration:
         #     ...
         # focal_loss = FocalLoss()
 
+        # Predefine cross_entropy with a random label smoothing value sampled once and remaining constant for the entire training run
+        random_smoothing_factor = random.uniform(0.0, 0.2)
+        ce_smooth_random = partial(F.cross_entropy, label_smoothing=random_smoothing_factor)
+
         loss_functions = [
             F.cross_entropy,
-            nn.BCEWithLogitsLoss(),
-            # Add other implemented losses here, e.g., focal_loss
+            ce_smooth_random,
+            F.multi_margin_loss,
+            # F.nll_loss # TODO: Check if compatible and add this if model's final layer is nn.LogSoftmax(dim=1).
         ]
+        
         self.loss_fn = random.choice(loss_functions)
     
+    # TODO: Could I not randomize these when I create a partial loss function already?
     def randomize_class_weights(self, seed: Optional[int] = None) -> None:
         """
         Randomizes the class weights for the loss function.
