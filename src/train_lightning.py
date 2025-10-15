@@ -174,6 +174,7 @@ def main():
     # --- Model, Dataset, Trainer Setup ---
 
     # Define Training Parameters
+    # TODO: pass class weights based on inverse frequency
     tc = TrainLightningConfiguration()
     print("\nConfiguration before randomization:")
     tc.info()

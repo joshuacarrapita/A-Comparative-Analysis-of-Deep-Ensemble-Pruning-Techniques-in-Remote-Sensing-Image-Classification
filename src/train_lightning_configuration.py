@@ -140,9 +140,12 @@ class TrainLightningConfiguration:
         self.drop_path_rate = drop_path_rate
         self.train_transforms = train_transforms
         self.loss_fn = loss_fn
-        self.class_weights = class_weights
         self.patience = patience
         self.optimizer = optimizer
+        if class_weights is None:
+            self.class_weights = torch.ones(self.num_classes)
+        else:
+            self.class_weights = class_weights
 
         self._initial_params = self.__dict__.copy()
         self._set_seed(seed)
@@ -188,7 +191,7 @@ class TrainLightningConfiguration:
         if seed is not None: self._set_seed(seed)
         self.batch_size = random.choice([16, 32, 64, 128, 256, 512, 1024])
 
-   def randomize_drop_rate(self, seed: Optional[int] = None) -> None:
+    def randomize_drop_rate(self, seed: Optional[int] = None) -> None:
         """Randomizes the timm model's drop rate."""
         if seed is not None: self._set_seed(seed)
         # often 0, 0.1 or 0.2
@@ -254,7 +257,6 @@ class TrainLightningConfiguration:
             F.cross_entropy,
             ce_smooth_random,
             F.multi_margin_loss,
-            # F.nll_loss # TODO: Check if compatible and add this if model's final layer is nn.LogSoftmax(dim=1).
         ]
         
         self.loss_fn = random.choice(loss_functions)
@@ -267,14 +269,16 @@ class TrainLightningConfiguration:
         of random weights.
         """
         if seed is not None: self._set_seed(seed)
-        use_weights = random.choice([True, False])
+        use_weights = random.choice(['no', 'per-class', 'global-scalar', 'ones'])
 
-        if use_weights:
-            # Generate random weights, e.g., between 0.5 and 2.0
-            weights = torch.FloatTensor([random.uniform(0.5, 2.0) for _ in range(self.num_classes)])
-            self.class_weights = weights
-        else:
-            self.class_weights = None
+        if use_weights == 'per-class':
+            # Generate a random weight scalar, e.g., between 0.5 and 2.0 for each class
+            scalars = torch.FloatTensor([random.uniform(0.5, 2.0) for _ in range(self.num_classes)])
+            self.class_weights = self.class_weights * scalars
+        elif use_weights == 'global-scalar':
+            self.class_weights = self.class_weights * random.uniform(0.5,2.0)
+        elif use_weights == 'ones':
+            self.class_weights = torch.ones(self.num_classes)
         
     def randomize_optimizer(self, seed: Optional[int] = None) -> None:
         """Randomizes the optimizer."""
