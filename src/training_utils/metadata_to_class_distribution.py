@@ -41,6 +41,7 @@ label_counts = {
     'label_freq_metadata': label_freq_metadata,
     'label_counts_metadata_snow_cloud': label_counts_metadata_snow_cloud,
     'label_freq_metadata_snow_cloud': label_freq_metadata_snow_cloud,
+    'label_counts_both': label_counts_both,
     'label_freq_both': label_freq_both,
 }
 
