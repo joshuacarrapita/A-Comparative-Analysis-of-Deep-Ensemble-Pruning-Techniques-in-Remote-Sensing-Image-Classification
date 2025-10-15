@@ -269,6 +269,7 @@ class TrainLightningConfiguration:
         of random weights.
         """
         if seed is not None: self._set_seed(seed)
+
         use_weights = random.choice(['no', 'per-class', 'global-scalar', 'ones'])
 
         if use_weights == 'per-class':
