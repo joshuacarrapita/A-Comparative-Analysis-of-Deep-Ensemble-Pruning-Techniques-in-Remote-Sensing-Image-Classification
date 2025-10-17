@@ -217,14 +217,22 @@ class TrainLightningConfiguration:
             T.RandomHorizontalFlip(p=0.5),
             T.RandomVerticalFlip(p=0.5),
             MyRotateTransform([0, 90, 180, 270]),
+
+            # UNSURE Because they alter the Pixel composition
+            T.RandomRotation(degrees=180),
+            T.RandomResizedCrop(size=(self.img_size[1],self.img_size[2]),scale=(0.5,1.0),antialias=True),
+            T.RandomErasing(p=0.5, scale=(0.02, 0.1), ratio=(0.3, 3.3)), # TODO: Check that the values make sense. If your data is normalized to N(0,1) or similar, value=0 is correct, as it masks the erased area with the dataset's approximate mean. If your data is not normalized (e.g., pixel values from 0-255 or 0-1), value should be a tuple of 10 values corresponding to the approximate mean of each of your 10 channels. This prevents the erased patch from acting as an obvious artifact.
+            T.ElasticTransform(alpha=50.0, sigma=5.0),
+            T.RandomChannelPermutation(),
+            T.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9,1.1))
+            T.RandomPerspective(distortion_scale=0.25,p=0.5),
+            T.RandomCrop((self.img_size[1],self.img_size[2])),
+            T.GaussianBlur(kernel_size=(3,3),sigma=(0.1,1.5)), # TODO: check what small kernel size and sigma is and select that
             # T.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1), # TODO: Check if it's possible to make it work on 10 Channel and not only RGB
-            # T.RandomAffine(degrees=0, translate=(0.1, 0.1)), not sure if this is applicable as it will result in image containing black space
-            # T.GaussianBlur(kernel_size=3,sigma=(0.1,2.0)), # TODO: check what small kernel size and sigma is and select that
-            # T.RandomErasing(p=0.5, scale=(0.02, 0.2), ratio=(0.3, 3.3), value=0), # TODO: Check that the values make sense. If your data is normalized to N(0,1) or similar, value=0 is correct, as it masks the erased area with the dataset's approximate mean. If your data is not normalized (e.g., pixel values from 0-255 or 0-1), value should be a tuple of 10 values corresponding to the approximate mean of each of your 10 channels. This prevents the erased patch from acting as an obvious artifact.
         ]
 
         # Randomly select a number of transforms to apply (e.g., 2 to 4)
-        num_transforms_to_apply = random.randint(2, len(potential_transforms))
+        num_transforms_to_apply = random.randint(1, len(potential_transforms))
         selected_transforms = random.sample(potential_transforms, num_transforms_to_apply)
 
         # Basic transforms that are almost always needed
@@ -287,8 +295,12 @@ class TrainLightningConfiguration:
         optimizers = [
             torch.optim.AdamW,
             torch.optim.Adam,
+            torch.optim.NAdam,
+            torch.optim.RAdam,
+            torch.optim.Adamax,
             torch.optim.SGD,
-            torch.optim.RMSprop
+            torch.optim.ASGD,
+            torch.optim.RMSprop,
         ]
         self.optimizer = random.choice(optimizers)
 
