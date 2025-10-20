@@ -117,11 +117,12 @@ def randomize_tc_for_benv2_ep(tc: TrainLightningConfiguration, seed: Optional[in
     print("\nRandomizing all hyperparameters...")
     tc.randomize_lr()
     tc.randomize_batch_size()
-    tc.randomize_dropout_rates()
-    tc.randomize_fusion_hidden()
-    #tc.randomize_fusion_method()
-    #tc.randomize_fusion_activation()
-    #tc.randomize_optimizer()
+    tc.randomize_drop_rate()
+    tc.randomize_drop_path_rate()
+    tc.randomize_train_transforms()
+    tc.randomize_loss_fn()
+    tc.randomize_class_weights()
+    tc.randomize_optimizer()
     tc.randomize_patience()
 
 def inverse_class_weights_from_occurrences(class_distribution_document_dir: Path, num_classes: int) -> torch.Tensor:
@@ -234,16 +235,8 @@ def main():
             image_size=image_size,
             channels=number_of_channels,
             network_type=ILMType.IMAGE_CLASSIFICATION,
-            v_dropout_rate=tc.v_dropout_rate,
-            t_dropout_rate=tc.t_dropout_rate,
-            fusion_dropout_rate=tc.fusion_dropout_rate,           
             drop_rate=tc.drop_rate,
             drop_path_rate=tc.drop_path_rate,
-            fusion_in=tc.fusion_in,
-            fusion_out=tc.fusion_out,
-            fusion_hidden=tc.fusion_hidden,
-            custom_fusion_method=tc.custom_fusion_method,
-            custom_fusion_activation=tc.custom_fusion_activation,
     )
 
     # Retrieve Model
@@ -254,7 +247,6 @@ def main():
             data_dirs = datapath_args,
             img_size = (number_of_channels, image_size, image_size),
             batch_size = tc.batch_size, # --> default 16 | TODO: Figure out good batch_size
-            shuffle = tc.shuffle, # --> default is None
             train_transforms = tc.train_transforms,
             num_workers_dataloader = num_workers, # --> default is os.cpu_count() / 2 which I think is good
             bagging = True,

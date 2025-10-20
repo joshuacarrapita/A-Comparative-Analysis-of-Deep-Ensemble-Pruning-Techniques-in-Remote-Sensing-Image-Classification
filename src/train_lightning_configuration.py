@@ -134,6 +134,7 @@ class TrainLightningConfiguration:
         self.generator = generator
         self.seed = seed
         self.num_classes = num_classes
+        self.img_size = img_size
         self.lr = lr
         self.batch_size = batch_size
         self.drop_rate = drop_rate
@@ -223,8 +224,8 @@ class TrainLightningConfiguration:
             T.RandomResizedCrop(size=(self.img_size[1],self.img_size[2]),scale=(0.5,1.0),antialias=True),
             T.RandomErasing(p=0.5, scale=(0.02, 0.1), ratio=(0.3, 3.3)), # TODO: Check that the values make sense. If your data is normalized to N(0,1) or similar, value=0 is correct, as it masks the erased area with the dataset's approximate mean. If your data is not normalized (e.g., pixel values from 0-255 or 0-1), value should be a tuple of 10 values corresponding to the approximate mean of each of your 10 channels. This prevents the erased patch from acting as an obvious artifact.
             T.ElasticTransform(alpha=50.0, sigma=5.0),
-            T.RandomChannelPermutation(),
-            T.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9,1.1))
+            #T.RandomChannelPermutation(),
+            T.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9,1.1)),
             T.RandomPerspective(distortion_scale=0.25,p=0.5),
             T.RandomCrop((self.img_size[1],self.img_size[2])),
             T.GaussianBlur(kernel_size=(3,3),sigma=(0.1,1.5)), # TODO: check what small kernel size and sigma is and select that
