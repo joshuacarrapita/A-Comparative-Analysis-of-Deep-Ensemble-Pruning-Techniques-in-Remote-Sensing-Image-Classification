@@ -13,6 +13,7 @@ models: 
 """
 import random
 from typing import Callable, Optional, Union, Tuple
+from inspect import signature
 
 import numpy as np
 import pandas as pd
@@ -329,11 +330,16 @@ class TrainLightningConfiguration:
             def format_value(val):
                 """Helper to create a nice string representation for different types."""
                 if hasattr(val, '__name__'):
-                    return val.__name__
+                    if val.__name__ == "cross_entropy":
+                        sig = signature(val)
+                        return val.__name__ + "(" + str(sig.parameters['label_smoothing']) + ")"
+                    else: 
+                        return val.__name__
                 if isinstance(val, tuple) and len(val) > 0 and isinstance(val[0], str):
                     return val[0] # For tuples like ("mul", torch.mul)
                 if isinstance(val, torch.Tensor):
-                    return f"Tensor(shape={val.shape})"
+                    #return f"Tensor(shape={val.shape})"
+                    return str(val)
                 if val is None:
                     return "None"
                 if isinstance(val, float):
@@ -344,18 +350,39 @@ class TrainLightningConfiguration:
             current_value_str = format_value(current_value)
 
             if standard_value_str == current_value_str:
-                new_value_display = "Not Randomized"
+                new_value_display = "Unchanged"
             else:
                 new_value_display = current_value_str
 
-            table_data.append([param, standard_value_str, new_value_display])
+            standard_value_str = standard_value_str.splitlines()
+            new_value_display = new_value_display.splitlines()
+            len_std = len(standard_value_str)
+            len_curr = len(new_value_display)
+            table_data.append([param, standard_value_str[0], new_value_display[0]])
+            if len_std == len_curr:
+                for i in range(1,len_std):
+                    table_data.append(["", standard_value_str[i], new_value_display[i]])
+            elif len_std > len_curr:
+                for i in range(1,len_std):
+                    if i < len_curr:
+                        table_data.append(["", standard_value_str[i], new_value_display[i]])
+                    else: 
+                        table_data.append(["", standard_value_str[i], ""])
+            else:
+                for i in range(1,len_curr):
+                    if i < len_std:
+                        table_data.append(["", standard_value_str[i], new_value_display[i]])
+                    else: 
+                        table_data.append(["", "", new_value_display[i]])
 
         # --- Create and print the table using pandas ---
         df = pd.DataFrame(table_data, columns=["Parameter", "Standard Value", "New Value"])
 
-        with pd.option_context('display.max_rows', None, 'display.width', 1000):
-            print(df)
-        print("-" * 40)
+        #with pd.option_context('display.max_rows', None, 'display.width', 1000):
+            #print(df)
+
+        print(df.to_string())
+        print("-" * 86)
 
 if __name__ == '__main__':
     # --- Example Usage ---
