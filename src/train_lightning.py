@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import torch
+import pandas as pd
 import torch.nn.functional as F
 import lightning.pytorch as pl
 from lightning.pytorch.loggers import TensorBoardLogger
@@ -122,11 +123,22 @@ def randomize_tc_for_benv2_ep(tc: TrainLightningConfiguration, seed: Optional[in
     #tc.randomize_fusion_activation()
     #tc.randomize_optimizer()
     tc.randomize_patience()
-    #tc.randomize_shuffle()
-    #tc.randomize_train_transforms()
-    #tc.randomize_loss_fn()
-    #tc.randomize_class_weights()
-    
+
+def inverse_class_weights_from_occurrences(class_distribution_document_dir: Path, num_classes: int) -> torch.Tensor:
+    """
+        Compute inverse class weights from a parquet file that stores label counts.
+
+        :param class_distribution_document_dir: Path - Directory containing `label_counts_metadata.parquet`.
+
+        :returns torch.Tensor: Tensor of shape (num_classes,) with the weight for each class.
+    """
+
+    label_counts = pd.read_parquet(class_distribution_document_dir / "label_counts_metadata.parquet")
+    total_samples = label_counts['counts'].sum()
+    class_weights = total_samples / (num_classes * label_counts['counts'])
+    print(class_weights)
+    return torch.tensor(class_weights.values, dtype=torch.float32) # TODO: check if float32 is good for the loss functions
+
 # ===========================================================================
 # Main Training Script
 # ===========================================================================
@@ -148,15 +160,17 @@ def main():
             'images_lmdb': Path(sys.argv[1]).resolve(),
             'metadata_parquet': Path(sys.argv[2]).resolve(),
             'metadata_snow_cloud_parquet': Path(sys.argv[3]).resolve(),
+            'class_distribution_document_dir': Path(sys.argv[4]).resolve(),
         }
-        export_dir_root = Path(sys.argv[4]).resolve()
-        seed = int(sys.argv[6]) if len(sys.argv) > 5 else 42
+        export_dir_root = Path(sys.argv[5]).resolve()
+        seed = int(sys.argv[7]) if len(sys.argv) > 6 else 42
         print(f'\nSeed set to {seed}.')
 
         # Validate Paths
         assert datapath_args['images_lmdb'].is_dir(), f"Input directory does not exist or is not a directory: {datapath_args['images_lmdb']}"
         assert datapath_args['metadata_parquet'].is_file(), f"Input file does not exist or is not a file: {datapath_args['metadata_parquet']}"
         assert datapath_args['metadata_snow_cloud_parquet'].is_file(), f"Input file does not exist or is not a file: {datapath_args['metadata_snow_cloud_parquet']}"
+        assert not datapath_args['class_distribution_document_dir'].is_file(), f"Class distribution document directory needs to be a directory but is a file: {datapath_args['class_distribution_document_dir']}"
         assert not export_dir_root.is_file(), f"Export needs to be a directory but is a file: {export_dir_root}"
 
     except Exception as e:
@@ -175,7 +189,9 @@ def main():
 
     # Define Training Parameters
     # TODO: pass class weights based on inverse frequency
-    tc = TrainLightningConfiguration()
+    class_weights = inverse_class_weights_from_occurrences(datapath_args['class_distribution_document_dir'], num_classes=19)
+
+    tc = TrainLightningConfiguration(class_weights=class_weights)
     print("\nConfiguration before randomization:")
     tc.info()
     randomize_tc_for_benv2_ep(tc=tc, seed=seed)
