@@ -125,16 +125,16 @@ def randomize_tc_for_benv2_ep(tc: TrainLightningConfiguration, seed: Optional[in
     tc.randomize_optimizer()
     tc.randomize_patience()
 
-def inverse_class_weights_from_occurrences(class_distribution_document_dir: Path, num_classes: int) -> torch.Tensor:
+def inverse_class_weights_from_occurrences(class_distribution_parquet: Path, num_classes: int) -> torch.Tensor:
     """
         Compute inverse class weights from a parquet file that stores label counts.
 
-        :param class_distribution_document_dir: Path - Directory containing `label_counts_metadata.parquet`.
+        :param class_distribution_parquet: Path to file containing the absolute class counts thus the class distribution.
 
         :returns torch.Tensor: Tensor of shape (num_classes,) with the weight for each class.
     """
 
-    label_counts = pd.read_parquet(class_distribution_document_dir / "label_counts_metadata.parquet")
+    label_counts = pd.read_parquet(class_distribution_parquet)
     total_samples = label_counts['counts'].sum()
     class_weights = total_samples / (num_classes * label_counts['counts'])
     print(class_weights)
@@ -161,7 +161,7 @@ def main():
             'images_lmdb': Path(sys.argv[1]).resolve(),
             'metadata_parquet': Path(sys.argv[2]).resolve(),
             'metadata_snow_cloud_parquet': Path(sys.argv[3]).resolve(),
-            'class_distribution_document_dir': Path(sys.argv[4]).resolve(),
+            'class_distribution_parquet': Path(sys.argv[4]).resolve(),
         }
         export_dir_root = Path(sys.argv[5]).resolve()
         seed = int(sys.argv[7]) if len(sys.argv) > 6 else 42
@@ -171,12 +171,12 @@ def main():
         assert datapath_args['images_lmdb'].is_dir(), f"Input directory does not exist or is not a directory: {datapath_args['images_lmdb']}"
         assert datapath_args['metadata_parquet'].is_file(), f"Input file does not exist or is not a file: {datapath_args['metadata_parquet']}"
         assert datapath_args['metadata_snow_cloud_parquet'].is_file(), f"Input file does not exist or is not a file: {datapath_args['metadata_snow_cloud_parquet']}"
-        assert not datapath_args['class_distribution_document_dir'].is_file(), f"Class distribution document directory needs to be a directory but is a file: {datapath_args['class_distribution_document_dir']}"
+        assert datapath_args['class_distribution_parquet'].is_file(), f"Input file does not exist or is not a file: {datapath_args['class_distribution_parquet']}"
         assert not export_dir_root.is_file(), f"Export needs to be a directory but is a file: {export_dir_root}"
 
     except Exception as e:
         # Handle Input Errors
-        sys.exit(f'\nAn error occured: {e}.\n\nUsage: python train.py /path/to/lmdb_dir/ /path/to/metadata.parquet /path/to/metadata_snow_cloud.parquet /path/to/export/dir/ --seed [Number]\n')
+        sys.exit(f'\nAn error occured: {e}.\n\nUsage: python train.py /path/to/lmdb_dir/ /path/to/metadata.parquet /path/to/metadata_snow_cloud.parquet /path/to/class_distribution.parquet /path/to/export/dir/ --seed [Number]\n')
     
     slurm_job_id = os.getenv('SLURM_JOB_ID')
     if slurm_job_id is not None:
@@ -190,7 +190,7 @@ def main():
 
     # Define Training Parameters
     # TODO: pass class weights based on inverse frequency
-    class_weights = inverse_class_weights_from_occurrences(datapath_args['class_distribution_document_dir'], num_classes=19)
+    class_weights = inverse_class_weights_from_occurrences(datapath_args['class_distribution_parquet'], num_classes=19)
 
     tc = TrainLightningConfiguration(class_weights=class_weights)
     print("\nConfiguration before randomization:")
