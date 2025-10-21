@@ -1,16 +1,23 @@
+# stdlib imports
 import os
 import sys
 import time
-import torch
-import pandas as pd
-import torch.nn.functional as F
-import lightning.pytorch as pl
-from lightning.pytorch.loggers import TensorBoardLogger
-from lightning.pytorch.profilers import SimpleProfiler
-from lightning.pytorch.callbacks import DeviceStatsMonitor
 from pathlib import Path
 from typing import Optional
 
+# third-party imports
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import torch
+import torch.nn.functional as F
+import lightning.pytorch as pl
+from torchmetrics.classification import MulticlassConfusionMatrix
+from lightning.pytorch.loggers import TensorBoardLogger
+from lightning.pytorch.profilers import SimpleProfiler
+from lightning.pytorch.callbacks import DeviceStatsMonitor
+
+# local imports
 from configilm import ConfigILM, util
 from configilm.ConfigILM import ILMConfiguration, ILMType
 from configilm.extra.DataModules import BENv2_DataModule
