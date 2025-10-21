@@ -158,13 +158,13 @@ class LitImageEncoder(pl.LightningModule):
         ax.set_ylabel("True Labels")
         ax.set_title(f"(Confusion Matrix - {tag.split('_')[0].upper()}")
 
-       # log figure to logger
-       self.logger.experiment.add_figure(tag, fig, self.current_epoch)
+        # log figure to logger
+        self.logger.experiment.add_figure(tag, fig, self.current_epoch)
 
-       # (optional) log raw tensor
-       # self.log(f"{tag}_raw", cm_tensor, on_step=False, on_epoch=True)
+        # (optional) log raw tensor
+        # self.log(f"{tag}_raw", cm_tensor, on_step=False, on_epoch=True)
 
-       plt.close(fig)
+        plt.close(fig)
 
 # ===========================================================================
 # Helper Functions
