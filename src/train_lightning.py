@@ -42,6 +42,8 @@ class LitImageEncoder(pl.LightningModule):
         optimizer: callable = torch.optim.AdamW,
     ):
         super().__init__()
+
+        # hyperparameters 
         self.lr = lr
         self.config = config
         self.model = ConfigILM.ConfigILM(config)
@@ -53,60 +55,116 @@ class LitImageEncoder(pl.LightningModule):
         self.optimizer = optimizer
         self.save_hyperparameters() 
 
+        # metrics
+        self.train_cm = MulticlassConfusionMatrix(num_classes=self.config.classes)
+        self.val_cm = MulticlassConfusionMatrix(num_classes=self.config.classes)
+
     def configure_optimizers(self):
         optimizer = self.optimizer(self.parameters(), lr=self.lr, weight_decay=0.01) # DONE add passing of optimizer in init
         return optimizer
+    
+    def forward(self, batch):
+        # because we are a wrapper, we call the inner function manually
+        return self.model(batch)
 
     def training_step(self, batch, batch_idx):
+        # retrieve batch data
         img, label = batch
+        label = torch.argmax(label, dim=1) # one-hot -> index
 
-        # Convert one-hot encoded label to class index (batch_size x classes label tensor to batch_size x 1 label tensor
-        label = torch.argmax(label, dim=1)
+        # infer input and calculate loss
+        logits = self.model(img)
+        loss = self.loss_fn(logits,label,weight=self.class_weights)
 
-        output = self.model(img)
-        loss = self.loss_fn(output,label,weight=self.class_weights)
+        # calculate batch accuracy
+        preds = torch.argmax(logits,dim=1) # logits -> index
+        acc = 100 * (preds == label).float().mean()
 
-        correct = (torch.argmax(output,dim=1) == label).float().sum()
-        acc = 100 * correct / output.shape[0]
+        # update training confusion matrix
+        self.train_cm.update(preds,label)
+        
+        # log metrics to logger
+        self.log('train_acc', acc, on_step=False, on_epoch=True)
+        self.log('train_loss', loss, on_step=False, on_epoch=True)
 
-        self.log('train_acc', acc, on_step=True, on_epoch=True)
-        self.log('train_loss', loss, on_step=True, on_epoch=True)
+        # return loss for optimizer to work with
         return {'loss': loss}
 
     def validation_step(self, batch, batch_idx):
+        # retrieve batch data
         img, label = batch
+        label = torch.argmax(label, dim=1) # one-hot -> index
 
-        # Convert one-hot encoded label to class index (batch_size x classes label tensor to batch_size x 1 label tensor
-        label = torch.argmax(label, dim=1)
+        # infer input and calculate loss
+        logits = self.model(img)
+        loss = self.loss_fn(logits,label,weight=self.class_weights)
 
-        output = self.model(img)
-        loss = self.loss_fn(output,label,weight=self.class_weights)
-        # DONE add custom weights here and in the other steps like so: loss = loss_fn(logits, y, weight=self.custom_weights)
+        # calculate batch accuracy
+        preds = torch.argmax(logits,dim=1) # logits -> index
+        acc = 100 * (preds == label).float().mean()
 
-        correct = (torch.argmax(output,dim=1) == label).float().sum()
-        acc = 100 * correct / output.shape[0]
+        # update validation confusion matrix
+        self.val_cm.update(preds,label) 
 
+        # log metrics to logger
         self.log('val_acc', acc, on_epoch=True)
         self.log('val_loss', loss, on_epoch=True) 
        
     def test_step(self, batch, batch_idx):
         img, label = batch
+        label = torch.argmax(label, dim=1) # one-hot -> index
 
-        # Convert one-hot encoded label to class index (batch_size x classes label tensor to batch_size x 1 label tensor)
-        label = torch.argmax(label, dim=1)
+        # infer input and calculate loss
+        logits = self.model(img)
+        loss = self.loss_fn(logits,label,weight=self.class_weights)
 
-        output = self.model(img)
-        loss = self.loss_fn(output,label,weight=self.class_weights)
+        # calculate batch accuracy
+        preds = torch.argmax(logits,dim=1) # logits -> index
+        acc = 100 * (preds == label).float().mean()
 
-        correct = (torch.argmax(output,dim=1) == label).float().sum()
-        acc = 100 * correct / output.shape[0]
-
+        # log metrics to logger
         self.log('test_acc', acc, on_epoch=True)
         self.log('test_loss', loss, on_epoch=True) 
+
+    def on_train_epoch_end(self):
+        cm = self.train_cm.compute()
+        self._log_confusion_matrix(cm, tag='train_cm')
+        self.train_cm.reset()
+
+    def on_validation_epoch_end(self):
+        cm = self.val_cm.compute()
+        self._log_confusion_matrix(cm, tag='val_cm')
+        self.val_cm.reset()
         
-    def forward(self, batch):
-        # because we are a wrapper, we call the inner function manually
-        return self.model(batch)
+    def _log_confusion_matrix(self, cm_tensor, tag:str):
+        """
+            :param cm_tensor : (C, C) int64 tensor of counts
+            :param tag       : logger prefix (e.g., "val_cm")
+        """
+        # convert to numpy for seaborn
+        cm_np = cm_tensor.numpy()
+
+        # plot
+        fig, ax = plt.subplots(figsize=(6,6))
+        sns.heatmap(
+            cm_np,
+            annot=True,
+            fmt="d",
+            cmap="Blues",
+            cbar=False,
+            ax=ax,
+        )
+        ax.set_xlabel("Predicted Labels")
+        ax.set_ylabel("True Labels")
+        ax.set_title(f"(Confusion Matrix - {tag.split('_')[0].upper()}")
+
+       # log figure to logger
+       self.logger.experiment.add_figure(tag, fig, self.current_epoch)
+
+       # (optional) log raw tensor
+       # self.log(f"{tag}_raw", cm_tensor, on_step=False, on_epoch=True)
+
+       plt.close(fig)
 
 # ===========================================================================
 # Helper Functions
