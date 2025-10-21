@@ -127,23 +127,41 @@ class LitImageEncoder(pl.LightningModule):
         self.log('test_loss', loss, on_epoch=True) 
 
     def on_train_epoch_end(self):
-        cm = self.train_cm.compute()
+        cm = self.train_cm.compute().detach().cpu().numpy()
         self._log_confusion_matrix(cm, tag='train_cm')
         self.train_cm.reset()
 
     def on_validation_epoch_end(self):
-        cm = self.val_cm.compute()
+        # calc and log confusion matrix
+        cm = self.val_cm.compute().detach().cpu().numpy()
         self._log_confusion_matrix(cm, tag='val_cm')
+
+        # calc and log per-class accuracy
+        per_class_acc = self._calc_per_class_accuracy(cm) # returns (C,)
+        self._log_class_accuracy(per_class_acc, tag='val_class_acc')
+
+        # calc and log average per-class accuracy
+        avg_per_class_acc = torch.mean(per_class_acc)
+        self.log('avg_per_class_acc' avg_per_class_acc, on_epoch=True)
+
         self.val_cm.reset()
-        
-    def _log_confusion_matrix(self, cm_tensor, tag:str):
+
+    def _calc_per_class_accuracy(self, cm_tensor):
         """
-            :param cm_tensor : (C, C) int64 tensor of counts
+            cm_tensor: (C, C) int64 confusion matrix converted to numpy
+            Returns: (C,) float tensor with TP/(TP+FN) for each class
+        """
+        # true positives = diagonal, total true instances = row sum
+        tp = torch.diag(cm_tensor).float()
+        total = cm_tensor.sum(dim=1).float()
+        # avoid division‑by‑zero
+        return torch.where(total == 0, torch.zeros_like(tp), tp / total)
+        
+    def _log_confusion_matrix(self, cm_tensor, tag: str):
+        """
+            :param cm_tensor : (C, C) int64 tensor of counts converted to numpy
             :param tag       : logger prefix (e.g., "val_cm")
         """
-        # convert to numpy for seaborn
-        cm_np = cm_tensor.numpy()
-
         # plot
         fig, ax = plt.subplots(figsize=(6,6))
         sns.heatmap(
@@ -165,6 +183,29 @@ class LitImageEncoder(pl.LightningModule):
         # self.log(f"{tag}_raw", cm_tensor, on_step=False, on_epoch=True)
 
         plt.close(fig)
+
+    def _log_class_accuracy(self, acc_tensor, tag: str):
+        """Log a 1×C accuracy tensor as a seaborn heat‑map."""
+        acc_tensor = acc_tensor.reshape(1, -1)   # (1, C)
+
+        fig, ax = plt.subplots(figsize=(max(6, self.config.classes * 0.4), 2))
+        sns.heatmap(
+            acc_tensor,
+            annot=True,
+            fmt=".2%",
+            cmap="viridis",
+            cbar=False,
+            linewidths=0.5,
+            ax=ax,
+        )
+        ax.set_xticks(range(self.config.classes))
+        ax.set_xticklabels([f"C{i}" for i in range(self.config.classes)],
+                           rotation=45, ha="right")
+        ax.set_yticks([])  # hide the single y‑tick
+        ax.set_title("Per‑class Accuracy (validation)")
+        self.logger.experiment.add_figure(tag, fig, self.current_epoch)
+        plt.close(fig)
+ 
 
 # ===========================================================================
 # Helper Functions
