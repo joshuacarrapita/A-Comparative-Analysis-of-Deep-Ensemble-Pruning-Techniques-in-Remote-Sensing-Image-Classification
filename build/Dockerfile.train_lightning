@@ -6,10 +6,11 @@ WORKDIR /app
 
 # COPY and install requirements
 COPY build/requirements_train_lightning.txt /app/build/requirements_train_lightning.txt
-RUN pip install --no-cache-dir -r build/requirements_train_lightning.txt
+RUN --mount=type=cache,target=~/.cache/pip pip install -r build/requirements_train_lightning.txt
 
 # COPY files
 COPY src/train_lightning.py /app/src/train_lightning.py
+COPY src/train_lightning_configuration.py /app/src/train_lightning_configuration.py
 
 # Define entrypoint
-CMD ["python", "-O", "src/train_lightning.py", "data/BENv2.lmdb/", "data/metadata.parquet", "data/metadata_for_patches_with_snow_cloud_or_shadow.parquet", "models/"]
+CMD ["python", "-O", "src/train_lightning.py", "data/BENv2.lmdb/", "data/metadata.parquet", "data/metadata_for_patches_with_snow_cloud_or_shadow.parquet", "data/class_distribution.parquet", "models/"]
