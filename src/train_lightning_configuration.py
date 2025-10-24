@@ -34,36 +34,29 @@ class TrainLightningConfiguration:
     def __init__(
         self,
 
+        # --- not-randomized params ---
         generator: Optional[random.Random] = None,
         seed: int = 42,
         num_classes: int = 19,
         img_size: tuple = (10, 120, 120),
         
+        # --- randomized params ---
         # hyperparameters
         lr: float = 5e-4,
         batch_size: int = 32,
         drop_rate: Optional[float] = 0.2,
         drop_path_rate: Optional[float] = None,
-        # etc.: str = #TODO,
 
-        # architecture
-        # normalization_type: int = #TODO implement in ConfigILM.py, # responsible for normalization in model architecture. Common normalization techniques include Batch Normalization, Layer Normalization, and Instance Normalization.,
-        # hidden_neurons: int = #TODO,
-        # etc.: str = #TODO,
-
-        # data
+        # data augmentations
         train_transforms: Optional[Callable] = None,
-        # etc.: str = #TODO,
 
-        # loss functions (e.g. different class weights, functions(dice, focal))
+        # loss functions 
         loss_fn: callable = F.cross_entropy,
         class_weights: Optional[torch.Tensor] = None,
-        # etc.: str = #TODO,
 
         # optimizers 
         patience: int = 6,
         optimizer: callable = torch.optim.AdamW,
-        # etc.: str = #TODO,
     ):
         """
             This configuration class is designed to work with the train_lightning training script.
@@ -212,25 +205,22 @@ class TrainLightningConfiguration:
         chosen and composed.
         """
         if seed is not None: self._set_seed(seed)
+        
+        ben_mean, ben_std = band_combi_to_mean_std(self.img_size[0])
 
-        # TODO: Add or modify custom transformation functions 
         potential_transforms = [
             MyGaussianNoise(sigma=20.0),
             T.RandomHorizontalFlip(p=0.5),
             T.RandomVerticalFlip(p=0.5),
             MyRotateTransform([0, 90, 180, 270]),
-
-            # UNSURE Because they alter the Pixel composition
             T.RandomRotation(degrees=180),
             T.RandomResizedCrop(size=(self.img_size[1],self.img_size[2]),scale=(0.5,1.0),antialias=True),
-            T.RandomErasing(p=0.5, scale=(0.02, 0.1), ratio=(0.3, 3.3)), # TODO: Check that the values make sense. If your data is normalized to N(0,1) or similar, value=0 is correct, as it masks the erased area with the dataset's approximate mean. If your data is not normalized (e.g., pixel values from 0-255 or 0-1), value should be a tuple of 10 values corresponding to the approximate mean of each of your 10 channels. This prevents the erased patch from acting as an obvious artifact.
+            T.RandomErasing(p=0.5, scale=(0.02, 0.1), ratio=(0.3, 3.3), value=ben_mean),
             T.ElasticTransform(alpha=50.0, sigma=5.0),
-            #T.RandomChannelPermutation(),
             T.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9,1.1)),
             T.RandomPerspective(distortion_scale=0.25,p=0.5),
             T.RandomCrop((self.img_size[1],self.img_size[2])),
-            T.GaussianBlur(kernel_size=(3,3),sigma=(0.1,1.5)), # TODO: check what small kernel size and sigma is and select that
-            # T.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1), # TODO: Check if it's possible to make it work on 10 Channel and not only RGB
+            T.GaussianBlur(kernel_size=(3,3),sigma=(0.1,1.5)), 
         ]
 
         # Randomly select a number of transforms to apply (e.g., 2 to 4)
@@ -238,8 +228,6 @@ class TrainLightningConfiguration:
         selected_transforms = random.sample(potential_transforms, num_transforms_to_apply)
 
         # Basic transforms that are almost always needed
-        ben_mean, ben_std = band_combi_to_mean_std(self.img_size[0])
-
         final_transforms = [
             T.Resize((self.img_size[1], self.img_size[2]), antialias=True),
             *selected_transforms,
@@ -254,11 +242,6 @@ class TrainLightningConfiguration:
         """
         if seed is not None: self._set_seed(seed)
 
-        # TODO: Implement and add custom loss functions if needed (e.g., FocalLoss)
-        # class FocalLoss(nn.Module):
-        #     ...
-        # focal_loss = FocalLoss()
-
         # Predefine cross_entropy with a random label smoothing value sampled once and remaining constant for the entire training run
         random_smoothing_factor = random.uniform(0.0, 0.2)
         ce_smooth_random = partial(F.cross_entropy, label_smoothing=random_smoothing_factor)
@@ -271,7 +254,6 @@ class TrainLightningConfiguration:
         
         self.loss_fn = random.choice(loss_functions)
     
-    # TODO: Could I not randomize these when I create a partial loss function already?
     def randomize_class_weights(self, seed: Optional[int] = None) -> None:
         """
         Randomizes the class weights for the loss function.
@@ -386,7 +368,7 @@ class TrainLightningConfiguration:
 
 if __name__ == '__main__':
     # --- Example Usage ---
-    
+
     # 1. Create a config and show its initial state
     print("--- 1. Initial Configuration State ---")
     config = TrainLightningConfiguration()
@@ -402,20 +384,3 @@ if __name__ == '__main__':
     config2 = TrainLightningConfiguration(seed=99)
     config2.randomize_lr()
     config2.info()
-
-# --- Example Randomization Function ---
-#     def randomize_all(self, seed: Optional[int] = None, num_param: Optional[int] = None, num_categories: Optional[int] = None) -> None:
-#         
-#         self.lr = random.random()
-#         # seed presets the seed used for randomizationnum_param,
-#         # num_param sets the number of parameters that are supposed to be randomized, can be just one or more,
-#         # num_categories sets the number of different categories in which parameters should be randomized e.g. 1 will pick one category out of model architecture, hyperparameters, misc, ... etc. (TODO choose categories)
-#         # MAYBE: Add choose specific params and / or categories to be randomized.
-
-# --- Example Usage ---
-# config = TrainLightningConfiguration()
-# print(f"Default LR: {config.lr}, Default Optimizer: {config.optimizer.__name__}")
-# 
-# config.randomize_all(seed=123)
-# print(f"Randomized LR: {config.lr:.6f}, Randomized Optimizer: {config.optimizer.__name__}")
-# print(f"Randomized Fusion Method: {config.custom_fusion_method[0]}")

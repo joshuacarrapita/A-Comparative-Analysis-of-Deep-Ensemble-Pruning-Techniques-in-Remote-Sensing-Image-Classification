@@ -212,7 +212,6 @@ class LitImageEncoder(pl.LightningModule):
         self.logger.experiment.add_figure(tag, fig, self.current_epoch)
         plt.close(fig)
  
-
 # ===========================================================================
 # Helper Functions
 # ===========================================================================
