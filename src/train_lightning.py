@@ -61,7 +61,7 @@ class LitImageEncoder(pl.LightningModule):
         self.val_cm = MulticlassConfusionMatrix(num_classes=self.config.classes)
 
     def configure_optimizers(self):
-        optimizer = self.optimizer(self.parameters(), lr=self.lr, weight_decay=0.01) # DONE add passing of optimizer in init
+        optimizer = self.optimizer(self.parameters(), lr=self.lr, weight_decay=0.01) 
         return optimizer
     
     def forward(self, batch):
@@ -248,8 +248,7 @@ def inverse_class_weights_from_occurrences(class_distribution_parquet: Path, num
     label_counts = pd.read_parquet(class_distribution_parquet)
     total_samples = label_counts['counts'].sum()
     class_weights = total_samples / (num_classes * label_counts['counts'])
-    print(class_weights)
-    return torch.tensor(class_weights.values, dtype=torch.float32) # TODO: check if float32 is good for the loss functions
+    return torch.tensor(class_weights.values, dtype=torch.float32) 
 
 # ===========================================================================
 # Main Training Script
@@ -300,7 +299,6 @@ def main():
     # --- Model, Dataset, Trainer Setup ---
 
     # Define Training Parameters
-    # TODO: pass class weights based on inverse frequency
     class_weights = inverse_class_weights_from_occurrences(datapath_args['class_distribution_parquet'], num_classes=19)
 
     tc = TrainLightningConfiguration(class_weights=class_weights)
@@ -351,15 +349,15 @@ def main():
     )
 
     # Retrieve Model
-    model = LitImageEncoder(config=model_config, lr=tc.lr, loss_fn=tc.loss_fn, class_weights=tc.class_weights) # DONE change to loss_fn=loss_fn? and add passing of custom weights)
+    model = LitImageEncoder(config=model_config, lr=tc.lr, loss_fn=tc.loss_fn, class_weights=tc.class_weights) 
 
     # Generate Lighting DataModule
     dm = BENv2_DataModule.BENv2DataModule(
             data_dirs = datapath_args,
             img_size = (number_of_channels, image_size, image_size),
-            batch_size = tc.batch_size, # --> default 16 | TODO: Figure out good batch_size
+            batch_size = tc.batch_size, 
             train_transforms = tc.train_transforms,
-            num_workers_dataloader = num_workers, # --> default is os.cpu_count() / 2 which I think is good
+            num_workers_dataloader = num_workers, 
             bagging = True,
             seed = seed,
     )
@@ -379,7 +377,7 @@ def main():
             log_every_n_steps = 10,
             logger = logger,
             #profiler = profiler,
-            precision = '16-mixed', # for A100 GPUs (Automatic Mixed Precision) TODO: /home/user/.pyenv/versions/ba_python_venv/lib/python3.11/site-packages/lightning/fabric/connector.py:571: `precision=16` is supported for historical reasons but its usage is discouraged. Please set your precision to 16-mixed instead!
+            precision = '16-mixed', # for A100 GPUs (Automatic Mixed Precision)
             callbacks=[
             pl.callbacks.EarlyStopping(monitor='val_loss', patience=tc.patience, mode='min'), 
             pl.callbacks.ModelCheckpoint(monitor='val_loss', mode='min', save_top_k=1), # saves best model

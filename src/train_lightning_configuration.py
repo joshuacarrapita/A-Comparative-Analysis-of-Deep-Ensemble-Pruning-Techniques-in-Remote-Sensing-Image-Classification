@@ -215,7 +215,7 @@ class TrainLightningConfiguration:
             MyRotateTransform([0, 90, 180, 270]),
             T.RandomRotation(degrees=180),
             T.RandomResizedCrop(size=(self.img_size[1],self.img_size[2]),scale=(0.5,1.0),antialias=True),
-            T.RandomErasing(p=0.5, scale=(0.02, 0.1), ratio=(0.3, 3.3), value=ben_mean),
+            T.RandomErasing(p=0.5, scale=(0.02, 0.1), ratio=(0.3, 3.3), value=ben_mean.tolist()),
             T.ElasticTransform(alpha=50.0, sigma=5.0),
             T.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9,1.1)),
             T.RandomPerspective(distortion_scale=0.25,p=0.5),
