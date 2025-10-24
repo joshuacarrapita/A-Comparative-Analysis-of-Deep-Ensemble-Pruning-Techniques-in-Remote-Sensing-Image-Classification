@@ -128,13 +128,13 @@ class LitImageEncoder(pl.LightningModule):
         self.log('test_loss', loss, on_epoch=True) 
 
     def on_train_epoch_end(self):
-        cm = self.train_cm.compute().detach().cpu()
+        cm = self.train_cm.compute()
         self._log_confusion_matrix(cm, tag='train_cm')
         self.train_cm.reset()
 
     def on_validation_epoch_end(self):
         # calc and log confusion matrix
-        cm = self.val_cm.compute().detach().cpu()
+        cm = self.val_cm.compute()
         self._log_confusion_matrix(cm, tag='val_cm')
 
         # calc and log per-class accuracy
@@ -149,7 +149,7 @@ class LitImageEncoder(pl.LightningModule):
 
     def _calc_per_class_accuracy(self, cm_tensor):
         """
-            cm_tensor: (C, C) int64 confusion matrix
+            cm_tensor: (C, C) detached int64 confusion matrix
             Returns: (C,) float tensor with TP/(TP+FN) for each class
         """
         # true positives = diagonal, total true instances = row sum
@@ -160,11 +160,11 @@ class LitImageEncoder(pl.LightningModule):
         
     def _log_confusion_matrix(self, cm_tensor, tag: str):
         """
-            :param cm_tensor : (C, C) int64 tensor of counts 
+            :param cm_tensor : (C, C) detached int64 tensor of counts 
             :param tag       : logger prefix (e.g., "val_cm")
         """
         # convert confusion matrix to numpy
-        cm_np = cm_tensor.cpu().numpy()
+        cm_np = cm_tensor.numpy()
 
         # plot
         fig, ax = plt.subplots(figsize=(6,6))
@@ -189,8 +189,8 @@ class LitImageEncoder(pl.LightningModule):
         plt.close(fig)
 
     def _log_class_accuracy(self, acc_tensor, tag: str):
-        """Log a 1×C accuracy tensor as a seaborn heat‑map."""
-        acc_tensor = acc_tensor.cpu().numpy().reshape(1, -1)   # (1, C)
+        """Log a 1×C detached accuracy tensor as a seaborn heat‑map."""
+        acc_tensor = acc_tensor.numpy().reshape(1, -1)   # (1, C)
 
         fig, ax = plt.subplots(figsize=(max(6, self.config.classes * 0.4), 2))
         sns.heatmap(
