@@ -48,11 +48,13 @@ class LitImageEncoder(pl.LightningModule):
         self.lr = lr
         self.config = config
         self.model = ConfigILM.ConfigILM(config)
-        self.val_output_list = []
-        self.test_output_list = []
 
         self.loss_fn = loss_fn
-        self.class_weights = class_weights
+        if class_weights is not None:
+            self.register_buffer("class_weights", class_weights)
+        else:
+            self.class_weights = None
+            
         self.optimizer = optimizer
         self.save_hyperparameters() 
 
