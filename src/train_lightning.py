@@ -130,13 +130,13 @@ class LitImageEncoder(pl.LightningModule):
         self.log('test_loss', loss, on_epoch=True) 
 
     def on_train_epoch_end(self):
-        cm = self.train_cm.compute()
+        cm = self.train_cm.compute().detach().cpu()
         self._log_confusion_matrix(cm, tag='train_cm')
         self.train_cm.reset()
 
     def on_validation_epoch_end(self):
         # calc and log confusion matrix
-        cm = self.val_cm.compute()
+        cm = self.val_cm.compute().detach().cpu()
         self._log_confusion_matrix(cm, tag='val_cm')
 
         # calc and log per-class accuracy
