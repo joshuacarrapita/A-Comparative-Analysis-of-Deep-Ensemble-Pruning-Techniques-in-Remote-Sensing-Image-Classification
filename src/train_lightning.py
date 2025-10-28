@@ -2,6 +2,7 @@
 import os
 import sys
 import time
+import random
 from pathlib import Path
 from typing import Optional
 
@@ -276,7 +277,7 @@ def main():
             'class_distribution_parquet': Path(sys.argv[4]).resolve(),
         }
         export_dir_root = Path(sys.argv[5]).resolve()
-        seed = int(sys.argv[7]) if len(sys.argv) > 6 else 42
+        seed = int(sys.argv[7]) if len(sys.argv) > 6 else random.randint(1,100)
         print(f'\nSeed set to {seed}.')
 
         # Validate Paths
@@ -297,6 +298,38 @@ def main():
     else:
         export_dir = export_dir_root / f'resnet18_{start_time}_seed{seed}'
     export_dir.mkdir(parents=True, exist_ok=True)
+
+    # --- System Setup & Info ---
+    torch.set_float32_matmul_precision('medium')
+
+    slurm_cpus_per_task = os.getenv('SLURM_CPUS_PER_TASK')
+    omp_num_threads = os.getenv('OMP_NUM_THREADS')
+    mkl_num_threads = os.getenv('MKL_NUM_THREADS')
+    cuda_launch_blocking = os.getenv("CUDA_LAUNCH_BLOCKING")
+    print(f"OMP_NUM_THREADS: {omp_num_threads}")
+    print(f"MKL_NUM_THREADS: {mkl_num_threads}")
+    print(f"CUDA_LAUNCH_BLOCKING: {cuda_launch_blocking}")
+    print(f"SLURM_CPUS_PER_TASK: {slurm_cpus_per_task}")
+
+    if torch.cuda.is_available():
+        print(f"CUDA available: TRUE")
+        print(f"Number of GPUs available: {torch.cuda.device_count()}")
+        for i in range(torch.cuda.device_count()):
+            print(f"GPU {i}: {torch.cuda.get_device_name(i)}")
+            
+            # Get and print memory information for each GPU
+            total_memory = torch.cuda.get_device_properties(i).total_memory / (1024**3)
+            allocated_memory = torch.cuda.memory_allocated(i) / (1024**3)
+            cached_memory = torch.cuda.memory_cached(i) / (1024**3)
+            
+            print(f"  Total memory: {total_memory:.2f} GB")
+            print(f"  Allocated memory: {allocated_memory:.2f} GB")
+            print(f"  Cached memory: {cached_memory:.2f} GB")
+    else:
+        print(f"CUDA available: FALSE")
+        print("No GPUs found. Training on CPU.")
+
+    print(f"OS CPU count: {os.cpu_count()}")
 
     # --- Model, Dataset, Trainer Setup ---
 
@@ -323,21 +356,13 @@ def main():
     number_of_channels = 10
     image_size = 120
     epochs = 100
-    slurm_cpus_per_task = os.getenv('SLURM_CPUS_PER_TASK')
     if slurm_cpus_per_task is not None:
         num_workers = int(slurm_cpus_per_task)-2 # -2 to keep some cores for main and other processes, experiment with this value to find most efficient cpu utilization
         
-        print("Num_workers set with SLURM_CPUS_PER_TASK")
+        print(f"Num_workers set to {num_workers} with SLURM_CPUS_PER_TASK")
     else:
         num_workers = max(1,min(os.cpu_count()/4-2,10)) # /2 for two sockets and /2 cause os.cpu_count returns thread as multithreads (2 per core) and -2 to keep some for the main process
-        print("Num_workers set with max(1,min(os.cpu_count()/4-2,10))")
-
-    omp_num_threads = os.getenv('OMP_NUM_THREADS')
-    mkl_num_threads = os.getenv('MKL_NUM_THREADS')
-    print(f"OMP_NUM_THREADS: {omp_num_threads}")
-    print(f"MKL_NUM_THREADS: {mkl_num_threads}")
-    cuda_launch_blocking = os.getenv("CUDA_LAUNCH_BLOCKING")
-    print(f"\nCUDA_LAUNCH_BLOCKING: {cuda_launch_blocking}")
+        print(f"Num_workers set to {num_workers} with max(1,min(os.cpu_count()/4-2,10))")
 
     # Instantiate Model Config
     model_config = ILMConfiguration(
@@ -395,27 +420,7 @@ def main():
         print(f"-" * (WIDTH * 3))
         print(f"{trainer.accelerator.__class__.__name__:<{WIDTH}}{trainer.num_devices:<{WIDTH}}{trainer.strategy.__class__.__name__:<{WIDTH}}")
 
-    # --- CPU/GPU INFO ---
-    if torch.cuda.is_available():
-        print(f"CUDA available: TRUE")
-        print(f"Number of GPUs available: {torch.cuda.device_count()}")
-        for i in range(torch.cuda.device_count()):
-            print(f"GPU {i}: {torch.cuda.get_device_name(i)}")
-            
-            # Get and print memory information for each GPU
-            total_memory = torch.cuda.get_device_properties(i).total_memory / (1024**3)
-            allocated_memory = torch.cuda.memory_allocated(i) / (1024**3)
-            cached_memory = torch.cuda.memory_cached(i) / (1024**3)
-            
-            print(f"  Total memory: {total_memory:.2f} GB")
-            print(f"  Allocated memory: {allocated_memory:.2f} GB")
-            print(f"  Cached memory: {cached_memory:.2f} GB")
-    else:
-        print(f"CUDA available: FALSE")
-        print("No GPUs found. Training on CPU.")
-
     print(f"Number of workers dataloader: {dm.num_workers_dataloader}")
-    print(f"OS CPU count: {os.cpu_count()}")
 
     if __debug__:
         export_dir_tmp = export_dir
@@ -425,7 +430,6 @@ def main():
         dm.save_metadata(export_dir)
         print(f'Datasets saved in: {export_dir}')
         export_dir = export_dir_tmp
-
 
     # --- Training And Testing ---
     trainer.fit(model, datamodule=dm)
