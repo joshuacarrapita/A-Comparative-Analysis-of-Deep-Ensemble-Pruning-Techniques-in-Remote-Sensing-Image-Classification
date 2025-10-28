@@ -62,6 +62,7 @@ class LitImageEncoder(pl.LightningModule):
         # metrics
         self.train_cm = MulticlassConfusionMatrix(num_classes=self.config.classes)
         self.val_cm = MulticlassConfusionMatrix(num_classes=self.config.classes)
+        self.test_cm = MulticlassConfusionMatrix(num_classes=self.config.classes)
 
     def configure_optimizers(self):
         optimizer = self.optimizer(self.parameters(), lr=self.lr, weight_decay=0.01) 
@@ -111,8 +112,8 @@ class LitImageEncoder(pl.LightningModule):
         self.val_cm.update(preds,label) 
 
         # log metrics to logger
-        self.log('val_acc', acc, on_epoch=True)
-        self.log('val_loss', loss, on_epoch=True) 
+        self.log('val_acc', acc, on_step=False, on_epoch=True)
+        self.log('val_loss', loss, on_step=False, on_epoch=True) 
        
     def test_step(self, batch, batch_idx):
         img, label = batch
@@ -126,13 +127,25 @@ class LitImageEncoder(pl.LightningModule):
         preds = torch.argmax(logits,dim=1) # logits -> index
         acc = 100 * (preds == label).float().mean()
 
+        # update test confusion matrix
+        self.test_cm.update(preds,label)
+
         # log metrics to logger
-        self.log('test_acc', acc, on_epoch=True)
-        self.log('test_loss', loss, on_epoch=True) 
+        self.log('test_acc', acc, on_step=False, on_epoch=True)
+        self.log('test_loss', loss, on_step=False, on_epoch=True) 
 
     def on_train_epoch_end(self):
         cm = self.train_cm.compute().detach().cpu()
         self._log_confusion_matrix(cm, tag='train_cm')
+
+        # calc and log per-class accuracy
+        per_class_acc = self._calc_per_class_accuracy(cm) # returns (C,)
+        self._log_class_accuracy(per_class_acc, tag='train_per_class_acc')
+
+        # calc and log average per-class accuracy
+        avg_class_acc = torch.mean(per_class_acc)
+        self.log('train_avg_class_acc', avg_class_acc, on_step=False, on_epoch=True)
+
         self.train_cm.reset()
 
     def on_validation_epoch_end(self):
@@ -142,13 +155,28 @@ class LitImageEncoder(pl.LightningModule):
 
         # calc and log per-class accuracy
         per_class_acc = self._calc_per_class_accuracy(cm) # returns (C,)
-        self._log_class_accuracy(per_class_acc, tag='val_class_acc')
+        self._log_class_accuracy(per_class_acc, tag='val_per_class_acc')
 
         # calc and log average per-class accuracy
-        avg_per_class_acc = torch.mean(per_class_acc)
-        self.log('avg_per_class_acc', avg_per_class_acc, on_epoch=True)
+        avg_class_acc = torch.mean(per_class_acc)
+        self.log('val_avg_class_acc', avg_class_acc, on_step=False, on_epoch=True)
 
         self.val_cm.reset()
+
+    def on_test_epoch_end(self):
+        # calc and log confusion matrix
+        cm = self.test_cm.compute().detach().cpu()
+        self._log_confusion_matrix(cm, tag='test_cm')
+
+        # calc and log per-class accuracy
+        per_class_acc = self._calc_per_class_accuracy(cm) # returns (C,)
+        self._log_class_accuracy(per_class_acc, tag='test_per_class_acc')
+
+        # calc and log average per-class accuracy
+        avg_class_acc = torch.mean(per_class_acc)
+        self.log('test_avg_class_acc', avg_class_acc, on_step=False, on_epoch=True)
+
+        self.test_cm.reset()
 
     def _calc_per_class_accuracy(self, cm_tensor):
         """
