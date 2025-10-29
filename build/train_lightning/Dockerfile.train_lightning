@@ -10,7 +10,7 @@ RUN --mount=type=cache,target=~/.cache/pip pip install -r build/requirements_tra
 
 # COPY files
 COPY src/train_lightning.py /app/src/train_lightning.py
-COPY src/train_lightning_configuration.py /app/src/train_lightning_configuration.py
+COPY src/training_utils/train_lightning_configuration.py /app/src/train_lightning_configuration.py
 
 # Define entrypoint
 CMD ["python", "-O", "src/train_lightning.py", "data/BENv2.lmdb/", "data/metadata.parquet", "data/metadata_for_patches_with_snow_cloud_or_shadow.parquet", "data/class_distribution.parquet", "models/"]
