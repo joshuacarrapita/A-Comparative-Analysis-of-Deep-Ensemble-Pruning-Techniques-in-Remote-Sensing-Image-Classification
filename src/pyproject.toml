@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ba_ep_rs" 
+version = "0.1.0"
+description = "Main project for ensemble training and pruning on BigEarthNetv2 Sentinel-1 and -2 data."
+readme = "README.md"
+requires-python = ">=3.11.13"
+
+# --- Project Dependencies ---
+dependencies = [
+    # 3rd-party packages
+    "lightning",
+    "torch",
+    "torchvision",
+    "torchmetrics",
+    "numpy",
+    "pandas",
+    "seaborn",
+    "matplotlib",
+    "alive-progress",
+    "rasterio",
+    
+    # Git submodules tracking the main branch
+    "configilm @ git+https://git.tu-berlin.de/joshuacar/ConfigILM.git@main",
+    "PyPruning @ git+https://git.tu-berlin.de/joshuacar/PyPruning.git@main"
+]
+
+# --- Package Discovery ---
+# This tells setuptools where to the ba_ep_rs source code.
+[tool.setuptools.packages.find]
+where = ["."]
+include = [
+    "pruning_utils*",     # Pruning library code
+    "shared_utils*",      # Shared library code
+    "training_utils*",    # Training library code
+    "scripts*"            # Main executable scripts
+]
+# Exclude the submodules from this project's build
+exclude = [
+    "pruning_submodules*",
+    "training_submodules*"
+]

@@ -23,7 +23,7 @@ from lightning.pytorch.callbacks import DeviceStatsMonitor
 from configilm import ConfigILM, util
 from configilm.ConfigILM import ILMConfiguration, ILMType
 from configilm.extra.DataModules import BENv2_DataModule
-from train_lightning_configuration import TrainLightningConfiguration
+from training_utils.train_lightning_configuration import TrainLightningConfiguration
 
 # ===========================================================================
 # LightningModule Class Definition
