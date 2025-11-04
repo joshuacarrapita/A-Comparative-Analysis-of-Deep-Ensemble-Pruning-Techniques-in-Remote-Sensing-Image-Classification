@@ -120,22 +120,10 @@ class LitImageEncoder(pl.LightningModule):
         img, label = batch
         label = torch.argmax(label, dim=1) # one-hot -> index
 
-        # infer input and calculate loss
+        # infer input and calculate probas
         logits = self.model(img)
         probas = torch.nn.functional.softmax(logits, dim=1)
 
-        #loss = self.loss_fn(logits,label,weight=self.class_weights)
-
-        # calculate batch accuracy
-        #preds = torch.argmax(logits,dim=1) # logits -> index
-        #acc = 100 * (preds == label).float().mean()
-
-        # update validation confusion matrix
-        #self.val_cm.update(preds,label) 
-
-        # log metrics to logger
-        #self.log('val_acc', acc, on_step=False, on_epoch=True)
-        #self.log('val_loss', loss, on_step=False, on_epoch=True) 
         return {'predictions': probas}
        
     def test_step(self, batch, batch_idx):
