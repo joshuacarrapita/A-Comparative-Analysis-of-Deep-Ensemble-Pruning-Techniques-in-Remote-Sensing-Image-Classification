@@ -71,7 +71,7 @@ def main():
 
     except Exception as e:
         logger.newline()
-        logger.critical(f'An error occured: {e}.\n\nUsage: python train.py /path/to/lmdb_dir/ /path/to/metadata.parquet /path/to/metadata_snow_cloud_parquet /path/to/class_distribution.parquet /path/to/export/dir/ --seed [Number]')
+        logger.critical(f'An error occured: {e}.\n\nUsage: python gen_proba_tensor.py /path/to/lmdb_dir/ /path/to/metadata.parquet /path/to/metadata_snow_cloud_parquet /path/to/checkpoint.file /path/to/export/dir/ --seed [Number]')
         logger.newline()
         sys.exit(1)
 
