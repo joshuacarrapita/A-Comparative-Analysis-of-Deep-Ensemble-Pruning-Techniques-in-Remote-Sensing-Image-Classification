@@ -17,23 +17,10 @@ from scripts.train_lightning import LitImageEncoder
 from shared_utils.custom_logging import create_logger
 
 # --- Main Execution ---
-def main():
+def main(checkpoint_path: Path, logger: logging.Logger): -> torch.Tensor:
 
     # --- 1. General Setup & Logging ---
     start_time = time.strftime('%Y%m%d-%H%M%S')
-
-    # --- Logger Setup ---
-    logger = create_logger("Gen_Proba_Logger", log_level=logging.DEBUG)
-       
-    if __debug__:
-        logger.newline()
-        logger.debug('--- DEBUG ON -- (Log level: DEBUG)')
-        logger.newline()
-        util.MESSAGE_LEVEL = util.MessageLevel.INFO
-    else:
-        logger.newline()
-        logger.info('--- DEBUG OFF --- (Log level: INFO)')
-        logger.newline()
 
     # --- Argument Parsing & Paths ---
     try:
@@ -42,7 +29,7 @@ def main():
             'images_lmdb': Path(sys.argv[1]).resolve(),
             'metadata_parquet': Path(sys.argv[2]).resolve(),
             'metadata_snow_cloud_parquet': Path(sys.argv[3]).resolve(),
-            'checkpoint_file': Path(sys.argv[4]).resolve(),
+            'checkpoint': checkpoint_path.resolve(),
         }
         export_dir_root = Path(sys.argv[5]).resolve()
         
@@ -66,8 +53,8 @@ def main():
         assert datapath_args['images_lmdb'].is_dir(), f"Input directory does not exist: {datapath_args['images_lmdb']}"
         assert datapath_args['metadata_parquet'].is_file(), f"Input file does not exist: {datapath_args['metadata_parquet']}"
         assert datapath_args['metadata_snow_cloud_parquet'].is_file(), f"Input file does not exist: {datapath_args['metadata_snow_cloud_parquet']}"
-        assert datapath_args['checkpoint_file'].is_file(), f"Input file does not exist: {datapath_args['checkpoint_file']}"
         assert not export_dir_root.is_file(), f"Export path is a file, should be a directory: {export_dir_root}"
+        assert datapath_args['checkpoint'].is_file(), f"Input file does not exist: {datapath_args['checkpoint']}"
 
     except Exception as e:
         logger.newline()
@@ -77,7 +64,7 @@ def main():
 
     # Robust model name extraction
     try:
-        parts = datapath_args['checkpoint_file'].parts
+        parts = datapath_args['checkpoint'].parts
         model_name = parts[parts.index('models') + 1]
     except (ValueError, IndexError):
         model_name = "unknown_model" # Fallback
@@ -133,7 +120,7 @@ def main():
     logger.newline()
     logger.info("Loading model from checkpoint...")
     logger.newline()
-    model = LitImageEncoder.load_from_checkpoint(datapath_args['checkpoint_file']) 
+    model = LitImageEncoder.load_from_checkpoint(datapath_args['checkpoint']) 
     
     logger.newline()
     logger.debug("--- Model HParams ---")
@@ -226,7 +213,91 @@ def main():
     logger.newline()
     logger.info('Inference complete.')
     logger.info(f'Predictions tensor and logs saved in: {export_dir}\n')
+    logger.info('Returning probability tensor with shape {preds.shape} for aggregation.')
     logger.newline()
 
+    return preds
+
 if __name__ == '__main__':
-    main()
+
+    # --- General Setup ---
+    start_time = time.strftime('%Y%m%d-%H%M%S')
+
+    # Setup Logger
+    logger = create_logger("Gen_Proba_Logger", log_level=logging.DEBUG)
+       
+    if __debug__:
+        logger.newline()
+        logger.debug('--- DEBUG ON -- (Log level: DEBUG)')
+        logger.newline()
+        util.MESSAGE_LEVEL = util.MessageLevel.INFO
+    else:
+        logger.newline()
+        logger.info('--- DEBUG OFF --- (Log level: INFO)')
+        logger.newline()
+
+    # --- Inference Setup ---
+    all_model_predictions = []
+
+    # Setup starting point
+    start_dir = Path(sys.argv[4]).resolve() 
+    assert start_dir.is_dir() or start_dir.is_file(), f"Checkpoint directory or checkpoint file does not exist: {start_dir}"
+
+    # Define file suffixes 
+    checkpoint_suffix = {'.ckpt'}
+
+    # Search for files
+    logger.newline()
+    logger.info(f"Searching for {checkpoint_suffix} in {start_dir}...\n")
+    logger.newline()
+
+    # Collect all files first to provide a count
+    found_files = [
+        file_path for file_path in start_dir.rglob(checkpoint_suffix) if file_path.is_file() 
+    ]
+
+    if not found_files:
+        logger.critical("No checkpoint files found.")
+        sys.exit(0)
+    
+    logger.info(f"Found {len(found_files)} checkpoint(s). Starting inference loop...")
+
+    # --- Inference Loop ---
+    for file_path in found_files:
+        logger.info(f"\n--- Processing: {file_path.name} ---")
+        try:
+            # Call main, passing the checkpoint file path.
+            model_prediction_tensor = main(file_path, logger, start_time)
+            
+            # Add the returned tensor to our master list
+            if model_prediction_tensor.numel() > 0: # Check if tensor is not empty
+                all_model_predictions.append(model_prediction_tensor)
+            else:
+                logger.warning(f"Warning: main() returned an empty tensor for {file_path}")
+        except Exception as e:
+            logger.error(f"ERROR processing {file_path}: {e}")
+            logger.info("...continuing to next file.")
+
+    # --- Final Tensor Aggregation ---
+    if not all_model_predictions:
+        logger.info("\n--- All processing complete ---")
+        logger.info("No predictions were generated from any model.")
+    else:
+        # Concatenate all tensors from all 'main' calls along the 0th dim
+        final_proba_tensor = torch.cat(all_model_predictions, dim=0)
+        
+        logger.info("\n--- All processing complete ---")
+        logger.info(f"Final aggregated tensor shape: {final_proba_tensor.shape}")
+        torch.set_printoptions(precision=2, linewidth=80, threshold=1000, sci_mode=False)
+        logger.info(f"Predictions Sample (from tensor):\n{preds[0]['predictions']}")
+        
+        # Save the final aggregated tensor
+        try:
+            export_dir = Path(sys.argv[5]).resolve()
+            assert not export_dir_root.is_file(), f"Export path is a file, should be a directory: {export_dir_root}"
+            export_dir.mkdir(parents=True, exist_ok=True)
+            final_export_path = export_dir / 'AGGREGATED_predictions_{start_time}.pt'
+            torch.save(final_proba_tensor, final_export_path)
+            logger.info(f"Final aggregated tensor saved to: {final_export_path}")
+        except Exception as e:
+            logger.critical(f"Error saving final aggregated tensor: {e}")
