@@ -43,7 +43,7 @@ def main(checkpoint_path: Path, logger: logging.Logger) -> torch.Tensor:
 
         # Parse Seed
         if len(sys.argv) == 6:
-            seed = random.randint(1, 100)
+            seed = 666
         elif len(sys.argv) == 8 and sys.argv[6] == '--seed':
             seed = int(sys.argv[7])
         else:
@@ -78,7 +78,7 @@ def main(checkpoint_path: Path, logger: logging.Logger) -> torch.Tensor:
         slurm_job_id = int(slurm_job_id)
         export_dir = export_dir_root / f'proba_{start_time}_seed{seed}_job{slurm_job_id}_model-{model_name}'
     else:
-        export_dir = export_dir_root / f'proba-{start_time}_seed-{seed}_model-{model_name}'
+        export_dir = export_dir_root
     
     export_dir.mkdir(parents=True, exist_ok=True)
     logger.newline()
@@ -185,16 +185,15 @@ def main(checkpoint_path: Path, logger: logging.Logger) -> torch.Tensor:
 
     # --- 6. Debug: Save Dataset Metadata ---
     if __debug__:
-        export_dir_tmp = export_dir
         export_dir_debug_datasets = export_dir / "datasets"
-        export_dir_debug_datasets.mkdir(parents=True, exist_ok=True)
-        logger.newline()
-        logger.debug("Running dm.setup() for metadata export ...")
-        dm.setup()
-        dm.save_metadata(export_dir_debug_datasets)
-        logger.debug(f'Datasets metadata saved in: {export_dir_debug_datasets}\n')
-        logger.newline()
-        export_dir = export_dir_tmp # Reset export_dir to original
+        if not export_dir_debug_datasets.exists():
+            export_dir_debug_datasets.mkdir(parents=True, exist_ok=True)
+            logger.newline()
+            logger.debug("Running dm.setup() for metadata export ...")
+            dm.setup()
+            dm.save_metadata(export_dir_debug_datasets)
+            logger.debug(f'Datasets metadata saved in: {export_dir_debug_datasets}\n')
+            logger.newline()
 
     # --- 7. Run Inference ---
     logger.newline()
@@ -207,7 +206,7 @@ def main(checkpoint_path: Path, logger: logging.Logger) -> torch.Tensor:
     logger.info(f"Predictions Sample shape {preds.shape} (from tensor):\n{preds}")
     logger.newline()
     
-    prediction_file = export_dir / 'predictions.pt'
+    prediction_file = export_dir / f'predictions-{start_time}_seed-{seed}_model-{model_name}.pt'
     torch.save(preds, prediction_file)
 
     logger.newline()
@@ -235,6 +234,16 @@ if __name__ == '__main__':
         logger.newline()
         logger.info('--- DEBUG OFF --- (Log level: INFO)')
         logger.newline()
+
+    # Setup Directories
+    try:
+        export_dir_root = Path(sys.argv[5]).resolve() 
+        assert export_dir_root.is_dir(), f"Export path is not a directory or does not exist: {export_dir_root}"
+        export_dir_root = export_dir_root / f'inference_{start_time}'
+        sys.argv[5] = str(export_dir_root) # set new directory as export path for the following inference runs
+        export_dir_root.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        logger.critical(f"Error saving final aggregated tensor: {e}")
 
     # --- Inference Setup ---
     all_model_predictions = []
@@ -284,6 +293,10 @@ if __name__ == '__main__':
         logger.newline()
         logger.info("--- All processing complete ---")
         logger.info("No predictions were generated from any model.")
+    elif len(all_model_predictions) == 1:
+        logger.newline()
+        logger.info("--- All processing complete ---")
+        logger.info("No aggregations were generated off only one prediction.")
     else:
         # Concatenate all tensors from all 'main' calls along the 0th dim
         final_proba_tensor = torch.cat(all_model_predictions, dim=0)
@@ -296,9 +309,6 @@ if __name__ == '__main__':
         
         # Save the final aggregated tensor
         try:
-            export_dir_root = Path(sys.argv[5]).resolve()
-            assert export_dir_root.is_dir(), f"Export path is not a directory or does not exist: {export_dir_root}"
-            export_dir_root.mkdir(parents=True, exist_ok=True)
             final_export_path = export_dir_root / f'AGGREGATED_predictions_{start_time}.pt'
             torch.save(final_proba_tensor, final_export_path)
             logger.info(f"Final aggregated tensor saved to: {final_export_path}")
