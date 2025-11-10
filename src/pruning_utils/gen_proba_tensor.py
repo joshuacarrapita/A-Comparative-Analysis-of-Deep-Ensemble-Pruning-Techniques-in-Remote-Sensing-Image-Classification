@@ -199,23 +199,29 @@ def main(checkpoint_path: Path, logger: logging.Logger) -> torch.Tensor:
     logger.newline()
     logger.info("Starting inference ...")
     logger.newline()
-    preds = torch.unsqueeze(trainer.predict(model, datamodule=dm)[0]['predictions'], 0)
-    
+
+    res = trainer.predict(model, datamodule=dm)
+    preds = torch.unsqueeze(res[0]["predictions"], 0)
+    targets = res[0]["targets"]
+
     torch.set_printoptions(precision=2, linewidth=80, threshold=1000, sci_mode=False)
     logger.newline()
     logger.info(f"Predictions Sample shape {preds.shape} (from tensor):\n{preds}")
+    logger.info(f"Targets Sample shape {preds.shape} (from tensor):\n{targets}")
     logger.newline()
     
-    prediction_file = export_dir / f'predictions-{start_time}_seed-{seed}_model-{model_name}.pt'
-    torch.save(preds, prediction_file)
+    predictions_file = export_dir / f'predictions-{start_time}_seed-{seed}_model-{model_name}.pt'
+    targets_file = export_dir / f'targets.pt'
+    torch.save(preds, predictions_file)
+    torch.save(targets, targets_file)
 
     logger.newline()
     logger.info('Inference complete.')
-    logger.info(f'Predictions tensor and logs saved in: {export_dir}\n')
-    logger.info(f'Returning probability tensor with shape {preds.shape} for aggregation.')
+    logger.info(f'Predictions and targets tensors and logs saved in: {export_dir}\n')
+    logger.info(f'Returning probability tensor with shape {preds.shape} and target tensor with shape {targets.shape} for aggregation.')
     logger.newline()
 
-    return preds
+    return preds, targets
 
 if __name__ == '__main__':
 
@@ -247,6 +253,7 @@ if __name__ == '__main__':
 
     # --- Inference Setup ---
     all_model_predictions = []
+    targets = torch.tensor([])
 
     # Setup starting point
     start_dir = Path(sys.argv[4]).resolve() 
@@ -277,13 +284,21 @@ if __name__ == '__main__':
         logger.info(f"--- Processing: {file_path.name} ---")
         try:
             # Call main, passing the checkpoint file path.
-            model_prediction_tensor = main(file_path, logger)
+            model_prediction_tensor, predictions_targets = main(file_path, logger)
             
             # Add the returned tensor to our master list
             if model_prediction_tensor.numel() > 0: # Check if tensor is not empty
                 all_model_predictions.append(model_prediction_tensor)
+                if targets.numel() == 0:
+                    targets = predictions_targets
+                    logger.info("Targets set.")
+                else:
+                    assert torch.equal(targets,predictions_targets), f"Targets from previous round were not the same as targets from this round:\nPreviously:\n{targets}\nNow\n{predictions_targets}"
             else:
                 logger.warning(f"Warning: main() returned an empty tensor for {file_path}")
+        except AssertionError as ae:
+            logger.critical(f"Target mismatch within prediction run.")
+            sys.exit(1)
         except Exception as e:
             logger.error(f"ERROR processing {file_path}: {e}")
             logger.info("... continuing to next file.")
@@ -306,11 +321,15 @@ if __name__ == '__main__':
         logger.info(f"Final aggregated tensor shape: {final_proba_tensor.shape}")
         torch.set_printoptions(precision=2, linewidth=80, threshold=1000, sci_mode=False)
         logger.info(f"Predictions Sample (from tensor):\n{final_proba_tensor}")
+        logger.info(f"Targets (from tensor):\n{targets}")
         
         # Save the final aggregated tensor
         try:
-            final_export_path = export_dir_root / f'AGGREGATED_predictions_{start_time}.pt'
-            torch.save(final_proba_tensor, final_export_path)
-            logger.info(f"Final aggregated tensor saved to: {final_export_path}")
+            final_export_path_probas = export_dir_root / f'AGGREGATED_predictions.pt'
+            final_export_path_targets = export_dir_root / f'targets.pt'
+            torch.save(final_proba_tensor, final_export_path_probas)
+            torch.save(targets, final_export_path_targets)
+            logger.info(f"Final aggregated prediction tensor saved to: {final_export_path_probas}")
+            logger.info(f"Final target tensor saved to: {final_export_path_targets}")
         except Exception as e:
             logger.critical(f"Error saving final aggregated tensor: {e}")
