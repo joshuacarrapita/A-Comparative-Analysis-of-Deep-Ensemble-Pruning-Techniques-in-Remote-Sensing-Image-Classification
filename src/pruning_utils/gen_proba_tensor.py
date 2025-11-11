@@ -5,6 +5,7 @@ import time
 import random
 import logging
 from pathlib import Path
+from typing import Tuple
 
 # third-party imports
 import torch
@@ -16,8 +17,8 @@ from configilm.extra.DataModules import BENv2_DataModule
 from scripts.train_lightning import LitImageEncoder
 from shared_utils.custom_logging import create_logger
 
-# --- Main Execution ---
-def main(checkpoint_path: Path, logger: logging.Logger) -> torch.Tensor:
+# --- Main Inference Execution ---
+def inference(checkpoint_path: Path, logger: logging.Logger) -> Tuple[torch.Tensor, torch.Tensor]:
 
     # --- 1. General Setup & Logging ---
     start_time = time.strftime('%Y%m%d-%H%M%S')
@@ -285,7 +286,7 @@ if __name__ == '__main__':
         logger.info(f"--- Processing: {file_path.name} ---")
         try:
             # Call main, passing the checkpoint file path.
-            model_prediction_tensor, predictions_targets = main(file_path, logger)
+            model_prediction_tensor, predictions_targets = inference(file_path, logger)
             
             # Add the returned tensor to our master list
             if model_prediction_tensor.numel() > 0: # Check if tensor is not empty
@@ -295,7 +296,7 @@ if __name__ == '__main__':
                 else:
                     assert torch.equal(targets,predictions_targets), f"Targets from previous round were not the same as targets from this round:\nPreviously:\n{targets}\nNow\n{predictions_targets}"
             else:
-                logger.warning(f"Warning: main() returned an empty tensor for {file_path}")
+                logger.warning(f"Warning: inference() returned an empty tensor for {file_path}")
         except AssertionError as ae:
             logger.critical(f"Target mismatch within prediction run.")
             sys.exit(1)
