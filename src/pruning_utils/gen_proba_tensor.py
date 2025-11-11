@@ -10,6 +10,7 @@ from typing import Tuple
 # third-party imports
 import torch
 import lightning.pytorch as pl
+import pandas as pd
 
 # local imports
 from configilm import util
@@ -254,6 +255,7 @@ if __name__ == '__main__':
 
     # --- Inference Setup ---
     all_model_predictions = []
+    inference_order = []
     targets = torch.tensor([])
 
     # Setup starting point
@@ -291,6 +293,7 @@ if __name__ == '__main__':
             # Add the returned tensor to our master list
             if model_prediction_tensor.numel() > 0: # Check if tensor is not empty
                 all_model_predictions.append(model_prediction_tensor)
+                inference_order.append(str(file_path))
                 if targets.numel() == 0:
                     targets = predictions_targets
                 else:
@@ -328,9 +331,12 @@ if __name__ == '__main__':
         try:
             final_export_path_probas = export_dir_root / f'AGGREGATED_predictions.pt'
             final_export_path_targets = export_dir_root / f'targets.pt'
+            final_export_path_indices = export_dir_root / f'indices.csv'
             torch.save(final_proba_tensor, final_export_path_probas)
             torch.save(targets, final_export_path_targets)
+            pd.DataFrame(inference_order, columns=['Path']).to_csv(final_export_path_indices,index_label='Index')
             logger.info(f"Final aggregated prediction tensor saved to: {final_export_path_probas}")
             logger.info(f"Final target tensor saved to: {final_export_path_targets}")
+            logger.info(f"Final index <-> path list saved to: {final_export_path_indices}")
         except Exception as e:
             logger.critical(f"Error saving final aggregated tensor: {e}")
