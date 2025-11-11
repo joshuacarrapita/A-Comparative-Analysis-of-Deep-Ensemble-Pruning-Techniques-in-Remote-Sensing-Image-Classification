@@ -256,27 +256,28 @@ if __name__ == '__main__':
     targets = torch.tensor([])
 
     # Setup starting point
-    start_dir = Path(sys.argv[4]).resolve() 
-    assert start_dir.is_dir() or start_dir.is_file(), f"Checkpoint directory or checkpoint file does not exist: {start_dir}"
+    start_path = Path(sys.argv[4]).resolve() 
+    assert start_path.exists(), f"Checkpoint directory or checkpoint file does not exist: {start_path}"
 
     # Define file suffix
     checkpoint_suffix = '.ckpt'
 
     # Go to parent for single files
-    if start_dir.is_file(): start_dir = start_dir.parent
+    if start_path.is_dir():
+        # Search for files
+        logger.newline()
+        logger.info(f"Searching for {checkpoint_suffix} in {start_path} ...")
+        logger.newline()
 
-    # Search for files
-    logger.newline()
-    logger.info(f"Searching for {checkpoint_suffix} in {start_dir} ...")
-    logger.newline()
+        # Collect all files first to provide a count
+        found_files = list(start_path.rglob('*'+checkpoint_suffix))
 
-    # Collect all files first to provide a count
-    found_files = list(start_dir.rglob('*'+checkpoint_suffix))
-
-    if not found_files:
-        logger.critical("No checkpoint files found.")
-        sys.exit(0)
-    
+        if not found_files:
+            logger.critical("No checkpoint files found.")
+            sys.exit(0)
+    else:
+        found_files = [start_path]
+        
     logger.info(f"Found {len(found_files)} checkpoint(s). Starting inference loop ...")
 
     # --- Inference Loop ---
@@ -291,7 +292,6 @@ if __name__ == '__main__':
                 all_model_predictions.append(model_prediction_tensor)
                 if targets.numel() == 0:
                     targets = predictions_targets
-                    logger.info("Targets set.")
                 else:
                     assert torch.equal(targets,predictions_targets), f"Targets from previous round were not the same as targets from this round:\nPreviously:\n{targets}\nNow\n{predictions_targets}"
             else:
