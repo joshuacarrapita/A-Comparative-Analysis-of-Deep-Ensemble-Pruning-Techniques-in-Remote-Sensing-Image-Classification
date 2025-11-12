@@ -304,8 +304,8 @@ if __name__ == '__main__':
             logger.critical(f"Target mismatch within prediction run.")
             sys.exit(1)
         except Exception as e:
-            logger.error(f"ERROR processing {file_path}: {e}")
-            logger.info("... continuing to next file.")
+            logger.critical(f"ERROR processing {file_path}: {e}")
+            sys.exit(1)
 
     # --- Final Tensor Aggregation ---
     if not all_model_predictions:
