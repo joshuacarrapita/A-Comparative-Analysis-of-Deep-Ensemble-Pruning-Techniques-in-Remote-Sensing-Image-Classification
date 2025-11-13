@@ -124,7 +124,7 @@ class LitImageEncoder(pl.LightningModule):
         logits = self.model(img)
         probas = torch.nn.functional.softmax(logits, dim=1)
 
-        return {'predictions': probas, 'targets': label}
+        return {'prediction_results': probas, 'target_labels': label}
        
     def test_step(self, batch, batch_idx):
         img, label = batch
