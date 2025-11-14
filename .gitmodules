@@ -4,3 +4,6 @@
 [submodule "ConfigILM"]
 	path = src/training_submodules/ConfigILM
 	url = https://git.tu-berlin.de/joshuacar/ConfigILM.git
+[submodule "EPFD"]
+	path = src/pruning_submodules/EPFD
+	url = https://git.tu-berlin.de/joshuacar/EPFD.git
