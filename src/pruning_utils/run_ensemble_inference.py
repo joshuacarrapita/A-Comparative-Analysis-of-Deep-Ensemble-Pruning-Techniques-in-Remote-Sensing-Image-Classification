@@ -115,7 +115,7 @@ def load_model(model_checkpoint_path: Path) -> LitImageEncoder:
     logger.newline()
     return model
 
-def setup_datamodule(run_config: Dict[str, Any], model_checkpoint_path: Path, model_hparams: Any, seed: int) -> BENv2_DataModule.BENv2DataModule:
+def setup_datamodule(run_config: Dict[str, Any]) -> BENv2_DataModule.BENv2DataModule:
     slurm_cpus_per_task = os.getenv('SLURM_CPUS_PER_TASK')
     if slurm_cpus_per_task is not None:
         num_workers_dataloader = int(slurm_cpus_per_task) - 2
@@ -124,14 +124,18 @@ def setup_datamodule(run_config: Dict[str, Any], model_checkpoint_path: Path, mo
         num_workers_dataloader = max(1, min(os.cpu_count() // 4 - 2, 10))
         worker_source = "(from os.cpu_count())"
 
+    channels = 10 #2: "Sentinel-1", 10: "10m + 20m Sentinel-2 (in original order)"
     image_size = 120
     batch_size = 1024
+    seed = run_config['seed']
 
     logger.newline()
     logger.info("--- DataModule Setup ---")
     logger.info(f"Num_workers_dataloader set to {num_workers_dataloader} {worker_source}")
+    logger.info(f"Using Channels: {channels}")
     logger.info(f"Using Image Size: {image_size}x{image_size}")
     logger.info(f"Using Batch Size: {batch_size}")
+    logger.info(f"Using Seed: {seed}")
     logger.info("--------------------------")
     logger.newline()
 
@@ -143,7 +147,7 @@ def setup_datamodule(run_config: Dict[str, Any], model_checkpoint_path: Path, mo
 
     dm = BENv2_DataModule.BENv2DataModule(
         data_dirs=data_dirs,
-        img_size=(model_hparams.config.channels, image_size, image_size),
+        img_size=(channels, image_size, image_size),
         batch_size=batch_size,
         train_transforms=None,
         num_workers_dataloader=num_workers_dataloader,
@@ -180,14 +184,13 @@ def setup_trainer(ensemble_inference_dir: Path) -> pl.Trainer:
 def run_debug_metadata_save(datamodule: pl.LightningDataModule, ensemble_inference_dir: Path):
     if __debug__:
         export_dir_debug_datasets = ensemble_inference_dir / "datasets"
-        if not export_dir_debug_datasets.exists():
-            export_dir_debug_datasets.mkdir(parents=True, exist_ok=True)
-            logger.newline()
-            logger.debug("Running dm.setup() for metadata export ...")
-            datamodule.setup()
-            datamodule.save_metadata(export_dir_debug_datasets)
-            logger.debug(f'Datasets metadata saved in: {export_dir_debug_datasets}\n')
-            logger.newline()
+        export_dir_debug_datasets.mkdir(parents=True, exist_ok=True)
+        logger.newline()
+        logger.debug("Running dm.setup() for metadata export ...")
+        datamodule.setup()
+        datamodule.save_metadata(export_dir_debug_datasets)
+        logger.debug(f'Datasets metadata saved in: {export_dir_debug_datasets}\n')
+        logger.newline()
 
 def execute_inference(trainer: pl.Trainer, model: pl.LightningModule, datamodule: pl.LightningDataModule) -> Tuple[torch.Tensor, torch.Tensor]:
     logger.newline()
@@ -225,7 +228,7 @@ def log_run_setup_info(run_config: Dict[str, Any], model_checkpoint_path: Path):
     logger.debug("------------------------------")
     logger.newline()
 
-def run_model_inference(run_config: Dict[str, Any], model_checkpoint_path: Path, model_name: str) -> Tuple[torch.Tensor, torch.Tensor]: 
+def run_model_inference(run_config: Dict[str, Any], model_checkpoint_path: Path, model_name: str, datamodule: pl.LightningDataModule, trainer: pl.Trainer) -> Tuple[torch.Tensor, torch.Tensor]: 
     start_time = time.strftime('%Y%m%d-%H%M%S')
     seed = run_config['seed']
     ensemble_inference_dir = run_config['ensemble_inference_dir']
@@ -235,10 +238,6 @@ def run_model_inference(run_config: Dict[str, Any], model_checkpoint_path: Path,
     setup_environment(seed)
     
     model = load_model(model_checkpoint_path)
-    datamodule = setup_datamodule(run_config, model_checkpoint_path, model.hparams, seed)
-    trainer = setup_trainer(ensemble_inference_dir)
-    
-    run_debug_metadata_save(datamodule, ensemble_inference_dir)
     
     model_inference_results, model_inference_target_labels = execute_inference(trainer, model, datamodule)
     
@@ -335,17 +334,24 @@ def main():
 
     log_system_info()
 
+    ensemble_inference_dir = run_config['ensemble_inference_dir']
+
     all_inference_results = []
     all_inference_model_checkpoint_paths = []
     reference_inference_target_labels = torch.tensor([])
 
     model_checkpoint_paths = find_model_checkpoint_paths(run_config['all_model_checkpoints_path'], MODEL_CHECKPOINT_SUFFIX)
 
+    datamodule = setup_datamodule(run_config)
+    trainer = setup_trainer(ensemble_inference_dir)
+
+    run_debug_metadata_save(datamodule, ensemble_inference_dir)
+
     for model_checkpoint_path in model_checkpoint_paths:
         model_name = get_model_name(model_checkpoint_path)
         logger.info(f"--- Processing model: {model_name}, checkpoint: {model_checkpoint_path.name} ---")
         try:
-            model_inference_results, current_inference_target_labels = run_model_inference(run_config, model_checkpoint_path, model_name)
+            model_inference_results, current_inference_target_labels = run_model_inference(run_config, model_checkpoint_path, model_name, datamodule=datamodule, trainer=trainer)
             
             if model_inference_results.numel() > 0:
                 all_inference_results.append(model_inference_results)
