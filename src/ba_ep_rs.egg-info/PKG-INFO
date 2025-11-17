@@ -16,6 +16,7 @@ Requires-Dist: alive-progress
 Requires-Dist: rasterio
 Requires-Dist: configilm@ git+https://git.tu-berlin.de/joshuacar/ConfigILM.git@main
 Requires-Dist: PyPruning@ git+https://git.tu-berlin.de/joshuacar/PyPruning.git@main
+Requires-Dist: epfd@ git+https://git.tu-berlin.de/joshuacar/EPFD.git@main
 
 # Editing this README
 
