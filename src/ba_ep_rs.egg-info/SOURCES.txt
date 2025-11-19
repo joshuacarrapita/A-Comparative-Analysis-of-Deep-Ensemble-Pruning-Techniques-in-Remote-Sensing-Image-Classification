@@ -8,8 +8,9 @@ ba_ep_rs.egg-info/top_level.txt
 pruning_utils/__init__.py
 pruning_utils/ensemble_inference_configuration.py
 pruning_utils/run_ensemble_inference.py
+pruning_utils/test_EPFD.py
 pruning_utils/test_PyPruning.py
-pruning_utils/test_predictions_PyPruning.py
+pruning_utils/test_PyPruning_mock.py
 scripts/__init__.py
 scripts/train_lightning.py
 shared_utils/__init__.py
@@ -20,4 +21,5 @@ training_utils/metadata_to_class_distribution.py
 training_utils/multi_to_single_label.py
 training_utils/parquettest.py
 training_utils/rewrite_metadata_parquet.py
+training_utils/test_transforms_speed.py
 training_utils/train_lightning_configuration.py
