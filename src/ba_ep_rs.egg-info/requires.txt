@@ -11,3 +11,4 @@ rasterio
 configilm@ git+https://git.tu-berlin.de/joshuacar/ConfigILM.git@main
 PyPruning@ git+https://git.tu-berlin.de/joshuacar/PyPruning.git@main
 epfd@ git+https://git.tu-berlin.de/joshuacar/EPFD.git@main
+pyensemble@ git+https://git.tu-berlin.de/joshuacar/PyEnsemble.git@main
