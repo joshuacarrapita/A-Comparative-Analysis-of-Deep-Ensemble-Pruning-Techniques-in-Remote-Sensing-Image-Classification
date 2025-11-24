@@ -422,6 +422,7 @@ def main():
             data_dirs = datapath_args,
             img_size = (number_of_channels, image_size, image_size),
             batch_size = tc.batch_size, 
+            prefetch_factor = 2,
             train_transforms = tc.train_transforms,
             num_workers_dataloader = num_workers, 
             bagging = True,
