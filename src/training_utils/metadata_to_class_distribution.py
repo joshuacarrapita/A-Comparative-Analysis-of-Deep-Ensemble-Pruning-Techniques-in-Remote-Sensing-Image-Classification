@@ -20,19 +20,35 @@ except Exception as e:
 
 #-----------------------------------------------------------------------------
 # EXEC
-# read normal metadata
+# read metadata
 metadata = pd.read_parquet(datapath["metadata.parquet"])
-
-# read metadata_for_patches_with_snow_cloud_or_shadow
 metadata_snow_cloud = pd.read_parquet(datapath["metadata_for_patches_with_snow_cloud_or_shadow.parquet"])
 
-# calculate occurances for all versions
-label_counts_metadata = metadata['labels'].astype(str).value_counts().to_frame(name='counts').reset_index(names='labels')
-label_freq_metadata = metadata['labels'].astype(str).value_counts(normalize=True).to_frame(name='frequencies').reset_index(names='labels')
-label_counts_metadata_snow_cloud = metadata_snow_cloud['labels'].astype(str).value_counts().to_frame(name='counts').reset_index(names='labels')
-label_freq_metadata_snow_cloud = metadata_snow_cloud['labels'].astype(str).value_counts(normalize=True).to_frame(name='frequencies').reset_index(names='labels')
-label_counts_both = label_counts_metadata.add(label_counts_metadata_snow_cloud, fill_value=0)
-label_freq_both = label_freq_metadata.merge(label_freq_metadata_snow_cloud, how='left', on='labels', suffixes=('_no_snow_cloud','_yes_snow_cloud'))
+# calculate counts using series (index = label)
+s_counts_meta = metadata['labels'].astype(str).value_counts()
+s_counts_snow = metadata_snow_cloud['labels'].astype(str).value_counts()
+
+# add counts (matching their indices which are labels in this case)
+s_counts_both = s_counts_meta.add(s_counts_snow, fill_value=0).astype(int).sort_values(ascending=False)
+
+# calculate frequencies
+s_freq_meta = metadata['labels'].astype(str).value_counts(normalize=True)
+s_freq_snow = metadata_snow_cloud['labels'].astype(str).value_counts(normalize=True)
+
+# calculate combined frequency based on the total combined counts
+s_freq_both = s_counts_both / s_counts_both.sum()
+
+# format outputs (reset index)
+label_counts_metadata = s_counts_meta.to_frame(name='counts').reset_index(names='labels')
+label_freq_metadata = s_freq_meta.to_frame(name='frequencies').reset_index(names='labels')
+
+label_counts_metadata_snow_cloud = s_counts_snow.to_frame(name='counts').reset_index(names='labels')
+label_freq_metadata_snow_cloud = s_freq_snow.to_frame(name='frequencies').reset_index(names='labels')
+
+label_counts_both = s_counts_both.to_frame(name='counts').reset_index(names='labels')
+label_freq_both = s_freq_both.to_frame(name='frequencies').reset_index(names='labels')
+
+label_freq_both_old = label_freq_metadata.merge(label_freq_metadata_snow_cloud, how='left', on='labels', suffixes=('_no_snow_cloud','_yes_snow_cloud'))
 
 
 # output to file
@@ -43,6 +59,7 @@ label_counts = {
     'label_freq_metadata_snow_cloud': label_freq_metadata_snow_cloud,
     'label_counts_both': label_counts_both,
     'label_freq_both': label_freq_both,
+    'label_freq_both_old': label_freq_both_old,
 }
 
 for name, variable in label_counts.items():
