@@ -221,6 +221,7 @@ class TrainLightningConfiguration:
             v2.RandomPerspective(distortion_scale=0.25,p=0.5),
             v2.RandomCrop((self.img_size[1],self.img_size[2])),
             v2.GaussianBlur(kernel_size=(3,3),sigma=(0.1,1.5)), 
+            v2.RandomChannelPermutation(),
         ]
 
         # Randomly select a number of transforms to apply (e.g., 2 to 4)
