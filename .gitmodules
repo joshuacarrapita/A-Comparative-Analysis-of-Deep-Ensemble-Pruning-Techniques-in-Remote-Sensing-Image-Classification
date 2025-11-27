@@ -10,3 +10,6 @@
 [submodule "PyEnsemble"]
 	path = src/pruning_submodules/PyEnsemble
 	url = https://git.tu-berlin.de/joshuacar/PyEnsemble.git
+[submodule "GASEN"]
+	path = src/pruning_submodules/GASEN
+	url = https://git.tu-berlin.de/joshuacar/GASEN

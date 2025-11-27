@@ -18,6 +18,7 @@ Requires-Dist: configilm
 Requires-Dist: PyPruning
 Requires-Dist: epfd
 Requires-Dist: pyensemble
+Requires-Dist: gasen
 
 # Editing this README
 

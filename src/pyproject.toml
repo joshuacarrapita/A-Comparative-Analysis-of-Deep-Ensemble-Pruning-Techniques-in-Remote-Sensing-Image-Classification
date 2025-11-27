@@ -28,6 +28,7 @@ dependencies = [
     "PyPruning",
 	"epfd",
 	"pyensemble",
+	"gasen",
 ]
 
 # --- Package Discovery ---
