@@ -1,4 +1,3 @@
-# run_ensemble_pruning.py
 import argparse
 import sys
 import time
@@ -7,31 +6,13 @@ import pandas as pd
 import torch
 from pathlib import Path
 
-# --- LIBRARY IMPORTS ---
-
-# 1. EPFD Imports
-try:
-    from epfd.data_distributed import (distributed_single_pruning,
-                                       distributed_pruning_methods,
-                                       COMEP_Pruning, DOMEP_Pruning)
-except ImportError:
-    print("Warning: EPFD library not found. EPFD methods will fail if selected.")
-
-# 2. GASEN Imports
-try:
-    import gasen.GA as GA
-except ImportError:
-    print("Warning: GASEN library not found. GASEN methods will fail if selected.")
-
-# 3. PyPruning Imports
-try:
-    from PyPruning.Papers import create_pruner
-except ImportError:
-    print("Warning: PyPruning library not found. PyPruning methods will fail if selected.")
-
-# --- CONSTANTS & CONFIGURATION ---
-
-# Defined based on Papers.py provided
+# --- LIBRARY ALGORITHM DEFINITIONS ---
+# Defined globally to be used in argparse choices
+EPFD_ALGOS = [
+    'ES', 'KP', 'KL', 'RE', 'OO', 'DREP', 'SEP', 'OEP', 'PEP', 
+    'GMA', 'LCS', 'COMEP', 'DOMEP'
+]
+GASEN_ALGOS = ['GASEN']
 PYPRUNING_ALGOS = [
     "individual_margin_diversity", "individual_contribution", "individual_error",
     "individual_kappa_statistic", "reduced_error", "complementariness", "drep",
@@ -40,13 +21,42 @@ PYPRUNING_ALGOS = [
     "cluster_centroids", "random"
 ]
 
-# Defined based on test_EPFD.py provided
-EPFD_ALGOS = [
-    'ES', 'KP', 'KL', 'RE', 'OO', 'DREP', 'SEP', 'OEP', 'PEP', 
-    'GMA', 'LCS', 'COMEP', 'DOMEP'
-]
+ALL_ALGOS = EPFD_ALGOS + GASEN_ALGOS + PYPRUNING_ALGOS
 
-GASEN_ALGOS = ['GASEN']
+# --- LIBRARY IMPORTS ---
+
+# 1. EPFD Imports
+try:
+    from epfd.data_distributed import (distributed_single_pruning,
+                                       distributed_pruning_methods,
+                                       COMEP_Pruning, DOMEP_Pruning)
+    EPFD_AVAILABLE = True
+except ImportError:
+    EPFD_AVAILABLE = False
+    print("Warning: EPFD library not found.")
+
+# 2. GASEN Imports
+try:
+    import gasen.GA as GA
+    GASEN_AVAILABLE = True
+except ImportError:
+    GASEN_AVAILABLE = False
+    print("Warning: GASEN library not found.")
+
+# 3. PyPruning Imports
+try:
+    # Trying both import structures depending on how the module is installed/located
+    try:
+        from PyPruning.Papers import create_pruner
+    except ImportError:
+        from PyPruning.PyPruning.Papers import create_pruner
+    PYPRUNING_AVAILABLE = True
+except ImportError:
+    PYPRUNING_AVAILABLE = False
+    print("Warning: PyPruning library not found.")
+    # Define dummy to prevent NameError if logic flows there incorrectly
+    def create_pruner(*args, **kwargs): 
+        raise ImportError("PyPruning library is not installed or accessible.")
 
 # --- HELPER FUNCTIONS ---
 
@@ -57,11 +67,13 @@ def load_data(results_path, targets_path):
     probas = torch.load(Path(results_path).resolve()).float().numpy()
     targets = torch.load(Path(targets_path).resolve()).float().numpy()
     
-    # Infer dimensions based on test_GASEN.py: (M=Models, N=Samples, C=Classes)
+    # User confirmed input is always (M, N, C)
     if len(probas.shape) == 3:
         M, N, C = probas.shape
     else:
-        raise ValueError(f"Expected probas tensor shape (M, N, C), got {probas.shape}")
+        # Fallback if dimensions look swapped, but prioritizing user instruction
+        print(f"Warning: Unexpected shape {probas.shape}. Assuming (M, N, C) as requested.")
+        M, N, C = probas.shape
 
     print(f"Inferred Dimensions -> Models (M): {M}, Samples (N): {N}, Classes (C): {C}")
     return probas, targets, M, N, C
@@ -70,58 +82,52 @@ def load_data(results_path, targets_path):
 
 def run_epfd_algo(algo_name, probas, targets, nb_pru, args):
     """Wrapper for EPFD library logic."""
+    if not EPFD_AVAILABLE:
+        raise ImportError("EPFD Library not loaded")
+
     M, N, C = probas.shape
     
-    # EPFD works with hard label predictions usually (argmax)
-    # probas is (M, N, C). argmax axis 2 gives (M, N).
-    # test_EPFD.py logic: results = np.argmax(probas, axis=2). 
-    # But note: test_EPFD inputs are slightly ambiguous on shape, 
-    # but COMEP/DOMEP usually expect specific list structures.
-    
-    results_hard = np.argmax(probas, axis=2) # (M, N)
-    
-    # Prepare inputs strictly as test_EPFD.py does
-    # For COMEP/DOMEP: expects (N, M) list of lists transposed?
-    # test_EPFD: COMEP_Pruning(np.array(results).T.tolist()...)
-    # If results_hard is (M, N), .T is (N, M).
-    results_transposed_list = results_hard.T.tolist()
+    # 1. Get Hard Labels
+    # Input is (M, N, C). argmax over classes (axis 2) -> (M, N)
+    results_hard = np.argmax(probas, axis=2) 
     
     rho = nb_pru / M
     selected_indices = []
 
     start_time = time.time()
     
-    if algo_name == 'COMEP':
-        selected_indices = COMEP_Pruning(results_transposed_list, nb_pru, targets, args.lam)
-    elif algo_name == 'DOMEP':
-        selected_indices = DOMEP_Pruning(results_transposed_list, nb_pru, args.m, targets, args.lam)
+    if algo_name in ['COMEP', 'DOMEP']:
+        # Original test_EPFD.py used: COMEP_Pruning(np.array(results).T.tolist(), ...)
+        # Since we have results_hard as (M, N), .T becomes (N, M). 
+        # This matches the explicit transposition in the provided test file.
+        results_transposed_list = results_hard.T.tolist()
+
+        if algo_name == 'COMEP':
+            selected_indices = COMEP_Pruning(results_transposed_list, nb_pru, targets, args.lam)
+        elif algo_name == 'DOMEP':
+            selected_indices = DOMEP_Pruning(results_transposed_list, nb_pru, args.m, targets, args.lam)
+            
     else:
-        # Single pruning methods
-        # distributed_single_pruning expects: name, targets, results, nb_cls, nb_pru, rho
-        # Note: distributed_single_pruning usually expects results in (N, M) or (M, N) depending on impl.
-        # Following test_EPFD.py: "Pc = distributed_single_pruning(..., results, ...)"
-        # Assuming results passed to test_EPFD was (N, M) if loaded from (N, M, C), 
-        # but here we have (M, N, C). 
-        # We will pass `results_hard` (M, N) but verify if .T is needed.
-        # Looking at standard EPFD usage, it often aligns with samples first. 
-        # Let's try passing Transposed (N, M) to match test_EPFD's "np.argmax(probas, axis=2)"
-        # assuming probas in test_EPFD was (N, M, C). 
-        # However, our current probas is (M, N, C). 
-        # Let's stick to consistent shapes: Pass (N, M) hard labels.
-        
-        results_for_func = results_hard.T 
+        # Single pruning methods (e.g., 'ES', 'KP'...)
+        # Original test_EPFD.py used: distributed_single_pruning(name, targets, results, ...)
+        # It did NOT use .T here. We pass results_hard (M, N) directly.
         
         if args.distributed:
-            selected_indices = distributed_pruning_methods(targets, results_for_func, nb_pru, args.m, algo_name, rho=rho)
+            # Distributed wrapper in test_EPFD usually implies the framework logic
+            # The test file calls `distributed_pruning_methods` for distributed
+            # Note: variable names in test_EPFD were `results` passed directly.
+            selected_indices = distributed_pruning_methods(targets, results_hard, nb_pru, args.m, algo_name, rho=rho)
         else:
-            selected_indices = distributed_single_pruning(algo_name, targets, results_for_func, M, nb_pru, rho=rho)
+            selected_indices = distributed_single_pruning(algo_name, targets, results_hard, M, nb_pru, rho=rho)
 
     end_time = time.time()
     return selected_indices, end_time - start_time
 
 def run_gasen_algo(probas, targets, nb_pru, args):
-    """Wrapper for GASEN. Re-implements logic from test_GASEN.py."""
-    
+    """Wrapper for GASEN."""
+    if not GASEN_AVAILABLE:
+        raise ImportError("GASEN Library not loaded")
+
     # Internal helper from test_GASEN.py
     def vectorized_fitness(weights, proba, target):
         row_sums = weights.sum(axis=1, keepdims=True)
@@ -175,21 +181,23 @@ def run_gasen_algo(probas, targets, nb_pru, args):
 
 def run_pypruning_algo(algo_name, probas, targets, nb_pru, args):
     """Wrapper for PyPruning."""
+    if not PYPRUNING_AVAILABLE:
+        raise ImportError("PyPruning Library not loaded")
+
     M, N, C = probas.shape
     
     start_time = time.time()
     
     # Create pruner
-    # kwargs can be passed here if needed (e.g. n_estimators)
+    # Using the imported create_pruner function
     pruner = create_pruner(algo_name, n_estimators=nb_pru)
     
     if pruner is None:
-        return f"Error: {algo_name} not found", 0.0
+        raise ValueError(f"PyPruning algorithm '{algo_name}' returned None from create_pruner.")
 
     # Execute
-    # test_PyPruning passes probas directly. 
-    # Assuming PyPruning handles the (M, N, C) input or (N, M, C) internally
-    # or expects what is passed. We pass exactly what was loaded.
+    # PyPruning inputs: The library typically handles shapes robustly, 
+    # but based on test_PyPruning.py, it takes probas directly.
     selected_indices, _ = pruner.prune_(probas, targets)
     
     end_time = time.time()
@@ -215,9 +223,11 @@ def define_params():
     
     # Selection arguments
     parser.add_argument("--library", type=str, default='all', choices=['all', 'EPFD', 'GASEN', 'PyPruning'],
-                        help='Select a specific library to run')
-    parser.add_argument("--algorithm", type=str, default=None, 
-                        help='Run a single specific algorithm (e.g., "COMEP", "GASEN", "reduced_error"). Overrides --library.')
+                        help='Select a specific library to run. Defaults to "all".')
+    
+    # Algorithm choices populated explicitly
+    parser.add_argument("--algorithm", type=str, default=None, choices=ALL_ALGOS,
+                        help='Run a single specific algorithm. Overrides --library.')
 
     # EPFD Specifics
     parser.add_argument("--distributed", action="store_true", help='Enable distributed mode for EPFD algorithms')
@@ -256,6 +266,8 @@ def main():
             tasks.append(("PyPruning", args.algorithm))
             found = True
         
+        # Note: Since we used `choices` in argparse, the script would likely 
+        # exit before this if an invalid name is passed, but good for safety.
         if not found:
             sys.exit(f"Error: Algorithm '{args.algorithm}' not found in any library definitions.")
     else:
@@ -299,7 +311,7 @@ def main():
                 "Library": lib,
                 "Algorithm": algo,
                 "Runtime": runtime,
-                "Result": str(selection) # Convert list to string for DataFrame display
+                "Result": str(selection)
             })
             
         except Exception as e:
@@ -317,7 +329,6 @@ def main():
     # Save to HTML
     try:
         html_string = df.to_html(classes='table table-striped', index=False)
-        # Wrap in simple HTML structure
         final_html = f"""
         <html>
         <head>
