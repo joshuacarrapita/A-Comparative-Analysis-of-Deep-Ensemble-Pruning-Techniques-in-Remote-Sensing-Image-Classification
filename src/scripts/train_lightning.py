@@ -278,19 +278,35 @@ def randomize_tc_for_benv2_ep(tc: TrainLightningConfiguration, seed: Optional[in
     tc.randomize_optimizer()
     tc.randomize_patience()
 
-def inverse_class_weights_from_occurrences(class_distribution_parquet: Path, num_classes: int) -> torch.Tensor:
+def inverse_class_weights_from_occurrences(class_distribution_parquet: Path, num_classes: int, alpha: float = 1.0) -> torch.Tensor:
     """
         Compute inverse class weights from a parquet file that stores label counts.
 
         :param class_distribution_parquet: Path to file containing the absolute class counts thus the class distribution.
 
+        :param alpha: Dampening factor. 
+                  alpha=1.0 ---> full Inverse Frequency (Standard).
+                  alpha=0.5 ---> Square Root Inverse Frequency (Dampened).
+                  alpha=0 ---> no Inverse Frequency (regular loss without class weights).
+
         :returns torch.Tensor: Tensor of shape (num_classes,) with the weight for each class.
     """
 
-    label_counts = pd.read_parquet(class_distribution_parquet)
-    total_samples = label_counts['counts'].sum()
-    class_weights = total_samples / (num_classes * label_counts['counts'])
-    return torch.tensor(class_weights.values, dtype=torch.float32) 
+    class_counts = pd.read_parquet(class_distribution_parquet)
+    counts = class_counts['counts'].values
+    total_samples = counts.sum()
+
+    # or get eps based on input type instead of using 1e-6
+    # If counts is float64 this is ~2e-16, if it's float32 this is ~1e-7
+    # eps = np.finfo(counts.dtype).eps 
+    inverse_freq = total_samples / (counts + 1e-6)
+
+    dampened_weights = np.power(inverse_freq, alpha)
+
+    # normalize weights to mean = 1.0 so global lr does not have to be scaled
+    normalized_weights = dampened_weights * (num_classes / dampened_weights.sum())
+
+    return torch.tensor(normalized_weights, dtype=torch.float32) 
 
 # ===========================================================================
 # Main Training Script
