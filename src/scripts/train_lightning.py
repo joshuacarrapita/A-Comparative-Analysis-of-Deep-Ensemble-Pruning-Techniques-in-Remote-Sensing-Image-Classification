@@ -278,7 +278,7 @@ def randomize_tc_for_benv2_ep(tc: TrainLightningConfiguration, seed: Optional[in
     tc.randomize_optimizer()
     tc.randomize_patience()
 
-def inverse_frequency_class_weights_from_class_counts(class_distribution_parquet: Path, num_classes: int, alpha: float = 1.0) -> torch.Tensor:
+def inverse_frequency_class_weights_from_class_counts(class_distribution_parquet: Path, num_classes: int, alpha: float = 0.5) -> torch.Tensor:
     """
         Compute inverse class weights from a parquet file that stores label counts.
 
