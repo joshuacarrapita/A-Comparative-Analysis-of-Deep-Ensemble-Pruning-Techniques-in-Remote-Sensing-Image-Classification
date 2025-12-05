@@ -207,19 +207,20 @@ class TrainLightningConfiguration:
         if seed is not None: self._set_seed(seed)
         
         ben_mean, ben_std = band_combi_to_mean_std(self.img_size[0])
+        ben_mean_list = ben_mean.tolist()
 
         potential_transforms = [
             MyGaussianNoise(sigma=20.0),
             v2.RandomHorizontalFlip(p=0.5),
             v2.RandomVerticalFlip(p=0.5),
             MyRotateTransform([0, 90, 180, 270]),
-            v2.RandomRotation(degrees=180),
+            v2.RandomRotation(degrees=180,fill=ben_mean_list),
             v2.RandomResizedCrop(size=(self.img_size[1],self.img_size[2]),scale=(0.5,1.0),antialias=True),
-            v2.RandomErasing(p=0.5, scale=(0.02, 0.1), ratio=(0.3, 3.3), value=random.choice([ben_mean.tolist(),'random'])),
-            v2.ElasticTransform(alpha=50.0, sigma=5.0),
-            v2.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9,1.1)),
-            v2.RandomPerspective(distortion_scale=0.25,p=0.5),
-            v2.RandomCrop((self.img_size[1],self.img_size[2])),
+            v2.RandomErasing(p=0.5, scale=(0.02, 0.1), ratio=(0.3, 3.3), value=random.choice([ben_mean_list,'random'])),
+            v2.ElasticTransform(alpha=50.0, sigma=5.0, fill=ben_mean_list),
+            v2.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9,1.1), fill=ben_mean_list),
+            v2.RandomPerspective(distortion_scale=0.25, p=0.5, fill=ben_mean_list),
+            v2.RandomCrop((self.img_size[1],self.img_size[2]), fill=ben_mean_list),
             v2.GaussianBlur(kernel_size=(3,3),sigma=(0.1,1.5)), 
             v2.RandomChannelPermutation(),
         ]
