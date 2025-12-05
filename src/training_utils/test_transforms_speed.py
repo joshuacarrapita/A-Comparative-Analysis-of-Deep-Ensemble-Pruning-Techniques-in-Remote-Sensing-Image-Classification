@@ -8,6 +8,7 @@ import inspect
 # 3rd party imports
 from pathlib import Path
 import pandas as pd
+import matplotlib.pyplot as plt
 
 # local imports
 from configilm.extra.DataSets import BENv2_DataSet
@@ -27,14 +28,57 @@ def define_params(args):
     parser.add_argument('--channels', type=int, default='10', help='Number of channels the images have.')
     parser.add_argument('--outpath', type=str, required=True, help='Export path for results.')
     parser.add_argument('--v2', action='store_true', help='Use transforms v2.')
+    parser.add_argument('--plot_frequency', type=int, default='0', help='Frequency with which to plot images. 0 = no plot, 1 = every image, 2 = every 2nd image etc.')
+    parser.add_argument('--max_plot_per_transform', type=int, default='-1', help='Maximum amount of images to plot per transform. -1 = inf, 0 = no plot, 1 = 1 image, etc.')
 
     return parser.parse_args(args)
 
 def set_seed(seed: int):
     random.seed(seed)
 
+def transform_and_plot_images(dataset: BENv2_DataSet.BENv2DataSet = None, max_plot_per_transform: int = -1, plot_frequency: int = 1) -> float:
+    # setup plot counter and queue
+    plot_queue = []
+    curr_plot_nu = 0
+    if max_plot_per_transform < 0:
+        max_plot_nu = len(dataset.patches)
+    else:
+        max_plot_nu = max_plot_per_transform
+
+    start = time.time()
+
+    # do transformations and save transformed images for plotting
+    for idx in range(len(dataset.patches)):
+        img, lbl, key = dataset.__getitem__(idx)
+
+        if plot_frequency > 0 and (idx % plot_frequency) == 0 and curr_plot_nu < max_plot_nu:
+            plot_queue.append((img, lbl, key))
+            curr_plot_nu += 1
+    
+    end = time.time()
+    runtime = end - start
+
+    # plot images
+    for idx, item in enumerate(plot_queue):
+        # convert image to rgb and undo normalization
+        img_rgb = item[0][:3, :, :]
+        lbl = item[1]
+        key = item[2] 
+
+        img_plot = img_rgb.permute(1,2,0)
+        img_plot = (img_plot - img_plot.min()) / (img_plot.max() - img_plot.min())
+        
+        # plot image
+        plt.imshow(img_plot)
+        plt.gcf().canvas.manager.set_window_title(f'{key}')
+        plt.title(f'{lbl}')
+        plt.show()
+
+    return runtime
+
 # main execution loop
 def main(args):
+    # setup environment
     assert Path(args.images_lmdb).resolve().is_dir(), f"Input directory does not exist or is not a directory: {args.images_lmdb}"
     assert Path(args.metadata).resolve().is_file(), f"Input file does not exist or is not a file: {args.metadata}"
     assert Path(args.outpath).resolve().is_dir(), f"Output directory does not exist or is not a directory: {args.outpath}"
@@ -56,20 +100,25 @@ def main(args):
             }
         
     ben_mean, ben_std = band_combi_to_mean_std(args.channels)
+    ben_mean_list = ben_mean.tolist()
     img_size = 120
+    times = []
+    transforms = []
 
+
+    # setup transforms 
     potential_transforms = [
         MyGaussianNoise(sigma=20.0),
         T.RandomHorizontalFlip(p=0.5),
         T.RandomVerticalFlip(p=0.5),
         MyRotateTransform([0, 90, 180, 270]),
-        T.RandomRotation(degrees=180),
+        T.RandomRotation(degrees=180, fill=ben_mean_list),
         T.RandomResizedCrop(size=(img_size,img_size),scale=(0.5,1.0),antialias=True),
-        T.RandomErasing(p=0.5, scale=(0.02, 0.1), ratio=(0.3, 3.3), value=random.choice([ben_mean.tolist(),'random'])),
-        T.ElasticTransform(alpha=50.0, sigma=5.0),
-        T.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9,1.1)),
-        T.RandomPerspective(distortion_scale=0.25,p=0.5),
-        T.RandomCrop((img_size,img_size)),
+        T.RandomErasing(p=0.5, scale=(0.02, 0.1), ratio=(0.3, 3.3), value=ben_mean_list),
+        T.ElasticTransform(alpha=50.0, sigma=5.0, fill=ben_mean_list),
+        T.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9,1.1), fill=ben_mean_list),
+        T.RandomPerspective(distortion_scale=0.25,p=0.5,fill=ben_mean_list),
+        T.RandomCrop((img_size,img_size),fill=ben_mean_list),
         T.GaussianBlur(kernel_size=(3,3),sigma=(0.1,1.5)), 
     ]
 
@@ -80,12 +129,12 @@ def main(args):
 
         potential_transforms.extend(v2_only_transforms)
 
-    times = []
-    transforms = []
-
     default_transforms = [default_train_transform(img_size, ben_mean, ben_std), default_train_transform_with_noise(img_size, ben_mean, ben_std, 20.0)]
 
-    for idx, transform in enumerate(default_transforms):
+    # execute transform loop
+    # first for default_transforms
+    for idx, default_transform in enumerate(default_transforms):
+
         if idx == 0: transforms.append('default_train_transform')
         if idx == 1: transforms.append('default_train_transform_with_noise')
 
@@ -94,23 +143,23 @@ def main(args):
             split = 'train',
             bagging = False,
             seed = args.seed,
-            transform = transform,
+            transform = default_transform,
             max_len = args.max_len,
             img_size = (args.channels, img_size, img_size),
+            return_extras = True,
         )
 
-        start = time.time()
+        print(f'Performing {default_transform} ...')
+
+        runtime = transform_and_plot_images(dataset=benchmark_ds, max_plot_per_transform=args.max_plot_per_transform, plot_frequency=args.plot_frequency)
         
-        for idx in range(len(benchmark_ds.patches)):
-           _, _ = benchmark_ds.__getitem__(idx)
+        times.append(runtime)
 
-        end = time.time()
-        diff = end - start
-        times.append(diff)
-
+    # then for each potential_transform
     for transform in potential_transforms:
         # Basic transforms that are almost always needed
         transforms.append(str(transform))
+
         final_transforms = [
             T.Resize((img_size, img_size), antialias=True),
             transform,
@@ -127,16 +176,15 @@ def main(args):
             transform = final_transforms,
             max_len = args.max_len,
             img_size = (args.channels, img_size, img_size),
+            return_extras = True,
         )
 
-        start = time.time()
-        
-        for idx in range(len(benchmark_ds.patches)):
-           _, _ = benchmark_ds.__getitem__(idx)
+        print(f'Performing {transform} ...')
 
-        end = time.time()
-        diff = end - start
-        times.append(diff)
+        runtime = transform_and_plot_images(dataset=benchmark_ds, max_plot_per_transform=args.max_plot_per_transform, plot_frequency=args.plot_frequency)
+        
+        times.append(runtime)
+
 
     df = pd.DataFrame({'Transform' : transforms, 'Abs. Time': times})
     df['Rel. Time (%)'] = df['Abs. Time'].transform(lambda x: x / x.sum()) * 100
