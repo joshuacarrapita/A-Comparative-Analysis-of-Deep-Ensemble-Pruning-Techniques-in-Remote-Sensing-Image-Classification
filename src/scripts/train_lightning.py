@@ -24,6 +24,7 @@ from configilm import ConfigILM, util
 from configilm.ConfigILM import ILMConfiguration, ILMType
 from configilm.extra.DataModules import BENv2_DataModule
 from training_utils.train_lightning_configuration import TrainLightningConfiguration
+from training_utils.run_tracker import RunTracker
 
 # ===========================================================================
 # LightningModule Class Definition
@@ -125,7 +126,7 @@ class LitImageEncoder(pl.LightningModule):
         probas = torch.nn.functional.softmax(logits, dim=1)
 
         return {'prediction_results': probas, 'target_labels': label}
-       
+        
     def test_step(self, batch, batch_idx):
         img, label = batch
         label = torch.argmax(label, dim=1) # one-hot -> index
@@ -253,7 +254,7 @@ class LitImageEncoder(pl.LightningModule):
         plt.tight_layout()
         self.logger.experiment.add_figure(tag, fig, self.current_epoch)
         plt.close(fig)
- 
+
 # ===========================================================================
 # Helper Functions
 # ===========================================================================
@@ -312,7 +313,7 @@ def inverse_frequency_class_weights_from_class_counts(class_distribution_parquet
 # Main Training Script
 # ===========================================================================
 def main():
-
+    
     # --- General Setup ---
     start_time = time.strftime('%Y%m%d-%H%M%S')
 
@@ -354,6 +355,8 @@ def main():
         export_dir = export_dir_root / f'resnet18_{start_time}_seed{seed}'
     export_dir.mkdir(parents=True, exist_ok=True)
 
+    tracker = RunTracker(seed=seed, slurm_job_id=slurm_job_id)
+
     # --- System Setup & Info ---
     torch.set_float32_matmul_precision('medium')
 
@@ -361,6 +364,7 @@ def main():
     omp_num_threads = os.getenv('OMP_NUM_THREADS')
     mkl_num_threads = os.getenv('MKL_NUM_THREADS')
     cuda_launch_blocking = os.getenv("CUDA_LAUNCH_BLOCKING")
+    
     print(f"OMP_NUM_THREADS: {omp_num_threads}")
     print(f"MKL_NUM_THREADS: {mkl_num_threads}")
     print(f"CUDA_LAUNCH_BLOCKING: {cuda_launch_blocking}")
@@ -410,13 +414,13 @@ def main():
     """
     number_of_channels = 10
     image_size = 120
-    epochs = 100
+    epochs = 10
     if slurm_cpus_per_task is not None:
         num_workers = int(slurm_cpus_per_task)-2 # -2 to keep some cores for main and other processes, experiment with this value to find most efficient cpu utilization
         
         print(f"Num_workers set to {num_workers} with SLURM_CPUS_PER_TASK")
     else:
-        num_workers = max(1,min(os.cpu_count()/4-2,10)) # /2 for two sockets and /2 cause os.cpu_count returns thread as multithreads (2 per core) and -2 to keep some for the main process
+        num_workers = max(1,min(os.cpu_count()//4-2,10)) # /2 for two sockets and /2 cause os.cpu_count returns thread as multithreads (2 per core) and -2 to keep some for the main process
         print(f"Num_workers set to {num_workers} with max(1,min(os.cpu_count()/4-2,10))")
 
     # Instantiate Model Config
@@ -462,9 +466,9 @@ def main():
             #profiler = profiler,
             precision = '16-mixed', # for A100 GPUs (Automatic Mixed Precision)
             callbacks=[
-            pl.callbacks.EarlyStopping(monitor='val_loss', patience=tc.patience, mode='min'), 
-            pl.callbacks.ModelCheckpoint(monitor='val_loss', mode='min', save_top_k=1), # saves best model
-            #DeviceStatsMonitor(cpu_stats=True),
+                pl.callbacks.EarlyStopping(monitor='val_loss', patience=tc.patience, mode='min'), 
+                pl.callbacks.ModelCheckpoint(monitor='val_loss', mode='min', save_top_k=1), # saves best model
+                #DeviceStatsMonitor(cpu_stats=True),
             ],
             default_root_dir=export_dir,
             deterministic=True,
@@ -489,8 +493,66 @@ def main():
 
     # --- Training And Testing ---
     trainer.fit(model, datamodule=dm)
-
     trainer.test(model, datamodule=dm) # automatically loads best model from checkpoint
+
+    # --- Run Info Collection and Logging ---
+    tracker.log('Paths', 'Export Dir', str(export_dir))
+    for key, val in datapath_args.items():
+        # Make key readable (e.g. metadata_parquet -> Metadata Parquet)
+        readable_key = key.replace('_', ' ').title()
+        tracker.log('Paths', readable_key, str(val))
+        
+    if dm.train_ds is None: dm.setup()
+    tracker.log('Dataset', 'Train Size', len(dm.train_ds) if dm.train_ds else "N/A")
+    tracker.log('Dataset', 'Val Size', len(dm.val_ds) if dm.val_ds else "N/A")
+    tracker.log('Dataset', 'Test Size', len(dm.test_ds) if dm.test_ds else "N/A")
+    tracker.log('Dataset', 'Classes', tc.num_classes)
+    tracker.log('Dataset', 'Channels', number_of_channels)
+    tracker.log('Dataset', 'Input Shape', str((number_of_channels, image_size, image_size)))
+
+    for env in ['SLURM_JOB_ID', 'SLURM_ARRAY_JOB_ID', 'SLURM_ARRAY_TASK_ID', 'SLURM_CPUS_PER_TASK', 
+                'OMP_NUM_THREADS', 'MKL_NUM_THREADS', 'CUDA_LAUNCH_BLOCKING']:
+        tracker.log('Environment', env, os.getenv(env, 'Not Set'))
+        
+    if torch.cuda.is_available():
+        tracker.log('System', 'GPU Count', torch.cuda.device_count())
+        for i in range(torch.cuda.device_count()):
+             prop = torch.cuda.get_device_properties(i)
+             tracker.log('System', f'GPU {i} Name', torch.cuda.get_device_name(i))
+             tracker.log('System', f'GPU {i} VRAM', f"{prop.total_memory / (1024**3):.2f} GB")
+    else:
+        tracker.log('System', 'GPU Count', 0)
+
+    tracker.log('Model Config', 'Architecture', model_name)
+    tracker.log('Model Config', 'Drop Rate', tc.drop_rate)
+    tracker.log('Model Config', 'Drop Path Rate', tc.drop_path_rate)
+    tracker.log('Model Config', 'Total Params', sum(p.numel() for p in model.parameters()))
+    tracker.log('Model Config', 'Trainable Params', sum(p.numel() for p in model.parameters() if p.requires_grad))
+
+    tracker.log('Training Config', 'Max Epochs', epochs)
+    tracker.log('Training Config', 'Batch Size', tc.batch_size)
+    tracker.log('Training Config', 'Num Workers', num_workers)
+    tracker.log('Training Config', 'Patience', tc.patience)
+    tracker.log('Training Config', 'Strategy', trainer.strategy.__class__.__name__)
+    
+    tracker.log('Optimization', 'Optimizer', tc.optimizer.__name__ if hasattr(tc.optimizer, '__name__') else str(tc.optimizer))
+    tracker.log('Optimization', 'Learning Rate', tc.lr)
+    
+    loss_str = str(tc.loss_fn)
+    if hasattr(tc.loss_fn, 'func'): loss_str = f"{tc.loss_fn.func.__name__} {tc.loss_fn.keywords}"
+    elif hasattr(tc.loss_fn, '__name__'): loss_str = tc.loss_fn.__name__
+    tracker.log('Optimization', 'Loss Function', loss_str)
+    
+    cw_np = tc.class_weights.numpy() if isinstance(tc.class_weights, torch.Tensor) else tc.class_weights
+    tracker.log('Optimization', 'Class Weights', str(list(cw_np)) if cw_np is not None else "None")
+
+    tracker.log('Augmentation', 'Pipeline', tracker.format_augmentation(tc.train_transforms))
+
+    # Load Results from TensorBoard
+    tracker.populate_from_tensorboard(export_dir)
+
+    # Save Everything
+    tracker.save(export_dir)
 
     print('\nTraining complete.')
     print(f'Best model and logs saved in: {export_dir}')
