@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 # local imports
 from configilm.extra.DataSets import BENv2_DataSet
 from configilm.extra.BENv2_utils import band_combi_to_mean_std
+from configilm.extra.BENv2_utils import multi_hot_to_ben_19_labels
 from configilm.extra.CustomTorchClasses import MyGaussianNoise
 from configilm.extra.CustomTorchClasses import MyRotateTransform
 from configilm.extra._defaults import default_train_transform
@@ -52,7 +53,7 @@ def transform_and_plot_images(dataset: BENv2_DataSet.BENv2DataSet = None, max_pl
         img, lbl, key = dataset.__getitem__(idx)
 
         if plot_frequency > 0 and (idx % plot_frequency) == 0 and curr_plot_nu < max_plot_nu:
-            plot_queue.append((img, lbl, key))
+            plot_queue.append((img, lbl, key, dataset.transform))
             curr_plot_nu += 1
     
     end = time.time()
@@ -71,7 +72,9 @@ def transform_and_plot_images(dataset: BENv2_DataSet.BENv2DataSet = None, max_pl
         # plot image
         plt.imshow(img_plot)
         plt.gcf().canvas.manager.set_window_title(f'{key}')
-        plt.title(f'{lbl}')
+        plt.title(f'{item[3]}',fontsize=10)
+        plt.suptitle(f'{multi_hot_to_ben_19_labels(lbl,lex_sorted=True)}',fontsize=16, y=0.95)
+        plt.subplots_adjust(top=0.6)
         plt.show()
 
     return runtime

@@ -23,6 +23,7 @@ from lightning.pytorch.callbacks import DeviceStatsMonitor
 from configilm import ConfigILM, util
 from configilm.ConfigILM import ILMConfiguration, ILMType
 from configilm.extra.DataModules import BENv2_DataModule
+from configilm.extra.BENv2_utils import NEW_LABELS, NEW_LABELS_ORIGINAL_ORDER
 from training_utils.train_lightning_configuration import TrainLightningConfiguration
 from training_utils.run_tracker import RunTracker
 
@@ -235,7 +236,12 @@ class LitImageEncoder(pl.LightningModule):
         """Log a 1×C detached accuracy tensor as a seaborn heat‑map."""
         acc_tensor = acc_tensor.numpy().reshape(1, -1)   # (1, C)
 
-        fig, ax = plt.subplots(figsize=(max(6, self.config.classes * 0.4), 2))
+        labels = [
+            (lbl[:20] + "...") if len(lbl) > 20 else lbl 
+            for lbl in self.config.class_names
+        ]
+
+        fig, ax = plt.subplots(figsize=(max(6, self.config.classes * 0.4), 3))
         sns.heatmap(
             acc_tensor,
             annot=True,
@@ -247,8 +253,7 @@ class LitImageEncoder(pl.LightningModule):
             ax=ax,
         )
         ax.set_xticks(np.arange(self.config.classes) + 0.5)
-        ax.set_xticklabels([f"C{i}" for i in range(self.config.classes)],
-                           rotation=90, ha="right")
+        ax.set_xticklabels(labels, rotation=45, ha="right")
         ax.set_yticks([])  # hide the single y‑tick
         ax.set_title("Per‑class Accuracy (validation)")
         plt.tight_layout()
@@ -427,6 +432,7 @@ def main():
     model_config = ILMConfiguration(
             timm_model_name=model_name,
             classes=tc.num_classes,
+            class_names=NEW_LABELS,
             image_size=image_size,
             channels=number_of_channels,
             network_type=ILMType.IMAGE_CLASSIFICATION,
