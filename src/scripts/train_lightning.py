@@ -516,8 +516,7 @@ def main():
     tracker.log('Dataset', 'Channels', number_of_channels)
     tracker.log('Dataset', 'Input Shape', str((number_of_channels, image_size, image_size)))
 
-    for env in ['SLURM_JOB_ID', 'SLURM_ARRAY_JOB_ID', 'SLURM_ARRAY_TASK_ID', 'SLURM_CPUS_PER_TASK', 
-                'OMP_NUM_THREADS', 'MKL_NUM_THREADS', 'CUDA_LAUNCH_BLOCKING']:
+    for env in ['SLURM_JOB_ID', 'SLURM_ARRAY_JOB_ID', 'SLURM_ARRAY_TASK_ID', 'SLURM_CPUS_PER_TASK', 'OMP_NUM_THREADS', 'MKL_NUM_THREADS', 'CUDA_LAUNCH_BLOCKING']:
         tracker.log('Environment', env, os.getenv(env, 'Not Set'))
         
     if torch.cuda.is_available():
@@ -525,7 +524,10 @@ def main():
         for i in range(torch.cuda.device_count()):
              prop = torch.cuda.get_device_properties(i)
              tracker.log('System', f'GPU {i} Name', torch.cuda.get_device_name(i))
-             tracker.log('System', f'GPU {i} VRAM', f"{prop.total_memory / (1024**3):.2f} GB")
+             tracker.log('System', f'GPU {i} VRAM (total)', f"{prop.total_memory / (1024**3):.2f} GB")
+             tracker.log('System', f'GPU {i} VRAM (allocated)', f"{prop.allocated_memory / (1024**3):.2f} GB")
+             tracker.log('System', f'GPU {i} VRAM (cached)', f"{prop.memory_cached / (1024**3):.2f} GB")
+
     else:
         tracker.log('System', 'GPU Count', 0)
 

@@ -10,7 +10,7 @@ import numpy as np
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
-from custom_logging import create_logger
+from shared_utils.custom_logging import create_logger
 
 class RunTracker:
     def __init__(self, seed: int, slurm_job_id: Any):
@@ -83,80 +83,82 @@ class RunTracker:
             self.logger.warning("No events.out.tfevents file found.")
             return
 
-        # use the largest event file
-        event_path = str(max(event_files, key=os.path.getsize))
+        for event_path in event_files:
+            self.logger.info(f'Processing event file: {event_path}')
 
-        # load Events
-        try:
-            ea = EventAccumulator(event_path, size_guidance={'scalars': 0, 'images': 0}) # size_guidance = 0 loads *all* the data
-            ea.Reload()
-            tags = ea.Tags()['scalars']
-            image_tags = ea.Tags()['images']
-            self.logger.info(f"Found TensorBoard tags: {tags}")
-            self.logger.info(f"Found TensorBoard image tags: {image_tags}")
-        except Exception as e:
-            self.logger.error(f"Error loading TensorBoard file: {e}")
-            return
+            event_path = str(event_path.resolve())
 
-        # --- Helper Functions ---
-        
-        def _get_scalar_at_step(tag_name: str, step: Optional[int] = None):
-            """Returns scalar value at a specific step, or None."""
-            if tag_name not in tags:
-                return None
+            # load Events
+            try:
+                ea = EventAccumulator(event_path, size_guidance={'scalars': 0, 'images': 0}) # size_guidance = 0 loads *all* the data
+                ea.Reload()
+                tags = ea.Tags()['scalars']
+                image_tags = ea.Tags()['images']
+                self.logger.info(f"Found TensorBoard tags: {tags}")
+                self.logger.info(f"Found TensorBoard image tags: {image_tags}")
+            except Exception as e:
+                self.logger.error(f"Error loading TensorBoard file: {e}")
+                return
 
-            scalars = ea.Scalars(tag_name)
-
-            if step is not None and step != -1:
-                # try to find scalar at exact step, fallback to last scalar
-                return next((x.value for x in scalars if x.step == step), scalars[-1].value)
-            else:
-                # default to last scalar (for Train/Test)
-                return scalars[-1].value
-
-        def _get_image_html_at_step(tag_name: str, step: Optional[int] = None):
-            """
-            Finds an image by tag. If step is provided, tries to find that specific step.
-            Otherwise (or if step not found), returns the last logged image.
-            Returns formatted HTML string or None.
-            """
-            if tag_name not in image_tags:
-                return None
+            # --- Helper Functions ---
             
-            images = ea.Images(tag_name)
+            def _get_scalar_at_step(tag_name: str, step: Optional[int] = None):
+                """Returns scalar value at a specific step, or None."""
+                if tag_name not in tags:
+                    return None
+
+                scalars = ea.Scalars(tag_name)
+
+                if step is not None and step != -1:
+                    # try to find scalar at exact step, fallback to last scalar
+                    return next((x.value for x in scalars if x.step == step), scalars[-1].value)
+                else:
+                    # default to last scalar (for Train/Test)
+                    return scalars[-1].value
+
+            def _get_image_html_at_step(tag_name: str, step: Optional[int] = None):
+                """
+                Finds an image by tag. If step is provided, tries to find that specific step.
+                Otherwise (or if step not found), returns the last logged image.
+                Returns formatted HTML string or None.
+                """
+                if tag_name not in image_tags:
+                    return None
+                
+                images = ea.Images(tag_name)
+                
+                if step is not None and step != -1:
+                    # try to find image at exact step, fallback to last image
+                    target_img = next((x for x in images if x.step == step), images[-1])
+                else:
+                    # default to last image (for Train/Test)
+                    target_img = images[-1]
+
+                # convert to Base64
+                b64_str = base64.b64encode(target_img.encoded_image_string).decode('utf-8')
+                return f'<img src="data:image/png;base64,{b64_str}" style="max-width: 300px; height: auto;" />'
+
+            # --- Extract Final Training Metrics ---
+            if 'train_loss' in tags: self.log('Results (Train)', 'Final Train Loss', _get_scalar_at_step('train_loss', step=-1))
+            if 'train_acc' in tags: self.log('Results (Train)', 'Final Train Acc', _get_scalar_at_step('train_acc', step=-1))
+            if 'train_avg_class_acc' in tags: self.log('Results (Train)', 'Final Train Avg Class Acc', _get_scalar_at_step('train_avg_class_acc', step=-1))
+            if 'train_per_class_acc' in image_tags: self.log('Results (Train)', 'Per Class Acc', _get_image_html_at_step('train_per_class_acc', step=-1))
+
+            # --- Extract Best Epoch Validation Metrics ---
+            if 'val_loss' in tags:
+                # find event with min value
+                best_event = min(ea.Scalars('val_loss'), key=lambda x: x.value)
+                self.log('Results (Validation)', 'Best Val Loss', _get_scalar_at_step('val_loss', step=best_event.step))
+                
+                if 'val_acc' in tags: self.log('Results (Validation)', 'Best Val Acc', _get_scalar_at_step('val_acc', best_event.step))
+                if 'val_avg_class_acc' in tags: self.log('Results (Validation)', 'Best Val Avg Class Acc', _get_scalar_at_step('val_avg_class_acc', best_event.step))
+                if 'val_per_class_acc' in image_tags: self.log('Results (Validation)', 'Per Class Acc', _get_image_html_at_step('val_per_class_acc', step=best_event.step))
             
-            if step is not None and step != -1:
-                # try to find image at exact step, fallback to last image
-                target_img = next((x for x in images if x.step == step), images[-1])
-            else:
-                # default to last image (for Train/Test)
-                target_img = images[-1]
-
-            # convert to Base64
-            b64_str = base64.b64encode(target_img.encoded_image_string).decode('utf-8')
-            return f'<img src="data:image/png;base64,{b64_str}" style="max-width: 300px; height: auto;" />'
-
-        # --- Extract Final Training Metrics ---
-        if 'train_loss' in tags: self.log('Results (Train)', 'Final Train Loss', _get_scalar_at_step('train_loss', step=-1))
-        if 'train_acc' in tags: self.log('Results (Train)', 'Final Train Acc', _get_scalar_at_step('train_acc', step=-1))
-        if 'train_avg_class_acc' in tags: self.log('Results (Train)', 'Final Train Avg Class Acc', _get_scalar_at_step('train_avg_class_acc', step=-1))
-        if 'train_per_class_acc' in tags: self.log('Results (Train)', 'Per Class Acc', _get_image_html_at_step('train_per_class_acc', step=-1))
-
-        # --- Extract Best Epoch Validation Metrics ---
-        if 'val_loss' in tags:
-            # find event with min value
-            best_event = min(ea.Scalars('val_loss'), key=lambda x: x.value)
-            self.log('Results (Validation)', 'Best Val Loss', _get_scalar_at_step('val_loss', step=best_event.step))
-            
-            if 'val_acc' in tags: self.log('Results (Validation)', 'Best Val Acc', _get_scalar_at_step('val_acc', best_event.step))
-            if 'val_avg_class_acc' in tags: self.log('Results (Validation)', 'Best Val Avg Class Acc', _get_scalar_at_step('val_avg_class_acc', best_event.step))
-            if 'val_per_class_acc' in tags: self.log('Results (Validation)', 'Per Class Acc', _get_image_html_at_step('val_per_class_acc', step=best_event.step))
-        
-        # --- Extract Test Metrics ---
-        if 'test_loss' in tags: self.log('Results (Test)', 'Test Loss', _get_scalar_at_step('test_loss', step=-1))
-        if 'test_acc' in tags: self.log('Results (Test)', 'Test Acc', _get_scalar_at_step('test_acc', step=-1))
-        if 'test_avg_class_acc' in tags: self.log('Results (Test)', 'Test Avg Class Acc', _get_scalar_at_step('test_avg_class_acc', step=-1))
-        if 'test_per_class_acc' in tags: self.log('Results (Test)', 'Per Class Acc', _get_image_html_at_step('test_per_class_acc', step=-1))
+            # --- Extract Test Metrics ---
+            if 'test_loss' in tags: self.log('Results (Test)', 'Test Loss', _get_scalar_at_step('test_loss', step=-1))
+            if 'test_acc' in tags: self.log('Results (Test)', 'Test Acc', _get_scalar_at_step('test_acc', step=-1))
+            if 'test_avg_class_acc' in tags: self.log('Results (Test)', 'Test Avg Class Acc', _get_scalar_at_step('test_avg_class_acc', step=-1))
+            if 'test_per_class_acc' in image_tags: self.log('Results (Test)', 'Per Class Acc', _get_image_html_at_step('test_per_class_acc', step=-1))
 
     def format_augmentation(self, transforms):
         """
