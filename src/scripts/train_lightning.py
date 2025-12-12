@@ -489,13 +489,11 @@ def main():
     print(f"Number of workers dataloader: {dm.num_workers_dataloader}")
 
     if __debug__:
-        export_dir_tmp = export_dir
-        export_dir = export_dir / "datasets"
-        export_dir.mkdir(parents=True, exist_ok=True)
+        export_dir_datasets = export_dir / "datasets"
+        export_dir_datasets.mkdir(parents=True, exist_ok=True)
         dm.setup()
-        dm.save_metadata(export_dir)
-        print(f'Datasets saved in: {export_dir}')
-        export_dir = export_dir_tmp
+        dm.save_metadata(export_dir_datasets)
+        print(f'Datasets saved in: {export_dir_datasets}')
 
     # --- Training And Testing ---
     trainer.fit(model, datamodule=dm)
@@ -560,7 +558,9 @@ def main():
     tracker.populate_from_tensorboard(export_dir)
 
     # Save Everything
-    tracker.save(export_dir)
+    export_dir_run_tracker = export_dir / 'run_tracker'
+    export_dir_run_tracker.mkdir(parents=True, exist_ok=True)
+    tracker.save(export_dir_run_tracker)
 
     print('\nTraining complete.')
     print(f'Best model and logs saved in: {export_dir}')
