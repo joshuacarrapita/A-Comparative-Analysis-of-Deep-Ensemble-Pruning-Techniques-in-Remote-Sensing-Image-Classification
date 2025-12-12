@@ -30,9 +30,9 @@ class RunTracker:
             'Training Config': {},
             'Optimization': {},
             'Augmentation': {},
-            'Results (Train)': {},
-            'Results (Validation)': {},
-            'Results (Test)': {},
+            'Results Train (Final Run)': {},
+            'Results Validation (Best Run)': {},
+            'Results Test': {},
         }
         
         self._log_basic_info()
@@ -75,16 +75,16 @@ class RunTracker:
                           key=lambda x: int(x.name.split('_')[1]), reverse=True)
         
         if not versions:
-            event_files = list(log_dir.glob("events.out.tfevents*"))
+            event_paths = list(log_dir.glob("events.out.tfevents*"))
         else:
-            event_files = list(versions[0].glob("events.out.tfevents*"))
+            event_paths = list(versions[0].glob("events.out.tfevents*"))
             
-        if not event_files:
+        if not event_paths:
             self.logger.warning("No events.out.tfevents file found.")
             return
 
-        for event_path in event_files:
-            self.logger.info(f'Processing event file: {event_path}')
+        for event_path in event_paths:
+            self.logger.info(f'Processing event path: {event_path}')
 
             event_path = str(event_path.resolve())
 
@@ -139,26 +139,29 @@ class RunTracker:
                 return f'<img src="data:image/png;base64,{b64_str}" style="max-width: 300px; height: auto;" />'
 
             # --- Extract Final Training Metrics ---
-            if 'train_loss' in tags: self.log('Results (Train)', 'Final Train Loss', _get_scalar_at_step('train_loss', step=-1))
-            if 'train_acc' in tags: self.log('Results (Train)', 'Final Train Acc', _get_scalar_at_step('train_acc', step=-1))
-            if 'train_avg_class_acc' in tags: self.log('Results (Train)', 'Final Train Avg Class Acc', _get_scalar_at_step('train_avg_class_acc', step=-1))
-            if 'train_per_class_acc' in image_tags: self.log('Results (Train)', 'Per Class Acc', _get_image_html_at_step('train_per_class_acc', step=-1))
+            if 'train_loss' in tags: self.log('Results Train (Final Run)', 'Loss', _get_scalar_at_step('train_loss', step=-1))
+            if 'train_acc' in tags: self.log('Results Train (Final Run)', 'Accuracy', _get_scalar_at_step('train_acc', step=-1))
+            if 'train_avg_class_acc' in tags: self.log('Results Train (Final Run)', 'Average Class Accuracy', _get_scalar_at_step('train_avg_class_acc', step=-1))
+            if 'train_per_class_acc' in image_tags: self.log('Results Train (Final Run)', 'Per-Class Accuracy', _get_image_html_at_step('train_per_class_acc', step=-1))
+            if 'train_cm' in image_tags: self.log('Results Train (Final Run)', 'Confusion Matrix', _get_image_html_at_step('train_cm', step=-1))
 
             # --- Extract Best Epoch Validation Metrics ---
             if 'val_loss' in tags:
                 # find event with min value
                 best_event = min(ea.Scalars('val_loss'), key=lambda x: x.value)
-                self.log('Results (Validation)', 'Best Val Loss', _get_scalar_at_step('val_loss', step=best_event.step))
+                self.log('Results Validation (Best Run)', 'Loss', _get_scalar_at_step('val_loss', step=best_event.step))
                 
-                if 'val_acc' in tags: self.log('Results (Validation)', 'Best Val Acc', _get_scalar_at_step('val_acc', best_event.step))
-                if 'val_avg_class_acc' in tags: self.log('Results (Validation)', 'Best Val Avg Class Acc', _get_scalar_at_step('val_avg_class_acc', best_event.step))
-                if 'val_per_class_acc' in image_tags: self.log('Results (Validation)', 'Per Class Acc', _get_image_html_at_step('val_per_class_acc', step=best_event.step))
+                if 'val_acc' in tags: self.log('Results Validation (Best Run)', 'Accuracy', _get_scalar_at_step('val_acc', best_event.step))
+                if 'val_avg_class_acc' in tags: self.log('Results Validation (Best Run)', 'Average Class Accuracy', _get_scalar_at_step('val_avg_class_acc', best_event.step))
+                if 'val_per_class_acc' in image_tags: self.log('Results Validation (Best Run)', 'Per-Class Accuracy', _get_image_html_at_step('val_per_class_acc', step=best_event.step))
+                if 'val_cm' in image_tags: self.log('Results Validation (Best Run)', 'Confusion Matrix', _get_image_html_at_step('val_cm', step=-1))
             
             # --- Extract Test Metrics ---
-            if 'test_loss' in tags: self.log('Results (Test)', 'Test Loss', _get_scalar_at_step('test_loss', step=-1))
-            if 'test_acc' in tags: self.log('Results (Test)', 'Test Acc', _get_scalar_at_step('test_acc', step=-1))
-            if 'test_avg_class_acc' in tags: self.log('Results (Test)', 'Test Avg Class Acc', _get_scalar_at_step('test_avg_class_acc', step=-1))
-            if 'test_per_class_acc' in image_tags: self.log('Results (Test)', 'Per Class Acc', _get_image_html_at_step('test_per_class_acc', step=-1))
+            if 'test_loss' in tags: self.log('Results Test', 'Loss', _get_scalar_at_step('test_loss', step=-1))
+            if 'test_acc' in tags: self.log('Results Test', 'Accuracy', _get_scalar_at_step('test_acc', step=-1))
+            if 'test_avg_class_acc' in tags: self.log('Results Test', 'Average Class Accuracy', _get_scalar_at_step('test_avg_class_acc', step=-1))
+            if 'test_per_class_acc' in image_tags: self.log('Results Test', 'Per-Class Accuracy', _get_image_html_at_step('test_per_class_acc', step=-1))
+            if 'test_cm' in image_tags: self.log('Results Test', 'Confusion Matrix', _get_image_html_at_step('test_cm', step=-1))
 
     def format_augmentation(self, transforms):
         """
