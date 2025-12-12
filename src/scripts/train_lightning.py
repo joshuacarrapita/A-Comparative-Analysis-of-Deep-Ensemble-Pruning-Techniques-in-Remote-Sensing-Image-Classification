@@ -441,7 +441,7 @@ def main():
     )
 
     # Retrieve Model
-    model = LitImageEncoder(config=model_config, lr=tc.lr, loss_fn=tc.loss_fn, class_weights=tc.class_weights) 
+    model = LitImageEncoder(config=model_config, lr=tc.lr, loss_fn=tc.loss_fn, class_weights=tc.class_weights, optimizer=tc.optimizer) 
 
     # Generate Lighting DataModule
     dm = BENv2_DataModule.BENv2DataModule(
@@ -510,9 +510,9 @@ def main():
     tracker.log('Dataset', 'Train Size', len(dm.train_ds) if dm.train_ds else "N/A")
     tracker.log('Dataset', 'Val Size', len(dm.val_ds) if dm.val_ds else "N/A")
     tracker.log('Dataset', 'Test Size', len(dm.test_ds) if dm.test_ds else "N/A")
-    tracker.log('Dataset', 'Classes', tc.num_classes)
-    tracker.log('Dataset', 'Channels', number_of_channels)
-    tracker.log('Dataset', 'Input Shape', str((number_of_channels, image_size, image_size)))
+    tracker.log('Dataset', 'Classes', model.config.classes)
+    tracker.log('Dataset', 'Channels', model.config.channels)
+    tracker.log('Dataset', 'Input Shape', dm.img_size)
 
     for env in ['SLURM_JOB_ID', 'SLURM_ARRAY_JOB_ID', 'SLURM_ARRAY_TASK_ID', 'SLURM_CPUS_PER_TASK', 'OMP_NUM_THREADS', 'MKL_NUM_THREADS', 'CUDA_LAUNCH_BLOCKING']:
         tracker.log('Environment', env, os.getenv(env, 'Not Set'))
@@ -529,30 +529,30 @@ def main():
     else:
         tracker.log('System', 'GPU Count', 0)
 
-    tracker.log('Model Config', 'Architecture', model_name)
-    tracker.log('Model Config', 'Drop Rate', tc.drop_rate)
-    tracker.log('Model Config', 'Drop Path Rate', tc.drop_path_rate)
+    tracker.log('Model Config', 'Architecture', model.config.timm_model_name)
+    tracker.log('Model Config', 'Drop Rate', model.config.drop_rate)
+    tracker.log('Model Config', 'Drop Path Rate', model.config.drop_path_rate)
     tracker.log('Model Config', 'Total Params', sum(p.numel() for p in model.parameters()))
     tracker.log('Model Config', 'Trainable Params', sum(p.numel() for p in model.parameters() if p.requires_grad))
 
-    tracker.log('Training Config', 'Max Epochs', epochs)
-    tracker.log('Training Config', 'Batch Size', tc.batch_size)
-    tracker.log('Training Config', 'Num Workers', num_workers)
-    tracker.log('Training Config', 'Patience', tc.patience)
+    tracker.log('Training Config', 'Max Epochs', trainer.max_epochs)
+    tracker.log('Training Config', 'Batch Size', dm.batch_size)
+    tracker.log('Training Config', 'Num Workers', dm.num_workers_dataloader)
+    tracker.log('Training Config', 'Patience', trainer.callbacks[0].patience)
     tracker.log('Training Config', 'Strategy', trainer.strategy.__class__.__name__)
     
-    tracker.log('Optimization', 'Optimizer', tc.optimizer.__name__ if hasattr(tc.optimizer, '__name__') else str(tc.optimizer))
-    tracker.log('Optimization', 'Learning Rate', tc.lr)
+    tracker.log('Optimization', 'Optimizer', model.config.optimizer.__name__ if hasattr(model.config.optimizer, '__name__') else str(model.config.optimizer))
+    tracker.log('Optimization', 'Learning Rate', model.config.lr)
     
-    loss_str = str(tc.loss_fn)
-    if hasattr(tc.loss_fn, 'func'): loss_str = f"{tc.loss_fn.func.__name__} {tc.loss_fn.keywords}"
-    elif hasattr(tc.loss_fn, '__name__'): loss_str = tc.loss_fn.__name__
+    loss_str = str(model.config.loss_fn)
+    if hasattr(model.config.loss_fn, 'func'): loss_str = f"{model.config.loss_fn.func.__name__} {model.config.loss_fn.keywords}"
+    elif hasattr(model.config.loss_fn, '__name__'): loss_str = model.config.loss_fn.__name__
     tracker.log('Optimization', 'Loss Function', loss_str)
     
-    cw_np = tc.class_weights.numpy() if isinstance(tc.class_weights, torch.Tensor) else tc.class_weights
+    cw_np = model.config.class_weights.numpy() if isinstance(model.config.class_weights, torch.Tensor) else model.config.class_weights
     tracker.log('Optimization', 'Class Weights', str(list(cw_np)) if cw_np is not None else "None")
 
-    tracker.log('Augmentation', 'Pipeline', tracker.format_augmentation(tc.train_transforms))
+    tracker.log('Augmentation', 'Pipeline', tracker.format_augmentation(dm.train_transforms))
 
     # Load Results from TensorBoard
     tracker.populate_from_tensorboard(export_dir)
