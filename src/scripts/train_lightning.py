@@ -541,15 +541,15 @@ def main():
     tracker.log('Training Config', 'Patience', trainer.callbacks[0].patience)
     tracker.log('Training Config', 'Strategy', trainer.strategy.__class__.__name__)
     
-    tracker.log('Optimization', 'Optimizer', model.config.optimizer.__name__ if hasattr(model.config.optimizer, '__name__') else str(model.config.optimizer))
-    tracker.log('Optimization', 'Learning Rate', model.config.lr)
+    tracker.log('Optimization', 'Optimizer', model.optimizer.__name__ if hasattr(model.optimizer, '__name__') else str(model.optimizer))
+    tracker.log('Optimization', 'Learning Rate', model.lr)
     
-    loss_str = str(model.config.loss_fn)
-    if hasattr(model.config.loss_fn, 'func'): loss_str = f"{model.config.loss_fn.func.__name__} {model.config.loss_fn.keywords}"
-    elif hasattr(model.config.loss_fn, '__name__'): loss_str = model.config.loss_fn.__name__
+    loss_str = str(model.loss_fn)
+    if hasattr(model.loss_fn, 'func'): loss_str = f"{model.loss_fn.func.__name__} {model.loss_fn.keywords}"
+    elif hasattr(model.loss_fn, '__name__'): loss_str = model.loss_fn.__name__
     tracker.log('Optimization', 'Loss Function', loss_str)
     
-    cw_np = model.config.class_weights.numpy() if isinstance(model.config.class_weights, torch.Tensor) else model.config.class_weights
+    cw_np = model.class_weights.numpy() if isinstance(model.class_weights, torch.Tensor) else model.class_weights
     tracker.log('Optimization', 'Class Weights', str(list(cw_np)) if cw_np is not None else "None")
 
     tracker.log('Augmentation', 'Pipeline', tracker.format_augmentation(dm.train_transforms))
