@@ -6,8 +6,9 @@ import pandas as pd
 import sys
 
 #-----------------------------------------------------------------------------
-
 # INIT
+#-----------------------------------------------------------------------------
+
 if __debug__:
     print ("\n--DEBUG ON--")
 else:
@@ -164,8 +165,8 @@ clc_lvl_3_to_19_class_label_dictionary = {
 }
 
 #-----------------------------------------------------------------------------
-
 # EXEC
+#-----------------------------------------------------------------------------
 
 # vectorize the dictionary mapping function
 clc_lvl_3_to_19_class_label_dictionary_vectorized_get = np.vectorize(clc_lvl_3_to_19_class_label_dictionary.get)
@@ -173,6 +174,7 @@ nineteen_class_label_dictionary_vectorized_get = np.vectorize(nineteen_class_lab
 
 print('\nExtracting single labels, please be patient...')
 
+# initizalize the counting variables
 if __debug__:
     max_rounds = 10
 else:
@@ -181,6 +183,7 @@ round = 1
 skipped_unlabeled = 0
 skipped_share = 0
 
+# main loop
 with alive_bar(max_rounds) as bar:
 
     for file_path in image_patch_file_paths:
@@ -273,10 +276,10 @@ with alive_bar(max_rounds) as bar:
             if round > max_rounds:
                 break
 
+# print run info
 round -= 1
 skipped = skipped_unlabeled + skipped_share
 converted = round-skipped
-
 print(f'\nFinished converting multi- to single labels.')
 print(f'\n{skipped} patches skipped in total. Skipped {skipped_unlabeled} patches with >25% "Unlabeled" pixels and {skipped_share} patches with <50% majority label share of pixels.')
 print(f'\nConverted labels for {converted}/{round} ({converted*100/round:.2f}% of) patches.')
@@ -287,7 +290,7 @@ df = pd.DataFrame(list(zip(patch_names,patch_labels)), columns=['patch_id', 'lab
 # create and save a parquet file out of the dataframe
 df.to_parquet(datapath['outfile'], compression='gzip')
 
+# print output info
 print(f'\n\nFinal Single-Labels Dataframe: \n{df}')
-
 if __debug__:
     print(f'\n\nFinal Single-Labels Dataframe (Correctness-Check): \n{pd.read_parquet(datapath["outfile"])}')
