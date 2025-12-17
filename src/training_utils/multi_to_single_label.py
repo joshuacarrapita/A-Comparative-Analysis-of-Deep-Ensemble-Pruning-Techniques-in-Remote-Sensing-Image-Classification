@@ -39,7 +39,7 @@ print('\nIndexing reference maps, please be patient...')
 with alive_bar() as bar:
     image_patch_file_paths = list(datapath['reference_maps_root_dir_path'].rglob('*.tif'))
 
-print('\nFinished indexing reference maps.')
+print(f'\nFinished indexing reference maps. {len(image_patch_file_paths)} reference maps found.')
 
 patch_names = []
 patch_labels = []
@@ -178,6 +178,8 @@ if __debug__:
 else:
     max_rounds = len(image_patch_file_paths)
 round = 1
+skipped_unlabeled = 0
+skipped_share = 0
 
 with alive_bar(max_rounds) as bar:
 
@@ -230,6 +232,7 @@ with alive_bar(max_rounds) as bar:
                         round_debug()
                         print(f'Skipping round {round}: {unlabeled_percent*100:.2f}% of patch pixels are unlabeled.')
                         round += 1
+                        skipped_unlabeled += 1
                         if round > max_rounds:
                             break
                         else:
@@ -251,6 +254,7 @@ with alive_bar(max_rounds) as bar:
                 round_debug()
                 print(f'Skipping round {round}: Majority label share is only {max_count_share*100:.2f}% of patch pixels.')
                 round += 1
+                skipped_share += 1
                 if round > max_rounds:
                     break
                 else:
@@ -268,6 +272,14 @@ with alive_bar(max_rounds) as bar:
             round += 1
             if round > max_rounds:
                 break
+
+round -= 1
+skipped = skipped_unlabeled + skipped_share
+converted = round-skipped
+
+print(f'\nFinished converting multi- to single labels.')
+print(f'\n{skipped} patches skipped in total. Skipped {skipped_unlabeled} patches with >25% "Unlabeled" pixels and {skipped_share} patches with <50% majority label share of pixels.')
+print(f'\nConverted labels for {converted}/{round} ({converted*100/round:.2f}% of) patches.')
 
 # create a pandas dataframe based on the patch_id and labels list
 df = pd.DataFrame(list(zip(patch_names,patch_labels)), columns=['patch_id', 'labels'])
