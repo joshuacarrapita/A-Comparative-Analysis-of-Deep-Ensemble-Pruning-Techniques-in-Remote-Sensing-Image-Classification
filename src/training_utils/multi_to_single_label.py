@@ -13,7 +13,7 @@ if __debug__:
 else:
     print ("\n--DEBUG OFF--")
 
-# Utility so dataframe print shows the whole patch_id 
+# utility so dataframe print shows the whole patch_id 
 pd.set_option('display.max_colwidth', None)
 
 try:
@@ -35,7 +35,7 @@ except Exception as e:
 
 print('\nIndexing reference maps, please be patient...')
 
-# Obtain the paths to all reference maps
+# obtain the paths to all reference maps
 with alive_bar() as bar:
     image_patch_file_paths = list(datapath['reference_maps_root_dir_path'].rglob('*.tif'))
 
@@ -168,82 +168,114 @@ clc_lvl_3_to_19_class_label_dictionary = {
 # EXEC
 
 # vectorize the dictionary mapping function
-vectorized_dict_get = np.vectorize(clc_lvl_3_to_19_class_label_dictionary.get)
+clc_lvl_3_to_19_class_label_dictionary_vectorized_get = np.vectorize(clc_lvl_3_to_19_class_label_dictionary.get)
+nineteen_class_label_dictionary_vectorized_get = np.vectorize(nineteen_class_label_dictionary.get)
 
 print('\nExtracting single labels, please be patient...')
 
 if __debug__:
-    rounds = 10
+    max_rounds = 10
 else:
-    rounds = len(image_patch_file_paths)
+    max_rounds = len(image_patch_file_paths)
+round = 1
 
-with alive_bar(rounds) as bar:
+with alive_bar(max_rounds) as bar:
+
     for file_path in image_patch_file_paths:
 
         with rasterio.open(file_path) as src:
 
+            # --- prepare data ---
             # update progress bar
             bar()
 
             # read tif image
             data = src.read(1)
 
-            # convert the data according to mapping
-            mapped_data = vectorized_dict_get(data)
+            # convert the data from clc_lvl_3 to 19_class_labels according to mapping
+            mapped_data = clc_lvl_3_to_19_class_label_dictionary_vectorized_get(data)
 
             # get unique labels with counts
             unique_labels, label_counts = np.unique(mapped_data, return_counts=True)
-            # TODO: check if total_labels is always the same as the pixels are always the same
 
-            # Make sure the data mapping works
+            # make sure the data mapping works
             assert None not in unique_labels, "Dict data mapping returned None."
-            # Find out what percentage of the image each label covers
-            label_percentages = label_counts * 100 / np.sum(label_counts)
 
-            if __debug__:
-                print(unique_labels)
-                print(label_counts)
-                print(np.sum(label_counts))
-                print(label_percentages)
+            # convert the unique labels from 19_class_label numbers to 19_class_label strings according to mapping
+            mapped_unique_labels = nineteen_class_label_dictionary_vectorized_get(unique_labels)
 
-            # Get the index of the count for 'Unlabeled' if it exists
-            unlabeled_index, = np.where(unique_labels == 2)
+            # get total count of labelled pixels
+            total_label_count = np.sum(label_counts)
 
-            # Make sure that no patches with more than 25% 'Unlabeled' pixels are included
-            if unlabeled_index.size > 0 and label_percentages[unlabeled_index] >= 25:
-                continue
+            # find out what percentage of the image each label covers
+            label_percentages = label_counts / total_label_count
 
-            # Get index, then number and then text of most common label
+            def round_debug():
+                if __debug__:
+                    print(f'\n\nProcessing file: {file_path}')
+                    print(f'Unique labels: {mapped_unique_labels}')
+                    print(f'Label counts: {label_counts}')
+                    print(f'Label percentages: {label_percentages}')
+                    print(f'Total label count: {total_label_count}')
+
+            # --- filter unfitting patches ---
+            # get the index of the count for 'Unlabeled' if it exists
+            unlabeled_index, = np.where(mapped_unique_labels == 'Unlabeled')
+
+            # make sure that no patches with more than 25% 'Unlabeled' pixels are included
+            if unlabeled_index.size > 0:
+                if unlabeled_index.size == 1: 
+                    unlabeled_percent = label_percentages[unlabeled_index[0]]
+                    if unlabeled_percent >= 0.25:
+                        round_debug()
+                        print(f'Skipping round {round}: {unlabeled_percent*100:.2f}% of patch pixels are unlabeled.')
+                        round += 1
+                        if round > max_rounds:
+                            break
+                        else:
+                            continue
+                else:
+                    print(f'\nFound multiple indices for `Unlabeled` in unique label list for patch {file_path} in round {round}. Aborting process.')
+                    print(f'\nUnique labels: {unique_labels}')
+                    print(f'\nMapped unique labels: {mapped_unique_labels}')
+                    print(f'\nUnlabeled indices: {unlabeled_index}')
+                    break
+
+            # get index, text and pixel-share of most common label
             max_count_index = np.argmax(label_counts)
+            max_count_label = mapped_unique_labels[max_count_index]
+            max_count_share = label_percentages[max_count_index]
 
-            # Make sure that found majority label has more than 50% share or so of image pixels cause otherwise it might impact learning performance
-            if label_percentages[max_count_index] <= 50:
-                continue
+            # make sure that found majority label has more than 50% share or so of image pixels cause otherwise it might impact learning performance
+            if max_count_share <= 0.50:
+                round_debug()
+                print(f'Skipping round {round}: Majority label share is only {max_count_share*100:.2f}% of patch pixels.')
+                round += 1
+                if round > max_rounds:
+                    break
+                else:
+                    continue
 
-            # Check that we skip images where the majority class is unlabeled (afaik after the first two checks, this should never occur and this part of the code is unecessary
-            max_count_label_no = unique_labels[max_count_index]
-            max_count_label = nineteen_class_label_dictionary[max_count_label_no]
-            if max_count_label == 'Unlabeled':
-                continue
-
+            # --- save fitting patches ---
             # add patch_name to list
             patch_names.append(file_path.stem.removesuffix('_reference_map'))
 
             # add this label to list
             patch_labels.append([max_count_label])
-        
-        if __debug__:
-            if rounds > 0:
-                rounds -= 1
-            else:
+
+            # check if we're done
+            round_debug()
+            round += 1
+            if round > max_rounds:
                 break
 
-    # create a pandas dataframe based on the patch_id and labels list
-    df = pd.DataFrame(list(zip(patch_names,patch_labels)), columns=['patch_id', 'labels'])
+# create a pandas dataframe based on the patch_id and labels list
+df = pd.DataFrame(list(zip(patch_names,patch_labels)), columns=['patch_id', 'labels'])
 
-    # create and save a parquet file out of the dataframe
-    df.to_parquet(datapath['outfile'], compression='gzip')
+# create and save a parquet file out of the dataframe
+df.to_parquet(datapath['outfile'], compression='gzip')
 
-    if __debug__:
-        print(df)
-        print(pd.read_parquet(datapath['outfile']))
+print(f'\n\nFinal Single-Labels Dataframe: \n{df}')
+
+if __debug__:
+    print(f'\n\nFinal Single-Labels Dataframe (Correctness-Check): \n{pd.read_parquet(datapath["outfile"])}')
