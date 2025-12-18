@@ -19,6 +19,30 @@ from configilm.extra.CustomTorchClasses import MyRotateTransform
 from configilm.extra._defaults import default_train_transform
 from configilm.extra._defaults import default_train_transform_with_noise
 
+# constants
+NEW_LABELS_ORIGINAL_ORDER = {
+    "Urban fabric",
+    "Industrial or commercial units",
+    "Arable land",
+    "Permanent crops",
+    "Pastures",
+    "Complex cultivation patterns",
+    "Land principally occupied by agriculture, with significant areas of natural vegetation",
+    "Agro-forestry areas",
+    "Broad-leaved forest",
+    "Coniferous forest",
+    "Mixed forest",
+    "Natural grassland and sparsely vegetated areas",
+    "Moors, heathland and sclerophyllous vegetation",
+    "Transitional woodland, shrub",
+    "Beaches, dunes, sands",
+    "Inland wetlands",
+    "Coastal wetlands",
+    "Inland waters",
+    "Marine waters",
+}
+CLASS_LABELS = NEW_LABELS_ORIGINAL_ORDER | {"all"}
+
 # helper functions
 def define_params(args):
     parser = argparse.ArgumentParser()
@@ -30,7 +54,9 @@ def define_params(args):
     parser.add_argument('--outpath', type=str, required=True, help='Export path for results.')
     parser.add_argument('--v2', action='store_true', help='Use transforms v2.')
     parser.add_argument('--plot_frequency', type=int, default='0', help='Frequency with which to plot images. 0 = no plot, 1 = every image, 2 = every 2nd image etc.')
-    parser.add_argument('--max_plot_per_transform', type=int, default='-1', help='Maximum amount of images to plot per transform. -1 = inf, 0 = no plot, 1 = 1 image, etc.')
+    parser.add_argument('--max_plot_per_transform', type=int, default='-1', help='Maximum amount of images to plot per transform. -1 = all, 0 = no plot, 1 = 1 image, etc.')
+    parser.add_argument("--classes", type=str, nargs="+", default={'all'}, choices=CLASS_LABELS,
+                        help='Only show images from a specific class.')
 
     return parser.parse_args(args)
 
@@ -41,6 +67,8 @@ def transform_and_plot_images(dataset: BENv2_DataSet.BENv2DataSet = None, max_pl
     # setup plot counter and queue
     plot_queue = []
     curr_plot_nu = 0
+    frequency_counter = 0
+
     if max_plot_per_transform < 0:
         max_plot_nu = len(dataset.patches)
     else:
@@ -52,9 +80,15 @@ def transform_and_plot_images(dataset: BENv2_DataSet.BENv2DataSet = None, max_pl
     for idx in range(len(dataset.patches)):
         img, lbl, key = dataset.__getitem__(idx)
 
-        if plot_frequency > 0 and (idx % plot_frequency) == 0 and curr_plot_nu < max_plot_nu:
-            plot_queue.append((img, lbl, key, dataset.transform))
-            curr_plot_nu += 1
+        if plot_frequency > 0: # no division by 0 with mod operator
+            if 'all' in args.classes or any(label in args.classes for label in multi_hot_to_ben_19_labels(lbl,lex_sorted=True)): # only plot if the lbl is in the desired labels for plotting
+                if (frequency_counter % plot_frequency) == 0: # only every plot_frequency-th image
+                    if curr_plot_nu < max_plot_nu: # only plot if we haven't plotted more than desired image amount per transform
+                        plot_queue.append((img, lbl, key, dataset.transform))
+                        curr_plot_nu += 1 # no matter what lbl an image was plotted for, increase the overall plotted image count
+
+                frequency_counter += 1 # increase frequency_counter only if we actuall considered plotting the label(s) we're interested in as we're plotting every plot_frequency-th image of all images with our desired labels and not of all images in general
+    
     
     end = time.time()
     runtime = end - start
