@@ -24,6 +24,19 @@ except Exception as e:
 metadata = pd.read_parquet(datapath["metadata.parquet"])
 metadata_snow_cloud = pd.read_parquet(datapath["metadata_for_patches_with_snow_cloud_or_shadow.parquet"])
 
+# calculate distributions per split ('train', 'validation', 'test') using crosstab and sort descending by total
+label_counts_metadata_all_splits = pd.crosstab(metadata['labels'].astype(str), metadata['split'], margins=True, margins_name='total').sort_values('total', ascending=False).reset_index()
+label_freq_metadata_all_splits = pd.crosstab(metadata['labels'].astype(str), metadata['split'], margins=True, margins_name='total', normalize='columns').sort_values('total', ascending=False).reset_index()
+
+label_counts_metadata_snow_cloud_all_splits = pd.crosstab(metadata_snow_cloud['labels'].astype(str), metadata_snow_cloud['split'], margins=True, margins_name='total').sort_values('total', ascending=False).reset_index()
+label_freq_metadata_snow_cloud_all_splits = pd.crosstab(metadata_snow_cloud['labels'].astype(str), metadata_snow_cloud['split'], margins=True, margins_name='total', normalize='columns').sort_values('total', ascending=False).reset_index()
+
+metadata_both = pd.concat([metadata, metadata_snow_cloud])
+label_counts_both_all_splits = pd.crosstab(metadata_both['labels'].astype(str), metadata_both['split'], margins=True, margins_name='total').sort_values('total', ascending=False).reset_index()
+label_freq_both_all_splits = pd.crosstab(metadata_both['labels'].astype(str), metadata_both['split'], margins=True, margins_name='total', normalize='columns').sort_values('total', ascending=False).reset_index()
+
+label_freq_both_old_all_splits = label_freq_metadata_all_splits.merge(label_freq_metadata_snow_cloud_all_splits, how='left', on='labels', suffixes=('_no_snow_cloud','_yes_snow_cloud')).sort_values('total_no_snow_cloud', ascending=False)
+
 # calculate counts using series (index = label)
 s_counts_meta = metadata['labels'].astype(str).value_counts()
 s_counts_snow = metadata_snow_cloud['labels'].astype(str).value_counts()
@@ -54,12 +67,19 @@ label_freq_both_old = label_freq_metadata.merge(label_freq_metadata_snow_cloud, 
 # output to file
 label_counts = {
     'label_counts_metadata': label_counts_metadata,
+    'label_counts_metadata_all_splits': label_counts_metadata_all_splits,
     'label_freq_metadata': label_freq_metadata,
+    'label_freq_metadata_all_splits': label_freq_metadata_all_splits,
     'label_counts_metadata_snow_cloud': label_counts_metadata_snow_cloud,
+    'label_counts_metadata_snow_cloud_all_splits': label_counts_metadata_snow_cloud_all_splits,
     'label_freq_metadata_snow_cloud': label_freq_metadata_snow_cloud,
+    'label_freq_metadata_snow_cloud_all_splits': label_freq_metadata_snow_cloud_all_splits,
     'label_counts_both': label_counts_both,
+    'label_counts_both_all_splits': label_counts_both_all_splits,
     'label_freq_both': label_freq_both,
+    'label_freq_both_all_splits': label_freq_both_all_splits,
     'label_freq_both_old': label_freq_both_old,
+    'label_freq_both_old_all_splits': label_freq_both_old_all_splits,
 }
 
 for name, variable in label_counts.items():
