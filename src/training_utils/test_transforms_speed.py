@@ -20,7 +20,7 @@ from configilm.extra._defaults import default_train_transform
 from configilm.extra._defaults import default_train_transform_with_noise
 
 # constants
-NEW_LABELS_ORIGINAL_ORDER = {
+NEW_LABELS_ORIGINAL_ORDER = [
     "Urban fabric",
     "Industrial or commercial units",
     "Arable land",
@@ -40,8 +40,8 @@ NEW_LABELS_ORIGINAL_ORDER = {
     "Coastal wetlands",
     "Inland waters",
     "Marine waters",
-}
-CLASS_LABELS = NEW_LABELS_ORIGINAL_ORDER | {"all"}
+]
+CLASS_LABELS = sorted(NEW_LABELS_ORIGINAL_ORDER + ["all"])
 
 # helper functions
 def define_params(args):
@@ -55,7 +55,7 @@ def define_params(args):
     parser.add_argument('--v2', action='store_true', help='Use transforms v2.')
     parser.add_argument('--plot_frequency', type=int, default='0', help='Frequency with which to plot images. 0 = no plot, 1 = every image, 2 = every 2nd image etc.')
     parser.add_argument('--max_plot_per_transform', type=int, default='-1', help='Maximum amount of images to plot per transform. -1 = all, 0 = no plot, 1 = 1 image, etc.')
-    parser.add_argument("--classes", type=str, nargs="+", default={'all'}, choices=CLASS_LABELS,
+    parser.add_argument('--classes', type=str, nargs='+', default='all', choices=CLASS_LABELS,
                         help='Only show images from a specific class.')
 
     return parser.parse_args(args)
@@ -63,7 +63,7 @@ def define_params(args):
 def set_seed(seed: int):
     random.seed(seed)
 
-def transform_and_plot_images(dataset: BENv2_DataSet.BENv2DataSet = None, max_plot_per_transform: int = -1, plot_frequency: int = 1) -> float:
+def transform_and_plot_images(dataset: BENv2_DataSet.BENv2DataSet = None, max_plot_per_transform: int = -1, plot_frequency: int = 1, classes: set[str] = None) -> float:
     # setup plot counter and queue
     plot_queue = []
     curr_plot_nu = 0
@@ -74,14 +74,19 @@ def transform_and_plot_images(dataset: BENv2_DataSet.BENv2DataSet = None, max_pl
     else:
         max_plot_nu = max_plot_per_transform
 
+    if classes is None:
+        classes = {"all"}
+
     start = time.time()
 
     # do transformations and save transformed images for plotting
     for idx in range(len(dataset.patches)):
         img, lbl, key = dataset.__getitem__(idx)
+        
+        lbl_as_str = multi_hot_to_ben_19_labels(lbl,lex_sorted=True)
 
         if plot_frequency > 0: # no division by 0 with mod operator
-            if 'all' in args.classes or any(label in args.classes for label in multi_hot_to_ben_19_labels(lbl,lex_sorted=True)): # only plot if the lbl is in the desired labels for plotting
+            if 'all' in classes or not classes.isdisjoint(set(lbl_as_str)): # only plot if the lbl is in the desired labels for plotting
                 if (frequency_counter % plot_frequency) == 0: # only every plot_frequency-th image
                     if curr_plot_nu < max_plot_nu: # only plot if we haven't plotted more than desired image amount per transform
                         plot_queue.append((img, lbl, key, dataset.transform))
@@ -188,7 +193,7 @@ def main(args):
 
         print(f'Performing {default_transform} ...')
 
-        runtime = transform_and_plot_images(dataset=benchmark_ds, max_plot_per_transform=args.max_plot_per_transform, plot_frequency=args.plot_frequency)
+        runtime = transform_and_plot_images(dataset=benchmark_ds, max_plot_per_transform=args.max_plot_per_transform, plot_frequency=args.plot_frequency, classes=set(args.classes))
         
         times.append(runtime)
 
@@ -218,8 +223,7 @@ def main(args):
 
         print(f'Performing {transform} ...')
 
-        runtime = transform_and_plot_images(dataset=benchmark_ds, max_plot_per_transform=args.max_plot_per_transform, plot_frequency=args.plot_frequency)
-        
+        runtime = transform_and_plot_images(dataset=benchmark_ds, max_plot_per_transform=args.max_plot_per_transform, plot_frequency=args.plot_frequency, classes=set(args.classes))
         times.append(runtime)
 
 
