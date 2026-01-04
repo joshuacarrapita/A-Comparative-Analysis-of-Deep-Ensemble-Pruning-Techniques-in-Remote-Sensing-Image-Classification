@@ -36,7 +36,7 @@ ALL_ALGOS = EPFD_ALGOS + GASEN_ALGOS + PYPRUNING_ALGOS
 # --- HELPER FUNCTIONS ---
 def load_data(results_path, targets_path):
     """Loads tensors and infers dimensions M, N, C."""
-    print(f"Loading data from:\n  Probas: {results_path}\n  Targets: {targets_path}")
+    print(f"\nLoading data from:\n  Probas: {results_path}\n  Targets: {targets_path}")
     
     probas = torch.load(Path(results_path).resolve()).float().numpy()
     targets = torch.load(Path(targets_path).resolve()).float().numpy()
@@ -182,10 +182,49 @@ def define_params():
 def main():
     args = define_params()
 
-    target_sizes = sorted(list(set(args.nb_pru)))
+    # Load Data
+    try:
+        probas, targets, M, N, C = load_data(args.results, args.targets)
+    except Exception as e:
+        sys.exit(f"Error loading data: {e}")
+
+    # Determine execution list
+    tasks = [] # List of tuples (Library, Algorithm)
+
+    # If specific algorithm is requested, find it
+    if args.algorithm:
+        found = False
+        if args.algorithm in EPFD_ALGOS:
+            tasks.append(("EPFD", args.algorithm))
+            found = True
+        elif args.algorithm in GASEN_ALGOS:
+            tasks.append(("GASEN", args.algorithm))
+            found = True
+        elif args.algorithm in PYPRUNING_ALGOS:
+            tasks.append(("PyPruning", args.algorithm))
+            found = True
+        
+        if not found:
+            sys.exit(f"Error: Algorithm '{args.algorithm}' not found in any library definitions.")
+    else:
+        # Otherwise append all algorithms from selected libraries
+        if args.library in ['all', 'EPFD']:
+            for alg in EPFD_ALGOS:
+                tasks.append(("EPFD", alg))
+        
+        if args.library in ['all', 'GASEN']:
+            for alg in GASEN_ALGOS:
+                tasks.append(("GASEN", alg))
+                
+        if args.library in ['all', 'PyPruning']:
+            for alg in PYPRUNING_ALGOS:
+                tasks.append(("PyPruning", alg))
+
+    # Target size can't be larger than ensemble size, no duplicate runs
+    target_sizes = sorted(list(set([max(min(x,M),1) for x in args.nb_pru])))
     
     for nb_pru in target_sizes:
-
+        
         # Set outdir
         outdir = Path(args.outdir).resolve()
         if outdir.is_dir():
@@ -194,55 +233,17 @@ def main():
             outfile = Path("pruning_results_" + str(nb_pru)).resolve()
             outdir = Path(".").resolve()
 
+        print("\n" + "-" * 80)
+        print(f"\n--- Starting Benchmark ---")
+        print(f"Total Algorithms to run: {len(tasks)}")
+        print(f"Target Ensemble Size: {nb_pru}")
+        print(f"EPFD Distributed Mode: {args.distributed}")
 
         # Set Seed
         np.random.seed(args.seed)
         torch.manual_seed(args.seed)
         pl.seed_everything(seed=args.seed)
-
-        # Load Data
-        try:
-            probas, targets, M, N, C = load_data(args.results, args.targets)
-        except Exception as e:
-            sys.exit(f"Error loading data: {e}")
-
-        # Determine execution list
-        tasks = [] # List of tuples (Library, Algorithm)
-
-        # If specific algorithm is requested, find it
-        if args.algorithm:
-            found = False
-            if args.algorithm in EPFD_ALGOS:
-                tasks.append(("EPFD", args.algorithm))
-                found = True
-            elif args.algorithm in GASEN_ALGOS:
-                tasks.append(("GASEN", args.algorithm))
-                found = True
-            elif args.algorithm in PYPRUNING_ALGOS:
-                tasks.append(("PyPruning", args.algorithm))
-                found = True
-            
-            if not found:
-                sys.exit(f"Error: Algorithm '{args.algorithm}' not found in any library definitions.")
-        else:
-            # Otherwise append all algorithms from selected libraries
-            if args.library in ['all', 'EPFD']:
-                for alg in EPFD_ALGOS:
-                    tasks.append(("EPFD", alg))
-            
-            if args.library in ['all', 'GASEN']:
-                for alg in GASEN_ALGOS:
-                    tasks.append(("GASEN", alg))
-                    
-            if args.library in ['all', 'PyPruning']:
-                for alg in PYPRUNING_ALGOS:
-                    tasks.append(("PyPruning", alg))
-
-        print(f"\n--- Starting Benchmark ---")
-        print(f"Total Algorithms to run: {len(tasks)}")
-        print(f"Target Ensemble Size: {nb_pru}")
-        print(f"EPFD Distributed Mode: {args.distributed}")
-        print("-" * 60)
+        print("")
 
         results_data = []
 
