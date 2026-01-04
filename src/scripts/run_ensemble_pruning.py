@@ -158,10 +158,10 @@ def define_params():
     # Data arguments
     parser.add_argument('--results', type=str, required=True, help='Path to tensor with inference results (M, N, C)')
     parser.add_argument('--targets', type=str, required=True, help='Path to tensor with targets (N,)')
-    parser.add_argument('--output', type=str, default='pruning_results.html', help='Path for output HTML file')
+    parser.add_argument('--outdir', type=str, default='.', help='Directory for output file(s)')
 
     # Pruning parameters
-    parser.add_argument("--nb_pru", type=int, default=5, help='Target size of the pruned ensemble')
+    parser.add_argument("--nb_pru", type=int, default=5, nargs="+", help='Target size(s) of the pruned ensemble(s)')
     
     # Selection arguments
     parser.add_argument("--library", type=str, default='all', choices=['all', 'EPFD', 'GASEN', 'PyPruning'],
@@ -181,124 +181,138 @@ def define_params():
 
 def main():
     args = define_params()
+
+    target_sizes = sorted(list(set(args.nb_pru)))
     
-    # Set Seed
-    np.random.seed(args.seed)
-    torch.manual_seed(args.seed)
-    pl.seed_everything(seed=args.seed)
+    for nb_pru in target_sizes:
 
-    # Load Data
-    try:
-        probas, targets, M, N, C = load_data(args.results, args.targets)
-    except Exception as e:
-        sys.exit(f"Error loading data: {e}")
+        # Set outdir
+        outdir = Path(args.outdir).resolve()
+        if outdir.is_dir():
+            outfile = outdir / ("pruning_results_" + str(nb_pru))
+        else:
+            outfile = Path("pruning_results_" + str(nb_pru)).resolve()
+            outdir = Path(".").resolve()
 
-    # Determine execution list
-    tasks = [] # List of tuples (Library, Algorithm)
 
-    # If specific algorithm is requested, find it
-    if args.algorithm:
-        found = False
-        if args.algorithm in EPFD_ALGOS:
-            tasks.append(("EPFD", args.algorithm))
-            found = True
-        elif args.algorithm in GASEN_ALGOS:
-            tasks.append(("GASEN", args.algorithm))
-            found = True
-        elif args.algorithm in PYPRUNING_ALGOS:
-            tasks.append(("PyPruning", args.algorithm))
-            found = True
-        
-        if not found:
-            sys.exit(f"Error: Algorithm '{args.algorithm}' not found in any library definitions.")
-    else:
-        # Otherwise append all algorithms from selected libraries
-        if args.library in ['all', 'EPFD']:
-            for alg in EPFD_ALGOS:
-                tasks.append(("EPFD", alg))
-        
-        if args.library in ['all', 'GASEN']:
-            for alg in GASEN_ALGOS:
-                tasks.append(("GASEN", alg))
-                
-        if args.library in ['all', 'PyPruning']:
-            for alg in PYPRUNING_ALGOS:
-                tasks.append(("PyPruning", alg))
+        # Set Seed
+        np.random.seed(args.seed)
+        torch.manual_seed(args.seed)
+        pl.seed_everything(seed=args.seed)
 
-    print(f"\n--- Starting Benchmark ---")
-    print(f"Total Algorithms to run: {len(tasks)}")
-    print(f"Target Ensemble Size: {args.nb_pru}")
-    print(f"EPFD Distributed Mode: {args.distributed}")
-    print("-" * 60)
-
-    results_data = []
-
-    for lib, algo in tasks:
-        print(f"Running [{lib}] {algo}...", end=" ", flush=True)
-        
+        # Load Data
         try:
-            runtime = 0.0
-            selection = []
+            probas, targets, M, N, C = load_data(args.results, args.targets)
+        except Exception as e:
+            sys.exit(f"Error loading data: {e}")
+
+        # Determine execution list
+        tasks = [] # List of tuples (Library, Algorithm)
+
+        # If specific algorithm is requested, find it
+        if args.algorithm:
+            found = False
+            if args.algorithm in EPFD_ALGOS:
+                tasks.append(("EPFD", args.algorithm))
+                found = True
+            elif args.algorithm in GASEN_ALGOS:
+                tasks.append(("GASEN", args.algorithm))
+                found = True
+            elif args.algorithm in PYPRUNING_ALGOS:
+                tasks.append(("PyPruning", args.algorithm))
+                found = True
             
-            if lib == "EPFD":
-                selection, runtime = run_epfd_algo(algo, probas, targets, args.nb_pru, args)
-            elif lib == "GASEN":
-                selection, runtime = run_gasen_algo(probas, targets, args.nb_pru, args)
-            elif lib == "PyPruning":
-                selection, runtime = run_pypruning_algo(algo, probas, targets, args.nb_pru, args)
+            if not found:
+                sys.exit(f"Error: Algorithm '{args.algorithm}' not found in any library definitions.")
+        else:
+            # Otherwise append all algorithms from selected libraries
+            if args.library in ['all', 'EPFD']:
+                for alg in EPFD_ALGOS:
+                    tasks.append(("EPFD", alg))
             
-            print(f"Done ({runtime:.4f}s)")
-            results_data.append({
-                "Library": lib,
-                "Algorithm": algo,
-                "Runtime": runtime,
-                "Result": str(selection)
-            })
+            if args.library in ['all', 'GASEN']:
+                for alg in GASEN_ALGOS:
+                    tasks.append(("GASEN", alg))
+                    
+            if args.library in ['all', 'PyPruning']:
+                for alg in PYPRUNING_ALGOS:
+                    tasks.append(("PyPruning", alg))
+
+        print(f"\n--- Starting Benchmark ---")
+        print(f"Total Algorithms to run: {len(tasks)}")
+        print(f"Target Ensemble Size: {nb_pru}")
+        print(f"EPFD Distributed Mode: {args.distributed}")
+        print("-" * 60)
+
+        results_data = []
+
+        for lib, algo in tasks:
+            print(f"Running [{lib}] {algo}...", end=" ", flush=True)
+            
+            try:
+                runtime = 0.0
+                selection = []
+                
+                if lib == "EPFD":
+                    selection, runtime = run_epfd_algo(algo, probas, targets, nb_pru, args)
+                elif lib == "GASEN":
+                    selection, runtime = run_gasen_algo(probas, targets, nb_pru, args)
+                elif lib == "PyPruning":
+                    selection, runtime = run_pypruning_algo(algo, probas, targets, nb_pru, args)
+                
+                print(f"Done ({runtime:.4f}s)")
+                results_data.append({
+                    "Library": lib,
+                    "Algorithm": algo,
+                    "Runtime": runtime,
+                    "Result": str(selection)
+                })
+                
+            except Exception as e:
+                print(f"FAILED. Error: {e}")
+                results_data.append({
+                    "Library": lib,
+                    "Algorithm": algo,
+                    "Runtime": -1.0,
+                    "Result": f"Error: {str(e)}"
+                })
+
+        # Save Results
+        df = pd.DataFrame(results_data)
+        
+        # Save to HTML
+        try:
+            html_string = df.to_html(classes='table table-striped', index=False)
+            final_html = f"""
+            <html>
+            <head>
+                <title>Ensemble Pruning Benchmark Results</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                    table {{ border-collapse: collapse; width: 100%; }}
+                    th, td {{ padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }}
+                    th {{ background-color: #f2f2f2; }}
+                </style>
+            </head>
+            <body>
+                <h2>Ensemble Pruning Results</h2>
+                <p><strong>Input:</strong> {args.results}</p>
+                <p><strong>Input Shape:</strong> (M={M}, N={N}, C={C})</p>
+                <p><strong>Target Size:</strong> {nb_pru}</p>
+                <br>
+                {html_string}
+            </body>
+            </html>
+            """
+            
+            outfile_html = Path(f'{outfile}.html')
+            with open(outfile_html, 'w') as f:
+                f.write(final_html)
+                
+            print(f"\nResults successfully saved to {outfile_html}")
             
         except Exception as e:
-            print(f"FAILED. Error: {e}")
-            results_data.append({
-                "Library": lib,
-                "Algorithm": algo,
-                "Runtime": -1.0,
-                "Result": f"Error: {str(e)}"
-            })
-
-    # Save Results
-    df = pd.DataFrame(results_data)
-    
-    # Save to HTML
-    try:
-        html_string = df.to_html(classes='table table-striped', index=False)
-        final_html = f"""
-        <html>
-        <head>
-            <title>Ensemble Pruning Benchmark Results</title>
-            <style>
-                body {{ font-family: Arial, sans-serif; margin: 20px; }}
-                table {{ border-collapse: collapse; width: 100%; }}
-                th, td {{ padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }}
-                th {{ background-color: #f2f2f2; }}
-            </style>
-        </head>
-        <body>
-            <h2>Ensemble Pruning Results</h2>
-            <p><strong>Input:</strong> {args.results}</p>
-            <p><strong>Input Shape:</strong> (M={M}, N={N}, C={C})</p>
-            <p><strong>Target Size:</strong> {args.nb_pru}</p>
-            <br>
-            {html_string}
-        </body>
-        </html>
-        """
-        
-        with open(args.output, 'w') as f:
-            f.write(final_html)
-            
-        print(f"\nResults successfully saved to {args.output}")
-        
-    except Exception as e:
-        print(f"Error saving HTML: {e}")
+            print(f"Error saving HTML: {e}")
 
 if __name__ == "__main__":
     main()
