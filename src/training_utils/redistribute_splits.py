@@ -4,20 +4,36 @@ import pandas as pd
 import sys
 
 #-----------------------------------------------------------------------------
+# HELPER 
+def HalfRoundUp(value):
+    return int(value + 0.5)
+
+#-----------------------------------------------------------------------------
 # INIT 
 try:
-    datapath = {
+    input_args = {
         'metadata_single_label_parquet': Path(sys.argv[1]).resolve(),
         'metadata_single_label_snow_cloud_parquet': Path(sys.argv[2]).resolve(),
         'outfile': Path(sys.argv[3]).resolve(),
+        'train_percent': int(sys.argv[4]),
+        'validation_percent': int(sys.argv[5]),
+        'test_percent': int(sys.argv[6]),
     }
-    for key, path in datapath.items():
-        if key != 'outfile':
-            assert path.is_file(), f"Input file not found or not a file: {path}"
-        else: 
-            assert path.is_dir(), f"Output directory does not exist or is not a directory: {path}"
+    sum = 0
+    for key, value in input_args.items():
+        if key == 'metadata_single_label_parquet' or key == 'metadata_single_label_snow_cloud_parquet':
+            assert value.is_file(), f"Input file not found or not a file: {value}"
+        elif key == 'outfile': 
+            assert value.is_dir(), f"Output directory does not exist or is not a directory: {value}"
+        else:
+            # convert to mathematic notation and make sure it adds up to 100
+            if value > 1:
+                input_args[key] /= 100
+            sum += value
+    assert sum == 1, f"Input split does not add up to 100% total: {sum}"
+
 except Exception as e:
-    sys.exit(f'\nAn error occured: {e}.\n\nUsage: python redistribute_splits.py /path/to/metadata_single_label.parquet /path/to/metadata_single_label_snow_cloud.parquet /path/to/outdir/\n')
+    sys.exit(f'\nAn error occured: {e}.\n\nUsage: python redistribute_splits.py /path/to/metadata_single_label.parquet /path/to/metadata_single_label_snow_cloud.parquet /path/to/outdir/ [train percent] [validation percent] [test percent]\n')
 
 NEW_LABELS_ORIGINAL_ORDER = [
     "Urban fabric",
@@ -46,8 +62,8 @@ NEW_LABELS_ORIGINAL_ORDER = [
 # read metadata
 print(f'\nLoading metadata...')
 print(f'\n--------------------------------------------------------------------------------')
-metadata_single_label = pd.read_parquet(datapath["metadata_single_label_parquet"])
-metadata_single_label_snow_cloud = pd.read_parquet(datapath["metadata_single_label_snow_cloud_parquet"])
+metadata_single_label = pd.read_parquet(input_args["metadata_single_label_parquet"])
+metadata_single_label_snow_cloud = pd.read_parquet(input_args["metadata_single_label_snow_cloud_parquet"])
 
 # adjust split for each class
 for idx, metadata in enumerate([metadata_single_label, metadata_single_label_snow_cloud]):
@@ -65,14 +81,21 @@ for idx, metadata in enumerate([metadata_single_label, metadata_single_label_sno
 
         if metadata_specific_label_length >= 3:
 
-            ten_percent = max(round(metadata_specific_label_length*0.1),1)
-            twenty_percent = ten_percent*2
-            print(f'Ten percent index: {ten_percent}')
-            print(f'Twenty percent index: {twenty_percent}')
+            # split the data into sections but make sure we don't assign more than we can
+            train_absolute = max(HalfRoundUp(metadata_specific_label_length*input_args["train_percent"]),1)
+            remaining_length = metadata_specific_label_length - train_absolute
+            validation_absolute = min(max(HalfRoundUp(metadata_specific_label_length*input_args["validation_percent"]),1), remaining_length)
+            remaining_length = remaining_length - validation_absolute
+            test_absolute = min(max(HalfRoundUp(metadata_specific_label_length*input_args["test_percent"]),1), remaining_length)
+
+            print(f'Total data (100%): {metadata_specific_label_length}')
+            print(f'Train data (~{input_args["train_percent"]*100}%): {train_absolute}')
+            print(f'Validation data (~{input_args["validation_percent"]*100}%): {validation_absolute}')
+            print(f'Test data (~{input_args["test_percent"]*100}%): {test_absolute}')
 
             print(f'\nMetadata for label {label}, before redistribution:\n{metadata_specific_label["split"].value_counts()}')
 
-            writer = ['test'] * ten_percent + ['validation'] * ten_percent + ['train'] * (metadata_specific_label_length - twenty_percent)
+            writer = ['test'] * test_absolute + ['validation'] * validation_absolute + ['train'] * train_absolute
             writer_length = len(writer)
             values, counts = np.unique(writer, return_counts=True) 
             writer_df = pd.DataFrame({"split": values, "": counts}).set_index("split")
@@ -94,6 +117,5 @@ for idx, metadata in enumerate([metadata_single_label, metadata_single_label_sno
         metadata_single_label_snow_cloud = metadata.copy(deep=True)
 
 print(f'\nSaving metadata...')
-metadata_single_label.to_parquet(datapath['outfile'] / 'metadata.parquet', compression='gzip')
-metadata_single_label_snow_cloud.to_parquet(datapath['outfile'] / 'metadata_for_snow_cloud_and_shadow.parquet', compression='gzip')
-
+metadata_single_label.to_parquet(input_args["outfile"] / 'metadata_single_label.parquet', compression='gzip')
+metadata_single_label_snow_cloud.to_parquet(input_args["outfile"] / 'metadata_for_patches_with_snow_cloud_or_shadow_single_label.parquet', compression='gzip')
