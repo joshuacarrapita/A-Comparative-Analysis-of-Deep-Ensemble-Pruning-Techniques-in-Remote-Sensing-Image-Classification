@@ -1,9 +1,22 @@
-# TODO: Add imports
 # std imports
+import sys
+import json
+import logging
+import argparse
+from pathlib import Path
 
 # 3rd party imports
-import lightning.pytorch as pl
-from sklearn.metrics import confusion_matrix
+import torch
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import (
+    confusion_matrix, precision_score, recall_score, f1_score,
+    accuracy_score, cohen_kappa_score, matthews_corrcoef,
+    classification_report, roc_auc_score, roc_curve, precision_recall_curve
+)
+from sklearn.preprocessing import label_binarize
 
 # local imports
 from shared_utils.custom_logging import create_logger
@@ -16,7 +29,6 @@ if __debug__:
     logger.newline()
     logger.debug('--- DEBUG ON -- (Log level: DEBUG)')
     logger.newline()
-    util.MESSAGE_LEVEL = util.MessageLevel.INFO
 else:
     logger = create_logger("EnsembleEvaluationLogger", log_level=logging.INFO)
     logger.newline()
@@ -24,7 +36,7 @@ else:
     logger.newline()
 
 # --- metrics ---
-CLASS-WISE_METRICS = [
+CLASS_WISE_METRICS = [
         'Precision', 
         'Recall', 
         'Specificity', 
@@ -33,7 +45,7 @@ CLASS-WISE_METRICS = [
 
 GLOBAL_METRICS = [
         'Macro-Average', 
-        'Micro-Average', 
+        'Micro-Average', # TODO: Might not be necessary
         'Weighted-Average', 
         'Cohen`s Kappa', 
         'Matthews Correlation Coefficient', 
@@ -48,37 +60,42 @@ VISUALIZATIONS = [
         'Precision-Recall Curve',
 ]
 
-ALL_METRICS = CLASS-WISE_METRICS + GLOBAL_METRICS + VISUALIZATIONS
+ALL_METRICS = CLASS_WISE_METRICS + GLOBAL_METRICS + VISUALIZATIONS
 
 # --- HELPER FUNCTIONS ---
 def load_data(results_path, targets_path):
     """Loads tensors and infers dimensions M, N, C."""
-    print(f"\nLoading data from:\n  Probas: {results_path}\n  Targets: {targets_path}")
+    logger.info(f"\nLoading data from:\n  Probas: {results_path}\n  Targets: {targets_path}")
     
-    probas = torch.load(Path(results_path).resolve()).float().numpy()
-    targets = torch.load(Path(targets_path).resolve()).float().numpy()
+    probas = torch.load(Path(results_path).resolve(), map_location='cpu').float().numpy()
+    targets = torch.load(Path(targets_path).resolve(), map_location='cpu').long().numpy()
     
     M, N, C = probas.shape
 
-    print(f"Inferred Dimensions -> Models (M): {M}, Samples (N): {N}, Classes (C): {C}")
+    logger.info(f"Inferred Dimensions -> Models (M): {M}, Samples (N): {N}, Classes (C): {C}")
     return probas, targets, M, N, C
 
-def ensemble_decision(probas, targets):
-    # TODO derive the ensemble_decision based on e.g. majority vote
+def ensemble_decision(probas):
+    # derive the ensemble_decision based on soft voting
+    # average probas across all M models -> (N, C)
+    avg_probas = np.mean(probas, axis=0)
+    # argmax to get class predictions -> (N, )
+    y_pred = np.argmax(avg_probas, axis=1)
+    return y_pred, avg_probas
 
 def define_params():
     parser = argparse.ArgumentParser(description='Evaluate Ensemble Inference Results')
     
-    # Data arguments
+    # data arguments
     parser.add_argument('--results', type=str, required=True, help='Path to tensor with inference results (M, N, C)')
     parser.add_argument('--targets', type=str, required=True, help='Path to tensor with targets (N,)')
     parser.add_argument('--outdir', type=str, default='.', help='Directory for output file(s)')
 
-    # Metric arguments
-    parser.add_argument('--metric-types', type=str, default='all', choices=['all', 'class-wise', 'global', 'visualization'], nargs='+', help='Select metric type(s) to evaluate with. Defaults to "all".')
-    parser.add_argument('--metrics', type=str, default='', choices=ALL_METRICS, nargs="+", help='Evaluate using specific metric(s). Overrides --metric-types.')
+    # metric arguments
+    parser.add_argument('--metric-types', type=str, default='all', choices=['all', 'class-wise', 'global', 'visualization'], nargs="+", help='Select metric type(s) to evaluate with. Defaults to "all"')
+    parser.add_argument('--metrics', type=str, default=[], choices=ALL_METRICS, nargs="+", help='Evaluate using specific metric(s), overrides --metric-types')
     
-    # Seed
+    # seed
     parser.add_argument('--seed', type=int, default=666, help='Random seed')
 
     return parser.parse_args()
@@ -86,52 +103,148 @@ def define_params():
 # --- MAIN LOGIC ---
 def main():
     args = define_params()
+    outdir = Path(args.outdir).resolve()
+    outdir.mkdir(parents=True, exist_ok=True)
 
-    # Load Data
+    # load data
     try:
         probas, targets, M, N, C = load_data(args.results, args.targets)
     except Exception as e:
         logger.critical(f'Error loading data: {e}')
         sys.exit(1)
 
-    # Determine execution list
-    tasks = [] # List of tuples (Metric-Type, Metric)
+    # derive decisions
+    y_pred, y_score = ensemble_decision(probas)
 
-    # If specific metrics are requested, find them
+    # determine execution list
+    tasks = [] # list of tuples (Metric-Type, Metric)
+
+    # if specific metrics are requested, find them
     if args.metrics:
         not_found = []
         for idx, metric in enumerate(args.metrics):
-            if metric in CLASS-WISE_METRICS:
-                tasks.append(("CLASS-WISE", args.metrics[idx]))
-            elif metric in GLOBAL_METRICS:
-                tasks.append(("GLOBAL", args.metrics[idx]))
+            if metric in GLOBAL_METRICS:
+                tasks.append(("global", metric))
+            elif metric in CLASS_WISE_METRICS:
+                tasks.append(("class-wise", metric))
             elif metric in VISUALIZATIONS:
-                tasks.append(("VISUALIZATIONS", args.metrics[idx]))
+                tasks.append(("visualization", metric))
             else:
-                not_found.append(args.metrics[idx])
+                not_found.append(metric)
         if not_found:
             logger.newline()
             logger.warning(f'Warning: The following metrics could not be found: {not_found}. Continuing without these metrics.')
             logger.newline()
     else:
-        # Otherwise append all algorithms from selected libraries
-        if args.metric-types in ['all', 'class-wise']:
-            for metric in CLASS-WISE_METRICS:
-                tasks.append(('class-wise', metric))
-        if args.library in ['all', 'global']:
+        # otherwise append all metrics from metric types
+        metric_types = set(args.metric_types) if isinstance(args.metric_types, list) else {args.metric_types}
+        if metric_types & {'all', 'global'}:
             for metric in GLOBAL_METRICS:
                 tasks.append(('global', metric))
-        if args.library in ['all', 'visualization']:
+        if metric_types & {'all', 'class-wise'}:
+            for metric in CLASS_WISE_METRICS: 
+                tasks.append(('class-wise', metric))
+        if metric_types & {'all', 'visualization'}:
             for metric in VISUALIZATIONS:
                 tasks.append(('visualization', metric))
 
-    results_data = []
+    global_metric_results = {}
+    class_wise_report = {}
+    generated_plots = []
 
     for metric_type, metric in tasks:
-        print(f"Running [{metric_type}] {metric}...", end=" ", flush=True)
+        if metric_type != 'class-wise':
+            logger.info(f"Running [{metric_type}] {metric}...")
 
-        # TODO: Implement the different metric calculations
+        try:
+            if metric_type == 'global':
+                if metric == 'Macro-Average':
+                    global_metric_results[metric] = f1_score(targets, y_pred, average='macro', zero_division=0)
+                elif metric == 'Micro-Average':
+                    global_metric_results[metric] = accuracy_score(targets, y_pred)
+                elif metric == 'Weighted-Average':
+                    global_metric_results[metric] = f1_score(targets, y_pred, average='weighted', zero_division=0)
+                elif metric == 'Cohen`s Kappa':
+                    global_metric_results[metric] = cohen_kappa_score(targets, y_pred)
+                elif metric == 'Matthews Correlation Coefficient':
+                    global_metric_results[metric] = matthews_corrcoef(targets, y_pred)
+                logger.info(f"{metric} ({metric_type}) done: {global_metric_results[metric]:.4f}")
 
+            elif metric_type == 'class-wise':
+                if not class_wise_report:
+                    class_wise_report = classification_report(targets, y_pred, output_dict=True, zero_division=0)
+                    logger.info(f"Running [{metric_type}] generating class-wise report...")
+                    logger.info(f"Report ({metric_type}) done: {str(class_wise_report)}")
+
+            elif metric_type == 'visualization':
+                plt.figure(figsize=(12, 10))
+                filename = f"{metric.replace(' ', '_').lower()}.png"
+                
+                if metric == 'Row-normalized Heatmap':
+                    cm = confusion_matrix(targets, y_pred, normalize='true')
+                    sns.heatmap(cm, annot=False, cmap='Blues')
+                    plt.title(metric)
+                elif metric == 'Column-normalized Heatmap':
+                    cm = confusion_matrix(targets, y_pred, normalize='pred')
+                    sns.heatmap(cm, annot=False, cmap='Blues')
+                    plt.title(metric)
+                elif 'ROC' in metric: 
+                    y_bin = label_binarize(targets, classes=np.arange(C))
+                    for i in range(C):
+                        fpr, tpr, _ = roc_curve(y_bin[:, i], y_score[:, i])
+                        plt.plot(fpr, tpr, label=f'Class {i}')
+                    plt.legend(loc='best', fontsize='xx-small', ncol=2)
+                    plt.title(metric)
+                elif metric == 'Precision-Recall Curve':
+                    y_bin = label_binarize(targets, classes=np.arange(C))
+                    for i in range(C):
+                        prec, rec, _ = precision_recall_curve(y_bin[:, i], y_score[:, i])
+                        plt.plot(rec, prec, label=f'Class {i}')
+                    plt.legend(loc='best', fontsize='xx-small', ncol=2)
+                    plt.title(metric)
+                
+                plt.savefig(outdir / filename)
+                plt.close()
+                generated_plots.append(filename)
+                logger.info(f"Saved Plot for metric: {metric}")
+
+        except Exception as e:
+            logger.error(f"Failed processing metric {metric} of type {metric_type}: {e}")
+
+    # export non-visual results to JSON
+    with open(outdir / "metrics_results.json", "w") as f:
+        all_data = global_metric_results.copy()
+        all_data['class_wise_report'] = class_wise_report
+        json.dump(all_data, f, indent=4)
+    
+    # HTML export with embedded images
+    html_content = "<html><head><title>Ensemble Evaluation Report</title></head><body>"
+
+    # global metrics table
+    if global_metric_results:
+        html_content += "<h1>Global Metrics</h1>"
+        df_global = pd.DataFrame.from_dict(global_metric_results, orient='index', columns=['Value'])
+        html_content += df_global.to_html()
+            
+    # class-wise report table
+    if class_wise_report:
+        html_content += "<h1>Class-wise Metrics</h1>"
+        df_class_wise = pd.DataFrame.from_dict(class_wise_report).transpose()
+        html_content += df_class_wise.to_html()
+
+    # visualizations
+    if generated_plots:
+        html_content += "<h1>Visualizations</h1>"
+        for plot_file in generated_plots:
+            html_content += f"<h3>{plot_file.replace('_', ' ').replace('.png', '').title()}</h3>"
+            html_content += f'<img src="{plot_file}" width="800"><br>'
+
+    html_content += "</body></html>"
+    
+    with open(outdir / "report.html", "w") as f:
+        f.write(html_content)
+
+    logger.info(f"Results and visual report saved to {outdir}")
 
 if __name__ == "__main__":
     main()
