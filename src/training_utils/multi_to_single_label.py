@@ -182,6 +182,7 @@ else:
 round = 1
 skipped_unlabeled = 0
 skipped_share = 0
+one_label = 0
 
 # main loop
 with alive_bar(max_rounds) as bar:
@@ -247,21 +248,44 @@ with alive_bar(max_rounds) as bar:
                     print(f'\nUnlabeled indices: {unlabeled_index}')
                     break
 
-            # get index, text and pixel-share of most common label
-            max_count_index = np.argmax(label_counts)
-            max_count_label = mapped_unique_labels[max_count_index]
-            max_count_share = label_percentages[max_count_index]
+#            # get index, text and pixel-share of most common label
+#            max_count_index = np.argmax(label_counts)
+#            max_count_label = mapped_unique_labels[max_count_index]
+#            max_count_share = label_percentages[max_count_index]
+#
+#            # make sure that found majority label has more than 50% share or so of image pixels cause otherwise it might impact learning performance
+#            if max_count_share <= 0.40:
+#                round_debug()
+#                print(f'Skipping round {round}: Majority label share is only {max_count_share*100:.2f}% of patch pixels.')
+#                round += 1
+#                skipped_share += 1
+#                if round > max_rounds:
+#                    break
+#                else:
+#                    continue
 
-            # make sure that found majority label has more than 50% share or so of image pixels cause otherwise it might impact learning performance
-            if max_count_share <= 0.50:
+            # get index, text and pixel-share of most common label
+            top_two_indices = (-label_counts).argsort()[:2] # -array for descending order, argsort returns indices that would sort the array in ascending order
+            top_two_labels = mapped_unique_labels[top_two_indices]
+            max_count_label = top_two_labels[0]
+            top_two_shares = label_percentages[top_two_indices]
+            if top_two_shares.size > 1:
+                top_two_share_difference = top_two_shares[0] - top_two_shares[1]
+            else:
+                top_two_share_difference = 1
+                one_label += 1
+
+            # make sure that found majority label has more than 15% more share of image pixels than second majority label cause otherwise it might impact learning performance
+            if  top_two_share_difference < 0.15:
                 round_debug()
-                print(f'Skipping round {round}: Majority label share is only {max_count_share*100:.2f}% of patch pixels.')
+                print(f'Skipping round {round}: Majority label share of patch pixels is only {top_two_share_difference*100:.2f}% larger than second majority label share of patch pixels.')
                 round += 1
                 skipped_share += 1
                 if round > max_rounds:
                     break
                 else:
                     continue
+
 
             # --- save fitting patches ---
             # add patch_name to list
@@ -281,7 +305,7 @@ round -= 1
 skipped = skipped_unlabeled + skipped_share
 converted = round-skipped
 print(f'\nFinished converting multi- to single labels.')
-print(f'\n{skipped} patches skipped in total. Skipped {skipped_unlabeled} patches with >25% "Unlabeled" pixels and {skipped_share} patches with <50% majority label share of pixels.')
+print(f'\n{skipped} patches skipped in total. Skipped {skipped_unlabeled} patches with >25% "Unlabeled" pixels and {skipped_share} patches with <50% majority label share of pixels. {one_label} patches only had one label.')
 print(f'\nConverted labels for {converted}/{round} ({converted*100/round:.2f}% of) patches.')
 
 # create a pandas dataframe based on the patch_id and labels list
