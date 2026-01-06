@@ -161,7 +161,7 @@ def define_params():
     parser.add_argument('--outdir', type=str, default='.', help='Directory for output file(s)')
 
     # Pruning parameters
-    parser.add_argument("--nb_pru", type=int, default=5, nargs="+", help='Target size(s) of the pruned ensemble(s)')
+    parser.add_argument("--nb_pru", type=int, default=[5], nargs="+", help='Target size(s) of the pruned ensemble(s)')
     
     # Selection arguments
     parser.add_argument("--library", type=str, default='all', choices=['all', 'EPFD', 'GASEN', 'PyPruning'],
