@@ -117,5 +117,5 @@ for idx, metadata in enumerate([metadata_single_label, metadata_single_label_sno
         metadata_single_label_snow_cloud = metadata.copy(deep=True)
 
 print(f'\nSaving metadata...')
-metadata_single_label.to_parquet(input_args["outfile"] / 'metadata_single_labels.parquet', compression='gzip')
-metadata_single_label_snow_cloud.to_parquet(input_args["outfile"] / 'metadata_for_patches_with_snow_cloud_or_shadow_single_labels.parquet', compression='gzip')
+metadata_single_label.to_parquet(input_args["outfile"] / 'metadata.parquet', compression='gzip')
+metadata_single_label_snow_cloud.to_parquet(input_args["outfile"] / 'metadata_for_patches_with_snow_cloud_or_shadow.parquet', compression='gzip')
