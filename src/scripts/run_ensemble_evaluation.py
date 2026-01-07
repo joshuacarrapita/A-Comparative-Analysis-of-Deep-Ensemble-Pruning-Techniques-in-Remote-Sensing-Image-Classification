@@ -37,16 +37,10 @@ else:
 
 # --- metrics ---
 CLASS_WISE_METRICS = [
-        'Precision', 
-        'Recall', 
-        'Specificity', 
-        'F1-Score', 
+        'Classification Report',
 ]
 
 GLOBAL_METRICS = [
-        'Macro-Average', 
-        'Micro-Average', # TODO: Might not be necessary
-        'Weighted-Average', 
         'Cohen`s Kappa', 
         'Matthews Correlation Coefficient', 
 ]
@@ -63,6 +57,24 @@ VISUALIZATIONS = [
 ALL_METRICS = CLASS_WISE_METRICS + GLOBAL_METRICS + VISUALIZATIONS
 
 # --- HELPER FUNCTIONS ---
+
+def define_params():
+    parser = argparse.ArgumentParser(description='Evaluate Ensemble Inference Results')
+    
+    # data arguments
+    parser.add_argument('--results', type=str, required=True, help='Path to tensor with inference results (M, N, C)')
+    parser.add_argument('--targets', type=str, required=True, help='Path to tensor with targets (N,)')
+    parser.add_argument('--outdir', type=str, default='.', help='Directory for output file(s)')
+
+    # metric arguments
+    parser.add_argument('--metric-types', type=str, default='all', choices=['all', 'class-wise', 'global', 'visualization'], nargs="+", help='Select metric type(s) to evaluate with. Defaults to "all"')
+    parser.add_argument('--metrics', type=str, default=[], choices=ALL_METRICS, nargs="+", help='Evaluate using specific metric(s), overrides --metric-types')
+    
+    # seed
+    parser.add_argument('--seed', type=int, default=666, help='Random seed')
+
+    return parser.parse_args()
+
 def load_data(results_path, targets_path):
     """Loads tensors and infers dimensions M, N, C."""
     logger.info(f"\nLoading data from:\n  Probas: {results_path}\n  Targets: {targets_path}")
@@ -83,22 +95,15 @@ def ensemble_decision(probas):
     y_pred = np.argmax(avg_probas, axis=1)
     return y_pred, avg_probas
 
-def define_params():
-    parser = argparse.ArgumentParser(description='Evaluate Ensemble Inference Results')
-    
-    # data arguments
-    parser.add_argument('--results', type=str, required=True, help='Path to tensor with inference results (M, N, C)')
-    parser.add_argument('--targets', type=str, required=True, help='Path to tensor with targets (N,)')
-    parser.add_argument('--outdir', type=str, default='.', help='Directory for output file(s)')
+# Source - https://stackoverflow.com/a/69886076
+# Posted by Zaid Al Shattle
+# Retrieved 2026-01-07, License - CC BY-SA 4.0
 
-    # metric arguments
-    parser.add_argument('--metric-types', type=str, default='all', choices=['all', 'class-wise', 'global', 'visualization'], nargs="+", help='Select metric type(s) to evaluate with. Defaults to "all"')
-    parser.add_argument('--metrics', type=str, default=[], choices=ALL_METRICS, nargs="+", help='Evaluate using specific metric(s), overrides --metric-types')
-    
-    # seed
-    parser.add_argument('--seed', type=int, default=666, help='Random seed')
-
-    return parser.parse_args()
+def flatten(d, c = []):
+   for a, b in d.items():
+      yield from([c + [a, b]]
+         if not isinstance(b, dict)
+         else flatten(b, c + [a]))
 
 # --- MAIN LOGIC ---
 def main():
@@ -149,32 +154,26 @@ def main():
                 tasks.append(('visualization', metric))
 
     global_metric_results = {}
-    class_wise_report = {}
+    class_wise_metric_results = {}
     generated_plots = []
 
     for metric_type, metric in tasks:
-        if metric_type != 'class-wise':
-            logger.info(f"Running [{metric_type}] {metric}...")
+        logger.info(f"Running [{metric_type}] {metric}...")
 
         try:
             if metric_type == 'global':
-                if metric == 'Macro-Average':
-                    global_metric_results[metric] = f1_score(targets, y_pred, average='macro', zero_division=0)
-                elif metric == 'Micro-Average':
-                    global_metric_results[metric] = accuracy_score(targets, y_pred)
-                elif metric == 'Weighted-Average':
-                    global_metric_results[metric] = f1_score(targets, y_pred, average='weighted', zero_division=0)
-                elif metric == 'Cohen`s Kappa':
+                if metric == 'Cohen`s Kappa':
                     global_metric_results[metric] = cohen_kappa_score(targets, y_pred)
                 elif metric == 'Matthews Correlation Coefficient':
                     global_metric_results[metric] = matthews_corrcoef(targets, y_pred)
                 logger.info(f"{metric} ({metric_type}) done: {global_metric_results[metric]:.4f}")
 
             elif metric_type == 'class-wise':
-                if not class_wise_report:
-                    class_wise_report = classification_report(targets, y_pred, output_dict=True, zero_division=0)
-                    logger.info(f"Running [{metric_type}] generating class-wise report...")
-                    logger.info(f"Report ({metric_type}) done: {str(class_wise_report)}")
+                report = classification_report(targets, y_pred, output_dict=True, zero_division=0)
+                report['accuracy'] = {k: (report['accuracy'] if k != 'support' else report['macro avg']['support']) for k in report['macro avg']}
+                class_wise_metric_results[metric] = report
+                classification_report_str = classification_report(targets, y_pred, zero_division=0)
+                logger.info(f"{metric} ({metric_type}) done:\n{classification_report_str}")
 
             elif metric_type == 'visualization':
                 plt.figure(figsize=(12, 10))
@@ -214,7 +213,7 @@ def main():
     # export non-visual results to JSON
     with open(outdir / "metrics_results.json", "w") as f:
         all_data = global_metric_results.copy()
-        all_data['class_wise_report'] = class_wise_report
+        all_data.update(class_wise_metric_results)
         json.dump(all_data, f, indent=4)
     
     # HTML export with embedded images
@@ -227,9 +226,9 @@ def main():
         html_content += df_global.to_html()
             
     # class-wise report table
-    if class_wise_report:
+    if class_wise_metric_results:
         html_content += "<h1>Class-wise Metrics</h1>"
-        df_class_wise = pd.DataFrame.from_dict(class_wise_report).transpose()
+        df_class_wise = pd.DataFrame.from_dict(class_wise_metric_results['Classification Report']).transpose()
         html_content += df_class_wise.to_html()
 
     # visualizations
