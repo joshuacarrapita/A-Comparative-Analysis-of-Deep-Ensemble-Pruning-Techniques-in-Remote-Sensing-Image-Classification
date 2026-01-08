@@ -46,8 +46,7 @@ GLOBAL_METRICS = [
 ]
 
 VISUALIZATIONS = [
-        'Row-normalized Heatmap', 
-        'Column-normalized Heatmap', 
+        'Heatmap', 
         'One-vs-Rest ROC',
         'One-vs-One ROC', 
         'Macro-averaged ROC', 
@@ -69,6 +68,7 @@ def define_params():
     # metric arguments
     parser.add_argument('--metric-types', type=str, default='all', choices=['all', 'class-wise', 'global', 'visualization'], nargs="+", help='Select metric type(s) to evaluate with. Defaults to "all"')
     parser.add_argument('--metrics', type=str, default=[], choices=ALL_METRICS, nargs="+", help='Evaluate using specific metric(s), overrides --metric-types')
+    parser.add_argument('--normalizeheatmap', type=str, default=None, choices=['true', 'pred', 'all'], help='Normalize the heatmap by row, column or all values. Defaults to None.')
     
     # seed
     parser.add_argument('--seed', type=int, default=666, help='Random seed')
@@ -179,12 +179,8 @@ def main():
                 plt.figure(figsize=(12, 10))
                 filename = f"{metric.replace(' ', '_').lower()}.png"
                 
-                if metric == 'Row-normalized Heatmap':
-                    cm = confusion_matrix(targets, y_pred, normalize='true')
-                    sns.heatmap(cm, annot=False, cmap='Blues')
-                    plt.title(metric)
-                elif metric == 'Column-normalized Heatmap':
-                    cm = confusion_matrix(targets, y_pred, normalize='pred')
+                if metric == 'Heatmap':
+                    cm = confusion_matrix(targets, y_pred, normalize=args.normalizeheatmap)
                     sns.heatmap(cm, annot=False, cmap='Blues')
                     plt.title(metric)
                 elif 'ROC' in metric: 
