@@ -82,33 +82,48 @@ for idx, metadata in enumerate([metadata_single_label, metadata_single_label_sno
         if metadata_specific_label_length >= 3:
 
             # split the data into sections but make sure we don't assign more than we can
-            train_absolute = max(HalfRoundUp(metadata_specific_label_length*input_args["train_percent"]),1)
-            remaining_length = metadata_specific_label_length - train_absolute
-            validation_absolute = min(max(HalfRoundUp(metadata_specific_label_length*input_args["validation_percent"]),1), remaining_length)
-            remaining_length = remaining_length - validation_absolute
-            test_absolute = min(max(HalfRoundUp(metadata_specific_label_length*input_args["test_percent"]),1), remaining_length)
+            train_desired = max(HalfRoundUp(metadata_specific_label_length*input_args["train_percent"]),1)
+            remaining_length = metadata_specific_label_length - train_desired
+            validation_desired = min(max(HalfRoundUp(metadata_specific_label_length*input_args["validation_percent"]),1), remaining_length)
+            remaining_length = remaining_length - validation_desired
+            test_desired = min(max(HalfRoundUp(metadata_specific_label_length*input_args["test_percent"]),1), remaining_length)
 
+            print(f'Desired split distribution:')
             print(f'Total data (100%): {metadata_specific_label_length}')
-            print(f'Train data (~{input_args["train_percent"]*100}%): {train_absolute}')
-            print(f'Validation data (~{input_args["validation_percent"]*100}%): {validation_absolute}')
-            print(f'Test data (~{input_args["test_percent"]*100}%): {test_absolute}')
+            print(f'Train data (~{input_args["train_percent"]*100}%): {train_desired}')
+            print(f'Validation data (~{input_args["validation_percent"]*100}%): {validation_desired}')
+            print(f'Test data (~{input_args["test_percent"]*100}%): {test_desired}')
 
-            print(f'\nMetadata for label {label}, before redistribution:\n{metadata_specific_label["split"].value_counts()}')
+            split_counts = metadata_specific_label["split"].value_counts().reindex(['train', 'validation', 'test'], fill_value=0)
+            train_actual = split_counts['train']
+            validation_actual = split_counts['validation']
+            test_actual = split_counts['test']
 
-            writer = ['test'] * test_absolute + ['validation'] * validation_absolute + ['train'] * train_absolute
-            writer_length = len(writer)
-            values, counts = np.unique(writer, return_counts=True) 
-            writer_df = pd.DataFrame({"split": values, "": counts}).set_index("split")
-            print(f'\nWriter for label {label}: {str(writer_df)}')
+            print(f'\nMetadata for label {label}, before redistribution:\n{split_counts}')
 
-            # adjust all labels for metadata_specific_label simultaneously
-            length_difference = writer_length - metadata_specific_label_length
-            assert writer_length == metadata_specific_label_length, f"Writer and metadata length do not match. Length difference (writer:metadata): {length_difference}."
-           
-            metadata_specific_label.loc[:,'split'] = writer
-            print(f'\nRedistributed metadata for label {label}, after adjusting all splits simultaneously:\n{metadata_specific_label["split"].value_counts()}')
+            diffs = {
+                    'train': train_desired - train_actual,
+                    'validation': validation_desired - validation_actual,
+                    'test': test_desired - test_actual,
+            }
 
-        metadata.loc[metadata['labels'] == label,'split'] = metadata_specific_label['split'].sample(frac=1)
+            print(f'\nDesired differences for each split for redistribution:\n{diffs}')
+
+            for split_in_need, amount_missing in diffs.items(): # for all splits
+                if amount_missing > 0: # if we need to assign more patches to this split
+                    for split_in_surplus, diff in diffs.items(): # go through all splits again
+                        if diff < 0: # if there is a split that has too many patches
+                            # assign the split of which we need more items to the last 'amount_missing' (or whatever is giveable) patches of the split that has a surplus of patches
+                            mask = metadata_specific_label['split'] == split_in_surplus
+                            amount_changed = min(amount_missing,diff*-1)
+                            indices_to_change = metadata_specific_label[mask].index[-amount_changed:]
+                            metadata_specific_label.loc[indices_to_change, 'split'] = split_in_need                             
+                            diffs[split_in_need] -= amount_changed
+                            diffs[split_in_surplus] += amount_changed
+
+            print(f'\nRedistributed metadata for label {label}, after redistribution:\n{metadata_specific_label["split"].value_counts()}')
+
+        metadata.loc[metadata['labels'] == label,'split'] = metadata_specific_label['split']
         print(f'\n--------------------------------------------------------------------------------')
 
     if idx == 0:
