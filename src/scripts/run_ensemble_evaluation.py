@@ -10,6 +10,7 @@ import torch
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.clmp as clmp
 import seaborn as sns
 from sklearn.metrics import (
     confusion_matrix, precision_score, recall_score, f1_score,
@@ -50,7 +51,7 @@ VISUALIZATIONS = [
         'One-vs-Rest ROC',
         'One-vs-One ROC', 
         'Macro-averaged ROC', 
-        'Precision-Recall Curve',
+        'One-vs-Rest Precision-Recall Curve',
 ]
 
 ALL_METRICS = CLASS_WISE_METRICS + GLOBAL_METRICS + VISUALIZATIONS
@@ -94,16 +95,6 @@ def ensemble_decision(probas):
     # argmax to get class predictions -> (N, )
     y_pred = np.argmax(avg_probas, axis=1)
     return y_pred, avg_probas
-
-# Source - https://stackoverflow.com/a/69886076
-# Posted by Zaid Al Shattle
-# Retrieved 2026-01-07, License - CC BY-SA 4.0
-
-def flatten(d, c = []):
-   for a, b in d.items():
-      yield from([c + [a, b]]
-         if not isinstance(b, dict)
-         else flatten(b, c + [a]))
 
 # --- MAIN LOGIC ---
 def main():
@@ -185,16 +176,18 @@ def main():
                     plt.title(metric)
                 elif 'ROC' in metric: 
                     y_bin = label_binarize(targets, classes=np.arange(C))
+                    colors = clmp.get_map('tab20', C)
                     for i in range(C):
                         fpr, tpr, _ = roc_curve(y_bin[:, i], y_score[:, i])
-                        plt.plot(fpr, tpr, label=f'Class {i}')
+                        plt.plot(fpr, tpr, label=f'Class {i}', color=colors(i))
                     plt.legend(loc='best', fontsize='xx-small', ncol=2)
                     plt.title(metric)
-                elif metric == 'Precision-Recall Curve':
+                elif metric == 'One-vs-Rest Precision-Recall Curve':
                     y_bin = label_binarize(targets, classes=np.arange(C))
+                    colors = clmp.get_map('tab20', C)
                     for i in range(C):
                         prec, rec, _ = precision_recall_curve(y_bin[:, i], y_score[:, i])
-                        plt.plot(rec, prec, label=f'Class {i}')
+                        plt.plot(rec, prec, label=f'Class {i}', color=colors(i))
                     plt.legend(loc='best', fontsize='xx-small', ncol=2)
                     plt.title(metric)
                 
