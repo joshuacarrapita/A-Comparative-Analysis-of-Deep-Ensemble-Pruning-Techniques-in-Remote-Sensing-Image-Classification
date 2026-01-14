@@ -45,7 +45,7 @@ s_counts_snow = metadata_snow_cloud['labels'].astype(str).value_counts()
 # add counts (matching their indices which are labels in this case)
 s_counts_both = s_counts_meta.add(s_counts_snow, fill_value=0).astype(int).sort_values(ascending=False)
 
-# calculate frequencies
+# calculate shares
 s_freq_meta = metadata['labels'].astype(str).value_counts(normalize=True)
 s_freq_snow = metadata_snow_cloud['labels'].astype(str).value_counts(normalize=True)
 
@@ -54,13 +54,13 @@ s_freq_both = s_counts_both / s_counts_both.sum()
 
 # format outputs (reset index)
 metadata_class_distribution_absolute = s_counts_meta.to_frame(name='counts').reset_index(names='labels')
-metadata_class_distribution_relative = s_freq_meta.to_frame(name='frequencies').reset_index(names='labels')
+metadata_class_distribution_relative = s_freq_meta.to_frame(name='shares').reset_index(names='labels')
 
 metadata_snow_cloud_class_distribution_absolute = s_counts_snow.to_frame(name='counts').reset_index(names='labels')
-metadata_snow_cloud_class_distribution_relative = s_freq_snow.to_frame(name='frequencies').reset_index(names='labels')
+metadata_snow_cloud_class_distribution_relative = s_freq_snow.to_frame(name='shares').reset_index(names='labels')
 
 both_class_distribution_absolute = s_counts_both.to_frame(name='counts').reset_index(names='labels')
-both_class_distribution_relative = s_freq_both.to_frame(name='frequencies').reset_index(names='labels')
+both_class_distribution_relative = s_freq_both.to_frame(name='shares').reset_index(names='labels')
 
 both_class_distribution_relative_old = metadata_class_distribution_relative.merge(metadata_snow_cloud_class_distribution_relative, how='left', on='labels', suffixes=('_no_snow_cloud','_yes_snow_cloud'))
 
