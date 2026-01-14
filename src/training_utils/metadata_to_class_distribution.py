@@ -12,10 +12,12 @@ try:
         'full': str(sys.argv[4]) if len(sys.argv) > 4 else ''
     }
     for key, path in input_args.items():
-        if key != 'outdir':
+        if key == 'metadata.parquet' or key == 'metadata_for_patches_with_snow_cloud_or_shadow.parquet':
             assert path.is_file(), f"Input file not found or not a file: {path}"
-        else: 
+        elif key == 'outdir': 
             assert path.is_dir(), f"Output directory does not exist or is not a directory: {path}"
+            input_args['outdir'] = input_args['outdir'] / "class_distributions"
+            input_args['outdir'].mkdir(parents=True, exist_ok=True)
 except Exception as e:
     sys.exit(f'\nAn error occured: {e}.\n\nUsage: python metadata_to_class_distribution.py /path/to/metadata.parquet /path/to/metadata_for_patches_with_snow_cloud_or_shadow.parquet /path/to/outdir/\n')
 
@@ -84,7 +86,7 @@ all_class_distributions = {
 }
 
 for name, variable in all_class_distributions.items():
-    if input_args['full'] == "--full" or {name} == "metadata_class_distribution_absolute":
+    if input_args['full'] == "--full" or name == "metadata_class_distribution_absolute":
         outfile = input_args['outdir'] / f'{name}.parquet'
         variable.to_parquet(outfile, compression='gzip')
     print(f"\nName: {name}\nContent:\n{variable.to_string()}")
