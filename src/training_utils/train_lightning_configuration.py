@@ -264,14 +264,14 @@ class TrainLightningConfiguration:
         """
         if seed is not None: self._set_seed(seed)
 
-        use_weights = random.choice(['no', 'per-class', 'global-scalar', 'ones'])
+        use_weights = random.choice(['per-class', 'ones'])
 
         if use_weights == 'per-class':
             # Generate a random weight scalar, e.g., between 0.5 and 2.0 for each class
             scalars = torch.FloatTensor([random.uniform(0.5, 2.0) for _ in range(self.num_classes)])
-            self.class_weights = self.class_weights * scalars
-        elif use_weights == 'global-scalar':
-            self.class_weights = self.class_weights * random.uniform(0.5,2.0)
+            scaled_weights = self.class_weights * scalars
+            normalized_weights = scaled_weights * (self.num_classes / scaled_weights.sum())
+            self.class_weights = normalized_weights
         elif use_weights == 'ones':
             self.class_weights = torch.ones(self.num_classes)
         
