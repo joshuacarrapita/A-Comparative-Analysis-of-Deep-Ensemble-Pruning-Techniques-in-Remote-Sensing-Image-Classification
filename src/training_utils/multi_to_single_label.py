@@ -245,7 +245,10 @@ with alive_bar(max_rounds) as bar:
                 # make sure that found majority label has more than 50% share or so of image pixels cause otherwise it might impact learning performance
                 if max_count_share <= threshold or max_count_label == 'Unlabeled':
                     round_debug()
-                    print(f'Skipping round {round}: Majority label {max_count_label} share is only {max_count_share*100:.2f}% of patch pixels.')
+                    if max_count_label == 'Unlabeled':
+                        print(f'Skipping round {round}: Majority label is "{max_count_label}".')
+                    else:
+                        print(f'Skipping round {round}: Majority label "{max_count_label}" share is only {max_count_share*100:.2f}% of patch pixels.')
                     round += 1
                     skipped_share += 1
                     if round > max_rounds:
@@ -266,7 +269,10 @@ with alive_bar(max_rounds) as bar:
                 # make sure that found majority label has more than 15% more share of image pixels than second majority label cause otherwise it might impact learning performance
                 if  top_two_share_difference < threshold or max_count_label == 'Unlabeled':
                     round_debug()
-                    print(f'Skipping round {round}: Majority label {max_count_label} share of patch pixels is only {top_two_share_difference*100:.2f}% larger than second majority label share of patch pixels.')
+                    if max_count_label == 'Unlabeled':
+                        print(f'Skipping round {round}: Majority label is "{max_count_label}".')
+                    else:
+                        print(f'Skipping round {round}: Majority label "{max_count_label}" share of patch pixels is only {top_two_share_difference*100:.2f}% larger than second majority label share of patch pixels.')
                     round += 1
                     skipped_share += 1
                     if round > max_rounds:
