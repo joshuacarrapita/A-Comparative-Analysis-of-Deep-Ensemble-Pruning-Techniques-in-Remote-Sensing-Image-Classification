@@ -212,6 +212,9 @@ with alive_bar(max_rounds) as bar:
             # get unique labels with counts
             unique_labels, label_counts = np.unique(mapped_data, return_counts=True)
 
+            if len(unique_labels) == 1:
+                    one_label += 1
+
             # make sure the data mapping works
             assert None not in unique_labels, "Dict data mapping returned None."
 
@@ -282,7 +285,6 @@ with alive_bar(max_rounds) as bar:
                     top_two_share_difference = top_two_shares[0] - top_two_shares[1]
                 else:
                     top_two_share_difference = 1
-                    one_label += 1
 
                 # make sure that found majority label has more than 15% more share of image pixels than second majority label cause otherwise it might impact learning performance
                 if  top_two_share_difference < threshold:
