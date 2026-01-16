@@ -236,29 +236,6 @@ with alive_bar(max_rounds) as bar:
                     print(f'Total label count: {total_label_count}')
 
             # --- filter unfitting patches ---
-            # get the index of the count for 'Unlabeled' if it exists
-            unlabeled_index, = np.where(mapped_unique_labels == 'Unlabeled')
-
-            # make sure that no patches with more than 25% 'Unlabeled' pixels are included
-            if unlabeled_index.size > 0:
-                if unlabeled_index.size == 1: 
-                    unlabeled_percent = label_percentages[unlabeled_index[0]]
-                    if unlabeled_percent >= 0.25:
-                        round_debug()
-                        print(f'Skipping round {round}: {unlabeled_percent*100:.2f}% of patch pixels are unlabeled.')
-                        round += 1
-                        skipped_unlabeled += 1
-                        if round > max_rounds:
-                            break
-                        else:
-                            continue
-                else:
-                    print(f'\nFound multiple indices for `Unlabeled` in unique label list for patch {file_path} in round {round}. Aborting process.')
-                    print(f'\nUnique labels: {unique_labels}')
-                    print(f'\nMapped unique labels: {mapped_unique_labels}')
-                    print(f'\nUnlabeled indices: {unlabeled_index}')
-                    break
-
             if method == "main-label-threshold":
                 # get index, text and pixel-share of most common label
                 max_count_index = np.argmax(label_counts)
@@ -266,9 +243,9 @@ with alive_bar(max_rounds) as bar:
                 max_count_share = label_percentages[max_count_index]
 
                 # make sure that found majority label has more than 50% share or so of image pixels cause otherwise it might impact learning performance
-                if max_count_share <= threshold:
+                if max_count_share <= threshold or max_count_label == 'Unlabeled':
                     round_debug()
-                    print(f'Skipping round {round}: Majority label share is only {max_count_share*100:.2f}% of patch pixels.')
+                    print(f'Skipping round {round}: Majority label {max_count_label} share is only {max_count_share*100:.2f}% of patch pixels.')
                     round += 1
                     skipped_share += 1
                     if round > max_rounds:
@@ -287,16 +264,15 @@ with alive_bar(max_rounds) as bar:
                     top_two_share_difference = 1
 
                 # make sure that found majority label has more than 15% more share of image pixels than second majority label cause otherwise it might impact learning performance
-                if  top_two_share_difference < threshold:
+                if  top_two_share_difference < threshold or max_count_label == 'Unlabeled':
                     round_debug()
-                    print(f'Skipping round {round}: Majority label share of patch pixels is only {top_two_share_difference*100:.2f}% larger than second majority label share of patch pixels.')
+                    print(f'Skipping round {round}: Majority label {max_count_label} share of patch pixels is only {top_two_share_difference*100:.2f}% larger than second majority label share of patch pixels.')
                     round += 1
                     skipped_share += 1
                     if round > max_rounds:
                         break
                     else:
                         continue
-
 
             # --- save fitting patches ---
             # add patch_name to list
