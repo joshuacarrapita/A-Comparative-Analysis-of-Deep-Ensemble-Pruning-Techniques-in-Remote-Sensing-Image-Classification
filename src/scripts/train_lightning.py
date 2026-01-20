@@ -338,7 +338,7 @@ def main():
             'class_distribution_parquet': Path(sys.argv[4]).resolve(),
         }
         export_dir_root = Path(sys.argv[5]).resolve()
-        seed = int(sys.argv[7]) if len(sys.argv) > 6 else random.randint(1,100)
+        seed = int(sys.argv[7]) if len(sys.argv) > 6 else int(os.getenv('SLURM_JOB_ID', default=random.randint(1,100)))
         print(f'\nSeed set to {seed}.')
 
         # Validate Paths
@@ -350,12 +350,17 @@ def main():
 
     except Exception as e:
         # Handle Input Errors
-        sys.exit(f'\nAn error occured: {e}.\n\nUsage: python train.py /path/to/lmdb_dir/ /path/to/metadata.parquet /path/to/metadata_snow_cloud.parquet /path/to/class_distribution.parquet /path/to/export/dir/ --seed [Number]\n')
+        sys.exit(f'\nAn error occured: {e}.\n\nUsage: python train_lightning.py /path/to/lmdb_dir/ /path/to/metadata.parquet /path/to/metadata_snow_cloud.parquet /path/to/class_distribution.parquet /path/to/export/dir/ --seed [Number]\n')
     
     slurm_job_id = os.getenv('SLURM_JOB_ID')
     if slurm_job_id is not None:
         slurm_job_id = int(slurm_job_id)
-        export_dir = export_dir_root / f'resnet18_{start_time}_seed{seed}_job{slurm_job_id}'
+        slurm_array_task_id = os.getenv('SLURM_ARRAY_TASK_ID')
+        if slurm_array_task_id is not None:
+            slurm_array_task_id = int(slurm_array_task_id)
+            export_dir = export_dir_root / f'resnet18_{start_time}_seed{seed}_task{slurm_array_task_id}_job{slurm_job_id}'
+        else:
+            export_dir = export_dir_root / f'resnet18_{start_time}_seed{seed}_job{slurm_job_id}'
     else:
         export_dir = export_dir_root / f'resnet18_{start_time}_seed{seed}'
     export_dir.mkdir(parents=True, exist_ok=True)
@@ -398,7 +403,7 @@ def main():
     # --- Model, Dataset, Trainer Setup ---
 
     # Define Training Parameters
-    class_weights = inverse_frequency_class_weights_from_class_counts(datapath_args['class_distribution_parquet'], num_classes=19)
+    class_weights = inverse_frequency_class_weights_from_class_counts(datapath_args['class_distribution_parquet'], num_classes=19, alpha=0.0625)
 
     tc = TrainLightningConfiguration(class_weights=class_weights)
     print("\nConfiguration before randomization:")
@@ -419,7 +424,7 @@ def main():
     """
     number_of_channels = 10
     image_size = 120
-    epochs = 10
+    epochs = 100
     if slurm_cpus_per_task is not None:
         num_workers = int(slurm_cpus_per_task)-2 # -2 to keep some cores for main and other processes, experiment with this value to find most efficient cpu utilization
         
@@ -496,8 +501,16 @@ def main():
         print(f'Datasets saved in: {export_dir_datasets}')
 
     # --- Training And Testing ---
+    training_start = time.time()
+
     trainer.fit(model, datamodule=dm)
     trainer.test(model, datamodule=dm) # automatically loads best model from checkpoint
+
+    training_end = time.time()
+
+    s = int(training_end - training_start)
+    m, s = divmod(s, 60)
+    h, m = divmod(m, 60)
 
     # --- Run Info Collection and Logging ---
     tracker.log('Paths', 'Export Dir', str(export_dir))
@@ -562,7 +575,7 @@ def main():
     export_dir_run_tracker.mkdir(parents=True, exist_ok=True)
     tracker.save(export_dir_run_tracker)
 
-    print('\nTraining complete.')
+    print(f'\nTraining complete. Training duration (hh:mm:ss): {h:02d}:{m:02d}:{s:02d}')
     print(f'Best model and logs saved in: {export_dir}')
 
 if __name__ == '__main__':
