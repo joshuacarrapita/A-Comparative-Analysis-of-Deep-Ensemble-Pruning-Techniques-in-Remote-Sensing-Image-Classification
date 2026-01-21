@@ -52,7 +52,8 @@ class TrainLightningConfiguration:
 
         # loss functions 
         loss_fn: callable = F.cross_entropy,
-        class_weights: Optional[torch.Tensor] = None,
+        class_distribution: Optional[pd.DataFrame] = None,
+        class_weights: None,
 
         # optimizers 
         patience: int = 6,
@@ -137,10 +138,8 @@ class TrainLightningConfiguration:
         self.loss_fn = loss_fn
         self.patience = patience
         self.optimizer = optimizer
-        if class_weights is None:
-            self.class_weights = torch.ones(self.num_classes)
-        else:
-            self.class_weights = class_weights
+        self.class_distribution = class_distribution
+        self.class_weights = self._set_class_weights()
 
         self._initial_params = self.__dict__.copy()
         self._set_seed(seed)
@@ -156,6 +155,34 @@ class TrainLightningConfiguration:
             random.seed(seed)
             np.random.seed(seed)
         # torch seeds should be set in the main training script
+
+    def _set_class_weights(alpha: float = 0.0625) -> torch.Tensor:
+        """
+            Compute inverse class weights from a parquet file that stores absolute counts for each label.
+
+            :param alpha: Dampening factor. 
+                      alpha=1.0 ---> full Inverse Frequency (Standard).
+                      alpha=0.5 ---> Square Root Inverse Frequency (Dampened).
+                      alpha=0 ---> no Inverse Frequency (regular loss without class weights).
+
+            :returns torch.Tensor: Tensor of shape (self.num_classes,) with the weight for each class.
+        """
+        if self.class_distribution is None return torch.ones(self.num_classes, dtype=torch.float32)
+
+        counts = self.class_distribution['counts'].values
+        total_samples = counts.sum()
+
+        # or get eps based on input type instead of using 1e-6
+        # If counts is float64 this is ~2e-16, if it's float32 this is ~1e-7
+        # eps = np.finfo(counts.dtype).eps 
+        inverse_freq = total_samples / (counts + 1e-6)
+
+        dampened_weights = np.power(inverse_freq, alpha)
+
+        # normalize weights to mean = 1.0 so global lr does not have to be scaled
+        normalized_weights = dampened_weights * (self.num_classes / dampened_weights.sum())
+
+        return torch.tensor(normalized_weights, dtype=torch.float32) 
         
     def randomize_all(self, seed: Optional[int] = None) -> None:
         """
@@ -264,16 +291,18 @@ class TrainLightningConfiguration:
         """
         if seed is not None: self._set_seed(seed)
 
-        use_weights = random.choice(['per-class', 'ones'])
+        technique = random.choice(['None', 'alpha', 'per-class'])
 
-        if use_weights == 'per-class':
+        if technique == 'alpha':
+            # Generate a random dampening factor
+            alpha = np.random.uniform(0.0, 0.25)
+            self.class_weights = _set_class_weights(alpha=alpha)
+        if technique == 'per-class':
             # Generate a random weight scalar, e.g., between 0.5 and 2.0 for each class
-            scalars = torch.FloatTensor([random.uniform(0.5, 2.0) for _ in range(self.num_classes)])
+            scalars = torch.FloatTensor([np.random.uniform(0.5, 2.0) for _ in range(self.num_classes)])
             scaled_weights = self.class_weights * scalars
             normalized_weights = scaled_weights * (self.num_classes / scaled_weights.sum())
             self.class_weights = normalized_weights
-        elif use_weights == 'ones':
-            self.class_weights = torch.ones(self.num_classes)
         
     def randomize_optimizer(self, seed: Optional[int] = None) -> None:
         """Randomizes the optimizer."""
