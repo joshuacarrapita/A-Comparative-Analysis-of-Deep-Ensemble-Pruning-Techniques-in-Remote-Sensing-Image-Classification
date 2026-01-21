@@ -60,9 +60,12 @@ class TrainLightningConfiguration:
         optimizer: callable = torch.optim.AdamW,
     ):
         """
-            This configuration class is designed to work with the train_lightning training script.
+            This configuration class is designed to work with the 
+            train_lightning training script.
 
-            :param generator: Variable to hold own instance of Random if preferred to use custom generators or generators that don't share state.
+            :param generator: Variable to hold own instance of Random if 
+                preferred to use custom generators or generators that don't 
+                share state.
 
                 :default: None
 
@@ -74,14 +77,19 @@ class TrainLightningConfiguration:
 
                 :default: 19
 
-            :param img_size: The size of the images (c, h, w). Note that this includes the number of
-            channels (c). For example, if the images are RGB images, the size should be (3, h, w). The dataset can be loaded with different channel configurations. The channel configuration is defined by the first element of the img_size tuple (c, h, w). The available configurations are:
+            :param img_size: The size of the images (c, h, w). Note that this 
+            includes the number of channels (c). For example, if the images 
+            are RGB images, the size should be (3, h, w). The dataset can be 
+            loaded with different channel configurations. The channel 
+            configuration is defined by the first element of the img_size 
+            tuple (c, h, w). The available configurations are:
                 - 2 -> Sentinel-1 (VV, VH)
                 - 3 -> RGB
                 - 4 -> 10m Sentinel-2 (B, R, G, Ir)
                 - 10 -> 10m + 20m Sentinel-2 (in original order)
                 - 12 -> Sentinel-1 + 10m/20m Sentinel-2 (in original order)
-                - 14 -> Sentinel-1 + 10m/20m/60m Sentinel-2 (in original order)
+                - 14 -> Sentinel-1 + 10m/20m/60m Sentinel-2 (in original 
+                    order)
 
                 :default: (10, 120, 120)
 
@@ -93,17 +101,26 @@ class TrainLightningConfiguration:
 
                 :default: 32
 
-            :param drop_rate: Dropout rate for timm models. Applied internally within the layers of the Timm Image Model itself (e.g., standard dropout in the backbone). Standard backbone regularization for the image encoder.
+            :param drop_rate: Dropout rate for timm models. Applied 
+                internally within the layers of the Timm Image Model itself 
+                (e.g., standard dropout in the backbone). Standard backbone 
+                regularization for the image encoder.
 
                 :default: 0.2
 
-            :param drop_path_rate: Drop path rate for timm models. Applied internally within the layers of the Timm Image Model (specifically common in Vision Transformers and similar architectures).	A technique that randomly drops entire residual paths/branches within the network, often more effective than standard dropout in deep models.
+            :param drop_path_rate: Drop path rate for timm models. 
+                Applied internally within the layers of the Timm Image Model 
+                (specifically common in Vision Transformers and similar 
+                architectures).	A technique that randomly drops entire 
+                residual paths/branches within the network, often more 
+                effective than standard dropout in deep models.
 
                 :default: None
 
-            :param train_transforms: A callable that is used to transform the training images.
-                If None is provided, the default train transform is used, that consists of
-                resizing, horizontal and vertical flipping and normalization.
+            :param train_transforms: A callable that is used to transform 
+                the training images. If None is provided, the default train 
+                transform is used, that consists of resizing, horizontal and 
+                vertical flipping and normalization.
 
                 :default: None
 
@@ -111,17 +128,24 @@ class TrainLightningConfiguration:
 
                 :default: F.cross_entropy
 
-            :param class_weights: A manual rescaling weight given to each class. If given,
-                has to be a Tensor of size C (number of classes).
+            :param class_distribution: Pandas DataFrame containing the 
+                absolute class counts and thus the class distribution.
 
                 :default: None
 
-            :param patience: Number of epochs with no improvement after which training may be stopped.
-                Used for EarlyStopping callbacks.
+            :param class_weights: A manual rescaling weight given to each 
+                class. Automatically assigned through class distribution 
+                if class distribution is not None otherwise all set to 1.
+
+                :default: None
+
+            :param patience: Number of epochs with no improvement after which 
+                training may be stopped. Used for EarlyStopping callbacks.
 
                 :default: 6
 
-            :param optimizer: The optimizer algorithm to use for training the model.
+            :param optimizer: The optimizer algorithm to use for training the 
+                model.
 
                 :default: torch.optim.AdamW
         """
