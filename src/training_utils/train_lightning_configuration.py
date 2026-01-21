@@ -190,13 +190,13 @@ class TrainLightningConfiguration:
         """Randomizes the timm model's drop rate."""
         if seed is not None: self._set_seed(seed)
         # often 0, 0.1 or 0.2
-        self.drop_rate = random.uniform(0.0, 0.5)
+        self.drop_rate = np.random.uniform(0.0, 0.5)
 
     def randomize_drop_path_rate(self, seed: Optional[int] = None) -> None:
         """Randomizes the timm model's drop path rate."""
         if seed is not None: self._set_seed(seed)
         # drop_path_rate often benefits from being 0 or a low value
-        self.drop_path_rate = random.choice([None, random.uniform(0.0, 0.2)])
+        self.drop_path_rate = random.choice([None, np.random.uniform(0.0, 0.2)])
 
     def randomize_train_transforms(self, seed: Optional[int] = None) -> None:
         """
@@ -245,7 +245,7 @@ class TrainLightningConfiguration:
         if seed is not None: self._set_seed(seed)
 
         # Predefine cross_entropy with a random label smoothing value sampled once and remaining constant for the entire training run
-        random_smoothing_factor = random.uniform(0.0, 0.2)
+        random_smoothing_factor = np.random.uniform(0.0, 0.2)
         ce_smooth_random = partial(F.cross_entropy, label_smoothing=random_smoothing_factor)
 
         loss_functions = [
