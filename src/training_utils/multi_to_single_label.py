@@ -5,6 +5,29 @@ import numpy as np
 import pandas as pd
 import sys
 
+POSSIBLE_SKIP_CLASSES = {
+    'Urban fabric',
+    'Industrial or commercial units',
+    'Unlabeled',
+    'Arable land',
+    'Permanent crops',
+    'Pastures',
+    'Complex cultivation patterns',
+    'Land principally occupied by agriculture, with significant areas of natural vegetation',
+    'Agro-forestry areas',
+    'Broad-leaved forest',
+    'Coniferous forest',
+    'Mixed forest', 
+    'Natural grassland and sparsely vegetated areas',
+    'Moors, heathland and sclerophyllous vegetation',
+    'Transitional woodland, shrub',
+    'Beaches, dunes, sands',
+    'Inland wetlands',
+    'Coastal wetlands',
+    'Inland waters',
+    'Marine waters',
+}
+
 #-----------------------------------------------------------------------------
 # INIT
 #-----------------------------------------------------------------------------
@@ -37,8 +60,11 @@ try:
     assert method in METHODS, f'Method must be one of {str(METHODS)}'
     threshold = float(sys.argv[4])
     assert threshold >= 0 and threshold <=1, f'Threshold must be between 0 and 1'
+    SKIP_CLASSES = str(sys.argv[5]).split(',').append('Unlabeled')
+    for class in SKIP_CLASSES assert class in POSSIBLE_SKIP_CLASSES, f'Skipped classes must be in {str(POSSIBLE_SKIP_CLASSES)}'
+    print(f'\nSkipping classes: {SKIP_CLASSES}')
 except Exception as e:
-    sys.exit(f'\nAn error occured: {e}.\n\nUsage: python multi_to_single_label.py /path/to/reference_maps_dir/ /path/to/outfile.parquet [main-label-threshold, top-vs-sec] threshold\n')
+    sys.exit(f'\nAn error occured: {e}.\n\nUsage: python multi_to_single_label.py /path/to/reference_maps_dir/ /path/to/outfile.parquet [main-label-threshold, top-vs-sec] threshold "classes","to","skip"\n')
 
 print('\nIndexing reference maps, please be patient...')
 
@@ -243,9 +269,9 @@ with alive_bar(max_rounds) as bar:
                 max_count_share = label_percentages[max_count_index]
 
                 # make sure that found majority label has more than 50% share or so of image pixels cause otherwise it might impact learning performance
-                if max_count_share <= threshold or max_count_label == 'Unlabeled':
+                if max_count_share <= threshold or max_count_label in SKIP_CLASSES:
                     round_debug()
-                    if max_count_label == 'Unlabeled':
+                    if max_count_label in SKIP_CLASSES:
                         print(f'Skipping round {round}: Majority label is "{max_count_label}".')
                     else:
                         print(f'Skipping round {round}: Majority label "{max_count_label}" share is only {max_count_share*100:.2f}% of patch pixels.')
@@ -267,9 +293,9 @@ with alive_bar(max_rounds) as bar:
                     top_two_share_difference = 1
 
                 # make sure that found majority label has more than 15% more share of image pixels than second majority label cause otherwise it might impact learning performance
-                if  top_two_share_difference < threshold or max_count_label == 'Unlabeled':
+                if  top_two_share_difference < threshold or max_count_label in SKIP_CLASSES:
                     round_debug()
-                    if max_count_label == 'Unlabeled':
+                    if max_count_label in SKIP_CLASSES:
                         print(f'Skipping round {round}: Majority label is "{max_count_label}".')
                     else:
                         print(f'Skipping round {round}: Majority label "{max_count_label}" share of patch pixels is only {top_two_share_difference*100:.2f}% larger than second majority label share of patch pixels.')
