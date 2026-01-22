@@ -29,6 +29,22 @@ POSSIBLE_SKIP_CLASSES = {
 }
 
 #-----------------------------------------------------------------------------
+# HELPER
+#-----------------------------------------------------------------------------
+def ensure(condition, message):
+    if not condition:
+        raise ValueError(message)
+
+def check_skip_condition(label, is_threshold_violation, skip_classes, round_num, threshold_msg):
+    if label in skip_classes:
+        print(f'Skipping round {round_num}: Majority label is "{label}".')
+        return True, 'class'
+    elif is_threshold_violation:
+        print(f'Skipping round {round_num}: {threshold_msg}')
+        return True, 'threshold'
+    return False, None
+
+#-----------------------------------------------------------------------------
 # INIT
 #-----------------------------------------------------------------------------
 
@@ -41,30 +57,32 @@ else:
 pd.set_option('display.max_colwidth', None)
 
 try:
-    assert len(sys.argv) == 5, 'Must provide arguments according to usage'
+    ensure(5 <= len(sys.argv) <= 6, 'Must provide arguments according to usage')
     datapath = {
         'reference_maps_root_dir_path': Path(sys.argv[1]).resolve(),
         'outfile': Path(sys.argv[2]).resolve(),
     }
     for key, path in datapath.items():
         if key != 'outfile':
-            assert path.is_dir(), f"Input directory does not exist or is not a directory: {path}"
+            ensure(path.is_dir(), f"Input directory does not exist or is not a directory: {path}")
         else: 
             if path.is_dir():
                 sys.exit(f'\nNo output filename provided. Exiting.')
             else:
-                assert path.parent.is_dir(), f"Output directory does not exist or is not a directory: {path.parent}"
-                assert path.name, f"No output filename provided: {path}"
+                ensure(path.parent.is_dir(), f"Output directory does not exist or is not a directory: {path.parent}")
+                ensure(path.name, f"No output filename provided: {path}")
     method = str(sys.argv[3])
     METHODS = ['main-label-threshold', 'top-vs-sec']
-    assert method in METHODS, f'Method must be one of {str(METHODS)}'
+    ensure(method in METHODS, f'Method must be one of {str(METHODS)}')
     threshold = float(sys.argv[4])
-    assert threshold >= 0 and threshold <=1, f'Threshold must be between 0 and 1'
-    SKIP_CLASSES = str(sys.argv[5]).split(',').append('Unlabeled')
-    for class in SKIP_CLASSES assert class in POSSIBLE_SKIP_CLASSES, f'Skipped classes must be in {str(POSSIBLE_SKIP_CLASSES)}'
+    ensure(threshold >= 0 and threshold <=1, f'Threshold must be between 0 and 1')
+    SKIP_CLASSES = str(sys.argv[5]).split('+') if len(sys.argv) == 6 else []
+    SKIP_CLASSES.append('Unlabeled')
+    for item in SKIP_CLASSES:
+        ensure(item in POSSIBLE_SKIP_CLASSES, f'Skipped classes must be in {str(POSSIBLE_SKIP_CLASSES)}')
     print(f'\nSkipping classes: {SKIP_CLASSES}')
 except Exception as e:
-    sys.exit(f'\nAn error occured: {e}.\n\nUsage: python multi_to_single_label.py /path/to/reference_maps_dir/ /path/to/outfile.parquet [main-label-threshold, top-vs-sec] threshold "classes","to","skip"\n')
+    sys.exit(f'\nAn error occured: {e}.\n\nUsage: python multi_to_single_label.py /path/to/reference_maps_dir/ /path/to/outfile.parquet [main-label-threshold, top-vs-sec] threshold "classes"+"to"+"skip"\n')
 
 print('\nIndexing reference maps, please be patient...')
 
@@ -78,7 +96,7 @@ patch_names = []
 patch_labels = []
 
 clc_lvl_3_label_dictionary = {
- 	111: 'Continuous urban fabric',
+    111: 'Continuous urban fabric',
     112: 'Discontinuous urban fabric',
     121: 'Industrial or commercial units',
     122: 'Road and rail networks and associated land',
@@ -213,7 +231,7 @@ else:
     max_rounds = len(image_patch_file_paths)
 round = 1
 skipped_unlabeled = 0
-skipped_share = 0
+skipped_threshold = 0
 one_label = 0
 
 np.random.seed(0) # make run predictable in case e.g. argmax needs to randomly choose between same-rank candidates
@@ -242,7 +260,7 @@ with alive_bar(max_rounds) as bar:
                     one_label += 1
 
             # make sure the data mapping works
-            assert None not in unique_labels, "Dict data mapping returned None."
+            ensure(None not in unique_labels, "Dict data mapping returned None.")
 
             # convert the unique labels from 19_class_label numbers to 19_class_label strings according to mapping
             mapped_unique_labels = nineteen_class_label_dictionary_vectorized_get(unique_labels)
@@ -269,18 +287,9 @@ with alive_bar(max_rounds) as bar:
                 max_count_share = label_percentages[max_count_index]
 
                 # make sure that found majority label has more than 50% share or so of image pixels cause otherwise it might impact learning performance
-                if max_count_share <= threshold or max_count_label in SKIP_CLASSES:
-                    round_debug()
-                    if max_count_label in SKIP_CLASSES:
-                        print(f'Skipping round {round}: Majority label is "{max_count_label}".')
-                    else:
-                        print(f'Skipping round {round}: Majority label "{max_count_label}" share is only {max_count_share*100:.2f}% of patch pixels.')
-                    round += 1
-                    skipped_share += 1
-                    if round > max_rounds:
-                        break
-                    else:
-                        continue
+                is_threshold_violation = max_count_share < threshold
+                threshold_msg = f'Majority label "{max_count_label}" share is only {max_count_share*100:.2f}% of patch pixels.'
+                
             else:
                 # get index, text and pixel-share of most common label
                 top_two_indices = (-label_counts).argsort()[:2] # -array for descending order, argsort returns indices that would sort the array in ascending order
@@ -293,18 +302,30 @@ with alive_bar(max_rounds) as bar:
                     top_two_share_difference = 1
 
                 # make sure that found majority label has more than 15% more share of image pixels than second majority label cause otherwise it might impact learning performance
-                if  top_two_share_difference < threshold or max_count_label in SKIP_CLASSES:
-                    round_debug()
-                    if max_count_label in SKIP_CLASSES:
-                        print(f'Skipping round {round}: Majority label is "{max_count_label}".')
-                    else:
-                        print(f'Skipping round {round}: Majority label "{max_count_label}" share of patch pixels is only {top_two_share_difference*100:.2f}% larger than second majority label share of patch pixels.')
-                    round += 1
-                    skipped_share += 1
-                    if round > max_rounds:
-                        break
-                    else:
-                        continue
+                is_threshold_violation = top_two_share_difference < threshold
+                threshold_msg = f'Majority label "{max_count_label}" share of patch pixels is only {top_two_share_difference*100:.2f}% larger than second majority label share of patch pixels.'
+
+            round_debug()
+
+            is_skipped, skip_type = check_skip_condition(
+                max_count_label, 
+                is_threshold_violation, 
+                SKIP_CLASSES, 
+                round, 
+                threshold_msg,
+            )
+
+            if is_skipped:
+                round += 1
+                if skip_type == 'class':
+                    skipped_unlabeled += 1
+                else:
+                    skipped_threshold += 1
+                
+                if round > max_rounds:
+                    break
+                else:
+                    continue
 
             # --- save fitting patches ---
             # add patch_name to list
@@ -321,13 +342,14 @@ with alive_bar(max_rounds) as bar:
 
 # print run info
 round -= 1
-skipped = skipped_unlabeled + skipped_share
+skipped = skipped_unlabeled + skipped_threshold
 converted = round-skipped
-print(f'\nFinished converting multi- to single labels.')
-if method == 'main-label-threshold':
-    print(f'\n{skipped} patches skipped in total. Skipped {skipped_unlabeled} patches with >25% "Unlabeled" pixels and {skipped_share} patches with <{threshold * 100}% majority label share of pixels. {one_label} patches only had one label.')
-else:
-    print(f'\n{skipped} patches skipped in total. Skipped {skipped_unlabeled} patches with >25% "Unlabeled" pixels and {skipped_share} patches with majority label share of pixels <{threshold * 100}% apart from second most occuring label. {one_label} patches only had one label.')
+
+print(f'\nFinished converting multi- to single labels')
+print(f'{one_label} patches only had one label')
+print(f'{skipped} patches skipped in total')
+print(f'   - {skipped_unlabeled} skipped because majority label in skiplist: str{SKIP_CLASSES}')
+print(f'   - {skipped_threshold} skipped due to threshold ({threshold})')
 print(f'\nConverted labels for {converted}/{round} ({converted*100/round:.2f}% of) patches.')
 
 # create a pandas dataframe based on the patch_id and labels list
