@@ -132,12 +132,6 @@ class TrainLightningConfiguration:
 
                 :default: None
 
-            :param class_weights: A manual rescaling weight given to each 
-                class. Automatically assigned through class distribution 
-                if class distribution is not None otherwise all set to 1.
-
-                :default: None
-
             :param patience: Number of epochs with no improvement after which 
                 training may be stopped. Used for EarlyStopping callbacks.
 
