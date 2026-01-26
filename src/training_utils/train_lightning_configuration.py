@@ -37,7 +37,7 @@ class TrainLightningConfiguration:
         # --- not-randomized params ---
         generator: Optional[random.Random] = None,
         seed: int = 42,
-        num_classes: int = 19,
+        num_classes: int = 16,
         img_size: tuple = (10, 120, 120),
         
         # --- randomized params ---
