@@ -268,7 +268,7 @@ def randomize_tc_for_benv2_ep(tc: TrainLightningConfiguration, seed: Optional[in
     """
         Runs all randomization methods for creation of a BENv2 image classifying ensemble.
 
-        :param tc: The traning configuration to randomize.
+        :param tc: The training configuration to randomize.
 
         :param seed: The random seed to use for all operations.
     """
