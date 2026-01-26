@@ -388,7 +388,7 @@ def main():
     """
     number_of_channels = 10
     image_size = 120
-    epochs = 100
+    epochs = 50
     if slurm_cpus_per_task is not None:
         num_workers = int(slurm_cpus_per_task)-1 # -1 to keep a core for main and other processes
         
