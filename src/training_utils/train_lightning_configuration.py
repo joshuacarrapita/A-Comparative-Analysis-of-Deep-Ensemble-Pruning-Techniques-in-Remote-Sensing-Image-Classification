@@ -53,7 +53,6 @@ class TrainLightningConfiguration:
         # loss functions 
         loss_fn: callable = F.cross_entropy,
         class_distribution: Optional[pd.DataFrame] = None,
-        class_weights: None,
 
         # optimizers 
         patience: int = 6,
@@ -180,7 +179,7 @@ class TrainLightningConfiguration:
             np.random.seed(seed)
         # torch seeds should be set in the main training script
 
-    def _set_class_weights(alpha: float = 0.0625) -> torch.Tensor:
+    def _set_class_weights(self, alpha: float = 0.0625) -> torch.Tensor:
         """
             Compute inverse class weights from a parquet file that stores absolute counts for each label.
 
@@ -191,7 +190,7 @@ class TrainLightningConfiguration:
 
             :returns torch.Tensor: Tensor of shape (self.num_classes,) with the weight for each class.
         """
-        if self.class_distribution is None return torch.ones(self.num_classes, dtype=torch.float32)
+        if self.class_distribution is None: return torch.ones(self.num_classes, dtype=torch.float32)
 
         counts = self.class_distribution['counts'].values
         total_samples = counts.sum()
@@ -320,7 +319,7 @@ class TrainLightningConfiguration:
         if technique == 'alpha':
             # Generate a random dampening factor
             alpha = np.random.uniform(0.0, 0.25)
-            self.class_weights = _set_class_weights(alpha=alpha)
+            self.class_weights = self._set_class_weights(alpha=alpha)
         if technique == 'per-class':
             # Generate a random weight scalar, e.g., between 0.5 and 2.0 for each class
             scalars = torch.FloatTensor([np.random.uniform(0.5, 2.0) for _ in range(self.num_classes)])
