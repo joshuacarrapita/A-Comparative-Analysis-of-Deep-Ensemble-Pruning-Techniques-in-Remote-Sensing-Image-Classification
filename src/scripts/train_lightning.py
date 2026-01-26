@@ -373,10 +373,7 @@ def main():
     # --- Model, Dataset, Trainer Setup ---
     # Define Training Parameters
     tc = TrainLightningConfiguration(class_distribution=pd.read_parquet(datapath_args['class_distribution_parquet']))
-    print("\nConfiguration before randomization:")
-    tc.info()
-    randomize_tc_for_benv2_ep(tc=tc, seed=seed)
-    print("\nConfiguration after randomization:")
+    tc.randomize_all(seed=seed)
     tc.info()
 
     # Set PL Seed For Training Reproducibility
