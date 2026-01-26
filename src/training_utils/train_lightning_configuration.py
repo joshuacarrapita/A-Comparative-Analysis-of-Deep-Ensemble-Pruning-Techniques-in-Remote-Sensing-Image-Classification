@@ -74,7 +74,7 @@ class TrainLightningConfiguration:
             
             :param num_classes: The number of classes in the dataset.
 
-                :default: 19
+                :default: 16
 
             :param img_size: The size of the images (c, h, w). Note that this 
             includes the number of channels (c). For example, if the images 
