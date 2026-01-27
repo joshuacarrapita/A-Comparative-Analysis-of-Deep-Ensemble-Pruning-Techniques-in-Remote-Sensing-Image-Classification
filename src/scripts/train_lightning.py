@@ -264,6 +264,11 @@ class LitImageEncoder(pl.LightningModule):
 # Helper Functions
 # ===========================================================================
 
+def order_class_distribution(class_distribution: Path, order: tuple):
+    class_distribution = pd.read_parquet(class_distribution)
+    class_distribution = class_distribution.set_index('labels').reindex(order, fill_value=0).reset_index(names='labels')
+    return class_distribution
+
 def randomize_tc_for_benv2_ep(tc: TrainLightningConfiguration, seed: Optional[int] = None) -> None:
     """
         Runs all randomization methods for creation of a BENv2 image classifying ensemble.
@@ -318,6 +323,7 @@ def main():
         assert datapath_args['class_distribution_parquet'].is_file(), f"Input file does not exist or is not a file: {datapath_args['class_distribution_parquet']}"
         assert not export_dir_root.is_file(), f"Export needs to be a directory but is a file: {export_dir_root}"
 
+        class_distribution = order_class_distribution(datapath_args['class_distribution_parquet'], NEW_LABELS_16)
     except Exception as e:
         # Handle Input Errors
         sys.exit(f'\nAn error occured: {e}.\n\nUsage: python train_lightning.py /path/to/lmdb_dir/ /path/to/metadata.parquet /path/to/metadata_snow_cloud.parquet /path/to/class_distribution.parquet /path/to/export/dir/ --seed [Number]\n')
@@ -372,7 +378,7 @@ def main():
 
     # --- Model, Dataset, Trainer Setup ---
     # Define Training Parameters
-    tc = TrainLightningConfiguration(class_distribution=pd.read_parquet(datapath_args['class_distribution_parquet']))
+    tc = TrainLightningConfiguration(class_distribution=class_distribution)
     tc.randomize_all(seed=seed)
     tc.info()
 
