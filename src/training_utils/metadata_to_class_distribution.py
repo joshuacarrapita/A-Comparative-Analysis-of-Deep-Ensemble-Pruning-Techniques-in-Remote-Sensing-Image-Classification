@@ -1,6 +1,7 @@
 from pathlib import Path
 import pandas as pd
 import sys
+from configilm.extra.BENv2_utils import NEW_LABELS, NEW_LABELS_ORIGINAL_ORDER, NEW_LABELS_16, NEW_LABELS_16_ORIGINAL_ORDER
 
 #-----------------------------------------------------------------------------
 # INIT 
@@ -9,8 +10,11 @@ try:
         'metadata.parquet': Path(sys.argv[1]).resolve(),
         'metadata_for_patches_with_snow_cloud_or_shadow.parquet': Path(sys.argv[2]).resolve(),
         'outdir': Path(sys.argv[3]).resolve(),
-        'full': str(sys.argv[4]) if len(sys.argv) > 4 else ''
+        'full': str(sys.argv[4]) if len(sys.argv) > 4 else '',
+        'num_classes': int(sys.argv[6]) if len(sys.argv) > 5 else 16,
+        'sort_order': sys.argv[8] if len(sys.argv) > 7 else 'lexicographical',
     }
+
     for key, path in input_args.items():
         if key == 'metadata.parquet' or key == 'metadata_for_patches_with_snow_cloud_or_shadow.parquet':
             if not path.is_file(): raise Exception(f"Input file not found or not a file: {path}")
@@ -19,7 +23,7 @@ try:
             input_args['outdir'] = input_args['outdir'] / "class_distributions"
             input_args['outdir'].mkdir(parents=True, exist_ok=True)
 except Exception as e:
-    sys.exit(f'\nAn error occured: {e}.\n\nUsage: python metadata_to_class_distribution.py /path/to/metadata.parquet /path/to/metadata_for_patches_with_snow_cloud_or_shadow.parquet /path/to/outdir/\n')
+    sys.exit(f'\nAn error occured: {e}.\n\nUsage: python metadata_to_class_distribution.py /path/to/metadata.parquet /path/to/metadata_for_patches_with_snow_cloud_or_shadow.parquet /path/to/outdir/ [--classes 16|19] [--sorted lexicographical|original]\n')
 
 #-----------------------------------------------------------------------------
 # EXEC
@@ -91,13 +95,22 @@ all_class_distributions = {
     'both_class_distribution_relative_old_all_splits': both_class_distribution_relative_old_all_splits,
 }
 
-for name, variable in all_class_distributions.items():
-    print(f"\nName: {name}\nContent:\n{variable.to_string()}")
+for name, dataframe in all_class_distributions.items():
+    print(f"\nName: {name}\nContent:\n{dataframe.to_string()}")
     if input_args['full'] == "--full":
         outpath = input_args['outdir'] / f'{name}.parquet'
-        variable.to_parquet(outpath, compression='gzip')
+        dataframe.to_parquet(outpath, compression='gzip')
 
 outpath = input_args['outdir'] / f'class_distribution.parquet'
 outfile = all_class_distributions['metadata_class_distribution_absolute']
+
+if input_args['num_classes'] == 16:
+    target_labels = NEW_LABELS_16 if input_args['sort_order'] == 'lexicographical' else NEW_LABELS_16_ORIGINAL_ORDER
+else:
+    target_labels = NEW_LABELS if input_args['sort_order'] == 'lexicographical' else NEW_LABELS_ORIGINAL_ORDER
+
+outfile = outfile.set_index('labels').reindex(target_labels, fill_value=0).reset_index(names='labels')
+outfile['counts'] = outfile['counts'].astype(int)
+
 outfile.to_parquet(outpath, compression='gzip')
 print(f"\nName: class_distribution.parquet\nContent:\n{outfile.to_string()}")
