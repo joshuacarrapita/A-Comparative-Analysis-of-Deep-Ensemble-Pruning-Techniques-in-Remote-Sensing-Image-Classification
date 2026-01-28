@@ -10,16 +10,32 @@ try:
         'metadata.parquet': Path(sys.argv[1]).resolve(),
         'metadata_for_patches_with_snow_cloud_or_shadow.parquet': Path(sys.argv[2]).resolve(),
         'outdir': Path(sys.argv[3]).resolve(),
-        'full': str(sys.argv[4]) if len(sys.argv) > 4 else '',
-        'num_classes': int(sys.argv[6]) if len(sys.argv) > 5 else 16,
-        'sort_order': sys.argv[8] if len(sys.argv) > 7 else 'lexicographical',
+        'full': '',
+        'num_classes': 16,
+        'sort_order': 'lexicographical',
     }
 
-    for key, path in input_args.items():
+    if '--full' in sys.argv:
+        idx = sys.argv.index('--full')
+        input_args['full'] = sys.argv[idx]
+
+    if '--classes' in sys.argv:
+        idx = sys.argv.index('--classes')
+        input_args['num_classes'] = int(sys.argv[idx + 1])
+
+    if '--sorted' in sys.argv:
+        idx = sys.argv.index('--sorted')
+        input_args['sort_order'] = sys.argv[idx + 1]
+
+    for key, item in input_args.items():
         if key == 'metadata.parquet' or key == 'metadata_for_patches_with_snow_cloud_or_shadow.parquet':
-            if not path.is_file(): raise Exception(f"Input file not found or not a file: {path}")
+            if not item.is_file(): raise Exception(f"Input file not found or not a file: {item}")
+        if key == 'num_classes':
+            if not item in [16,19]: raise Exception(f"--classes must be one of [16,19]")
+        if key == 'sort_order':
+            if not item in ['lexicographical','original']: raise Exception(f"--sorted must be one of [lexicographical, original]")
         elif key == 'outdir': 
-            if not path.is_dir(): raise Exception(f"Output directory does not exist or is not a directory: {path}")
+            if not item.is_dir(): raise Exception(f"Output directory does not exist or is not a directory: {item}")
             input_args['outdir'] = input_args['outdir'] / "class_distributions"
             input_args['outdir'].mkdir(parents=True, exist_ok=True)
 except Exception as e:
