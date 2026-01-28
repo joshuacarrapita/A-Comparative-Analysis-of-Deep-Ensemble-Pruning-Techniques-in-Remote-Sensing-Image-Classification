@@ -207,23 +207,43 @@ class TrainLightningConfiguration:
 
         return torch.tensor(normalized_weights, dtype=torch.float32) 
         
-    def randomize_all(self, seed: Optional[int] = None) -> None:
+    def randomize_all(self, seed: Optional[int] = None, chance: float = 0.0) -> None:
         """
         Runs all randomization methods.
 
         :param seed: The random seed to use for all operations.
+
+        :param chance: The chance a parameter gets randomized.
         """
         if seed is not None: self._set_seed(seed)
-        print("Randomizing all hyperparameters...")
-        self.randomize_lr()
-        self.randomize_batch_size()
-        self.randomize_drop_rate()
-        self.randomize_drop_path_rate()
-        self.randomize_train_transforms()
-        self.randomize_loss_fn()
-        self.randomize_class_weights()
-        self.randomize_patience()
-        self.randomize_optimizer()
+        print("\nRandomizing all hyperparameters...")
+
+        if not 0 <= chance <= 1:
+            print("Chance invalid, needs to be float between 0 and 1.")
+            print("Setting chance to default 0.5.")
+            chance = 0.5
+
+        tasks = { 
+             'lr': self.randomize_lr,
+             'batch_size': self.randomize_batch_size,
+             'drop_rate': self.randomize_drop_rate,
+             'drop_path_rate': self.randomize_drop_path_rate,
+             'train_tarnsforms': self.randomize_train_transforms,
+             'loss_fn': self.randomize_loss_fn,
+             'class_weights': self.randomize_class_weights,
+             'patience': self.randomize_patience,
+             'optimizer': self.randomize_optimizer,
+        }
+
+        for param, func in tasks.items():
+            random_value = np.random.uniform(0,1)
+            if random_value <= chance and chance != 0.0:
+                print(f'---- Randomizing {param} ({random_value:.2f} <= {chance:.2f})')
+                func()
+            elif random_value != 0.0:
+                print(f'---- Not randomizing {param} ({random_value:.2f} > {chance:.2f})')
+            else:
+                print(f'---- Not randomizing {param} ({random_value:.2f} = {chance:.2f})')
 
     def randomize_lr(self, seed: Optional[int] = None) -> None:
         """Randomizes the learning rate on a logarithmic scale."""
