@@ -181,14 +181,14 @@ class TrainLightningConfiguration:
 
     def _set_class_weights(self, alpha: float = 0.0625) -> torch.Tensor:
         """
-            Compute inverse class weights from a parquet file that stores absolute counts for each label.
+        Compute inverse class weights from a parquet file that stores absolute counts for each label.
 
-            :param alpha: Dampening factor. 
-                      alpha=1.0 ---> full Inverse Frequency (Standard).
-                      alpha=0.5 ---> Square Root Inverse Frequency (Dampened).
-                      alpha=0 ---> no Inverse Frequency (regular loss without class weights).
+        :param alpha: Dampening factor. 
+                  alpha=1.0 ---> full Inverse Frequency (Standard).
+                  alpha=0.5 ---> Square Root Inverse Frequency (Dampened).
+                  alpha=0 ---> no Inverse Frequency (regular loss without class weights).
 
-            :returns torch.Tensor: Tensor of shape (self.num_classes,) with the weight for each class.
+        :returns torch.Tensor: Tensor of shape (self.num_classes,) with the weight for each class.
         """
         if self.class_distribution is None: return torch.ones(self.num_classes, dtype=torch.float32)
 
