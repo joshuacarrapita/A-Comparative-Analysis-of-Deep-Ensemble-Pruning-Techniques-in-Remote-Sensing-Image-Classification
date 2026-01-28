@@ -451,6 +451,7 @@ class TrainLightningConfiguration:
 
         print(df.to_string())
         print("-" * 86)
+        print("\n")
 
 if __name__ == '__main__':
     # --- Example Usage ---
