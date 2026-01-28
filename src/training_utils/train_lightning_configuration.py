@@ -12,6 +12,7 @@ models: 
     - Variation in den optimizern (Adam vs. AdamW vs. SGD, Early stopping patience) 
 """
 import random
+import textwrap
 from typing import Callable, Optional, Union, Tuple
 from inspect import signature
 
@@ -352,6 +353,7 @@ class TrainLightningConfiguration:
         (initial) values, and their current (potentially randomized) values
         using the pandas library for clean formatting.
         """
+
         print("\n--- Configuration Parameter Info ---")
 
         table_data = []
@@ -364,22 +366,33 @@ class TrainLightningConfiguration:
 
             def format_value(val):
                 """Helper to create a nice string representation for different types."""
+                if isinstance(val, pd.DataFrame):
+                    return val.to_string()
+
+                s = ""
                 if hasattr(val, '__name__'):
                     if val.__name__ == "cross_entropy":
                         sig = signature(val)
-                        return val.__name__ + "(" + str(sig.parameters['label_smoothing']) + ")"
+                        s = val.__name__ + "(" + str(sig.parameters['label_smoothing']) + ")"
                     else: 
-                        return val.__name__
-                if isinstance(val, tuple) and len(val) > 0 and isinstance(val[0], str):
-                    return val[0] # For tuples like ("mul", torch.mul)
-                if isinstance(val, torch.Tensor):
+                        s = val.__name__
+                elif isinstance(val, tuple) and len(val) > 0 and isinstance(val[0], str):
+                    s = val[0] # For tuples like ("mul", torch.mul)
+                elif isinstance(val, torch.Tensor):
                     #return f"Tensor(shape={val.shape})"
-                    return str(val)
-                if val is None:
-                    return "None"
-                if isinstance(val, float):
-                    return f"{val:.6f}"
-                return str(val)
+                    s = str(val)
+                elif val is None:
+                    s = "None"
+                elif isinstance(val, float):
+                    s = f"{val:.6f}"
+                else:
+                    s = str(val)
+                
+                wrapped_lines = [textwrap.fill(line, width=30, break_long_words=False, replace_whitespace=False) for line in s.splitlines()]
+                
+                join_char = "\n\n" if "Compose" in s else "\n"
+
+                return join_char.join(wrapped_lines)
 
             standard_value_str = format_value(standard_value)
             current_value_str = format_value(current_value)
