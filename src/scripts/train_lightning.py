@@ -381,7 +381,7 @@ def main():
         print(f"Num_workers set to {num_workers} with SLURM_CPUS_PER_TASK")
     else:
         num_workers = max(1,min(os.cpu_count()//4-1,10)) # /2 for two sockets and /2 cause os.cpu_count returns thread as multithreads (2 per core) and -1 to keep some for the main process
-        print(f"Num_workers set to {num_workers} with max(1,min(os.cpu_count()/4-1,10))")
+        print(f"Num_workers set to {num_workers} with max(1,min(os.cpu_count()//4-1,10))")
 
     # Instantiate Model Config
     model_config = ILMConfiguration(
