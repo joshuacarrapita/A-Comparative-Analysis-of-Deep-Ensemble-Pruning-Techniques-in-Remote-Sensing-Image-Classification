@@ -313,7 +313,7 @@ def main():
             'class_distribution_parquet': Path(sys.argv[4]).resolve(),
         }
         export_dir_root = Path(sys.argv[5]).resolve()
-        seed = int(sys.argv[7]) if len(sys.argv) > 6 else int(os.getenv('SLURM_JOB_ID', default=random.randint(1,100)))
+        seed = int(sys.argv[7]) if len(sys.argv) > 6 else int(os.getenv('SLURM_JOB_ID', default=random.randint(1,np.iinfo(np.int32).max)))
         print(f'\nSeed set to {seed}.')
 
         # Validate Paths
@@ -378,7 +378,7 @@ def main():
 
     # --- Model, Dataset, Trainer Setup ---
     # Define Training Parameters
-    tc = TrainLightningConfiguration(class_distribution=class_distribution)
+    tc = TrainLightningConfiguration(class_distribution=class_distribution, seed=seed)
     tc.randomize_all(seed=seed)
     tc.info()
 

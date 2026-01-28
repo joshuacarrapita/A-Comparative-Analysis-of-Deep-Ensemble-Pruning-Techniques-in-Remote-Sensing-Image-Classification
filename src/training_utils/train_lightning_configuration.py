@@ -25,6 +25,7 @@ from torchvision.transforms import v2
 from configilm.extra.BENv2_utils import band_combi_to_mean_std
 from configilm.extra.CustomTorchClasses import MyGaussianNoise
 from configilm.extra.CustomTorchClasses import MyRotateTransform
+from configilm.extra._defaults import default_train_transform
 
 
 class TrainLightningConfiguration:
@@ -121,7 +122,7 @@ class TrainLightningConfiguration:
                 transform is used, that consists of resizing, horizontal and 
                 vertical flipping and normalization.
 
-                :default: None
+                :default: configilm.extra._defaults default_train_transform
 
             :param loss_fn: The loss function to use for training.
 
@@ -151,7 +152,11 @@ class TrainLightningConfiguration:
         self.batch_size = batch_size
         self.drop_rate = drop_rate
         self.drop_path_rate = drop_path_rate
-        self.train_transforms = train_transforms
+        if not train_transforms:
+            mean, std = band_combi_to_mean_std(self.img_size[0])
+            self.train_transforms = default_train_transform((self.img_size[1], self.img_size[2]), mean, std)
+        else:
+            self.train_transforms = train_transforms
         self.loss_fn = loss_fn
         self.patience = patience
         self.optimizer = optimizer
