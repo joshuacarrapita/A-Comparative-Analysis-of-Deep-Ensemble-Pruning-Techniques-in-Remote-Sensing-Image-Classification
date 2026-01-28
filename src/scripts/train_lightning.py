@@ -269,26 +269,6 @@ def order_class_distribution(class_distribution: Path, order: tuple):
     class_distribution = class_distribution.set_index('labels').reindex(order, fill_value=0).reset_index(names='labels')
     return class_distribution
 
-def randomize_tc_for_benv2_ep(tc: TrainLightningConfiguration, seed: Optional[int] = None) -> None:
-    """
-        Runs all randomization methods for creation of a BENv2 image classifying ensemble.
-
-        :param tc: The training configuration to randomize.
-
-        :param seed: The random seed to use for all operations.
-    """
-    tc._set_seed(seed)
-    print("\nRandomizing all hyperparameters...")
-    tc.randomize_lr()
-    tc.randomize_batch_size()
-    tc.randomize_drop_rate()
-    tc.randomize_drop_path_rate()
-    tc.randomize_train_transforms()
-    tc.randomize_loss_fn()
-    tc.randomize_class_weights()
-    tc.randomize_optimizer()
-    tc.randomize_patience()
-
 # ===========================================================================
 # Main Training Script
 # ===========================================================================
