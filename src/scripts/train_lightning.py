@@ -157,7 +157,7 @@ class LitImageEncoder(pl.LightningModule):
 
         # calc and log average per-class accuracy
         avg_class_acc = torch.mean(per_class_acc)
-        self.log('train_avg_class_acc', avg_class_acc, on_step=False, on_epoch=True)
+        self.logger.experiment.add_scalar('train_avg_class_acc', avg_class_acc, self.current_epoch)
 
         self.train_cm.reset()
 
@@ -172,7 +172,7 @@ class LitImageEncoder(pl.LightningModule):
 
         # calc and log average per-class accuracy
         avg_class_acc = torch.mean(per_class_acc)
-        self.log('val_avg_class_acc', avg_class_acc, on_step=False, on_epoch=True)
+        self.logger.experiment.add_scalar('val_avg_class_acc', avg_class_acc, self.current_epoch)
 
         self.val_cm.reset()
 
@@ -188,6 +188,7 @@ class LitImageEncoder(pl.LightningModule):
         # calc and log average per-class accuracy
         avg_class_acc = torch.mean(per_class_acc)
         self.log('test_avg_class_acc', avg_class_acc, on_step=False, on_epoch=True)
+        self.logger.experiment.add_scalar('test_avg_class_acc', avg_class_acc, self.current_epoch)
 
         self.test_cm.reset()
 
