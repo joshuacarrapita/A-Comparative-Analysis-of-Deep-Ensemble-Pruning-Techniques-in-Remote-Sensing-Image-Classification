@@ -15,7 +15,7 @@ import pandas as pd
 # import local libs
 from configilm import util
 from configilm.extra.DataModules import BENv2_DataModule
-from scripts.train_lightning import LitImageEncoder
+from training_utils.lit_models import LitImageEncoder
 from shared_utils.custom_logging import create_logger
 
 # define global variables
