@@ -197,8 +197,8 @@ class LitImageEncoder(pl.LightningModule):
         # convert confusion matrix to numpy
         cm_np = cm_tensor.numpy()
 
-        # plot
-        fig, ax = plt.subplots(figsize=(6,6))
+        # log raw counts
+        fig, ax = plt.subplots(figsize=(12, 12))
         sns.heatmap(
             cm_np,
             annot=True,
@@ -209,14 +209,34 @@ class LitImageEncoder(pl.LightningModule):
         )
         ax.set_xlabel("Predicted Labels")
         ax.set_ylabel("True Labels")
-        ax.set_title(f"(Confusion Matrix - {tag.split('_')[0].upper()}")
+        ax.set_title(f"Raw CM (Counts) - {tag.split('_')[0].upper()}")
+        
+        # save with _raw suffix
+        self.logger.experiment.add_figure(f"{tag}_raw", fig, self.current_epoch)
+        plt.close(fig)
 
-        # log figure to logger
-        self.logger.experiment.add_figure(tag, fig, self.current_epoch)
+        # log row-normalized (recall) 
+        # normalize by true labels 
+        row_sums = cm_np.sum(axis=1, keepdims=True)
+        row_sums[row_sums == 0] = 1 # avoid div by zero
+        cm_norm = cm_np / row_sums
 
-        # (optional) log raw tensor
-        # self.log(f"{tag}_raw", cm_tensor, on_step=False, on_epoch=True)
+        fig, ax = plt.subplots(figsize=(12, 12))
+        sns.heatmap(
+            cm_norm,
+            annot=True,
+            fmt=".2f", # Float formatting
+            cmap="Blues",
+            vmin=0.0, vmax=1.0,
+            cbar=True,
+            ax=ax,
+        )
+        ax.set_xlabel("Predicted Labels")
+        ax.set_ylabel("True Labels")
+        ax.set_title(f"Normalized CM (Recall) - {tag.split('_')[0].upper()}")
 
+        # save with _norm suffix
+        self.logger.experiment.add_figure(f"{tag}_norm", fig, self.current_epoch)
         plt.close(fig)
 
     def _log_class_accuracy(self, acc_tensor, tag: str):
