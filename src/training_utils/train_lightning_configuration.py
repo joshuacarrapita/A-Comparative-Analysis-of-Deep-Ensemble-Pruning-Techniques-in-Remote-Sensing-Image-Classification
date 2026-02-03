@@ -253,7 +253,8 @@ class TrainLightningConfiguration:
     def randomize_batch_size(self, seed: Optional[int] = None) -> None:
         """Randomizes the batch size from a set of common values (powers of 2)."""
         if seed is not None: self._set_seed(seed)
-        self.batch_size = random.choice([16, 32, 64, 128, 256, 512, 1024])
+        choices = list({32, 64, 128, 256, 512, 1024} - {self.batch_size})
+        self.batch_size = random.choice(choices)
 
     def randomize_drop_rate(self, seed: Optional[int] = None) -> None:
         """Randomizes the timm model's drop rate."""
@@ -265,7 +266,7 @@ class TrainLightningConfiguration:
         """Randomizes the timm model's drop path rate."""
         if seed is not None: self._set_seed(seed)
         # drop_path_rate often benefits from being 0 or a low value
-        self.drop_path_rate = random.choice([None, np.random.uniform(0.0, 0.2)])
+        self.drop_path_rate = np.random.uniform(0.0, 0.2)
 
     def randomize_train_transforms(self, seed: Optional[int] = None) -> None:
         """
@@ -317,13 +318,15 @@ class TrainLightningConfiguration:
         random_smoothing_factor = np.random.uniform(0.0, 0.2)
         ce_smooth_random = partial(F.cross_entropy, label_smoothing=random_smoothing_factor)
 
-        loss_functions = [
+        loss_functions = {
             F.cross_entropy,
             ce_smooth_random,
             F.multi_margin_loss,
-        ]
+        }
+
+        choices = list(loss_functions - {self.loss_fn})
         
-        self.loss_fn = random.choice(loss_functions)
+        self.loss_fn = random.choice(choices)
     
     def randomize_class_weights(self, seed: Optional[int] = None) -> None:
         """
@@ -333,7 +336,7 @@ class TrainLightningConfiguration:
         """
         if seed is not None: self._set_seed(seed)
 
-        technique = random.choice(['None', 'alpha', 'per-class'])
+        technique = random.choice(['alpha', 'per-class'])
 
         if technique == 'alpha':
             # Generate a random dampening factor
@@ -395,7 +398,8 @@ class TrainLightningConfiguration:
     def randomize_patience(self, seed: Optional[int] = None) -> None:
         """Randomizes the early stopping patience."""
         if seed is not None: self._set_seed(seed)
-        self.patience = random.randint(3, 10)
+        choices = list(set(range(3,11)) - {self.patience})
+        self.patience = random.choice(choices)
 
     def info(self) -> None:
         """
