@@ -37,17 +37,17 @@ class TrainLightningConfiguration:
         self,
 
         # --- not-randomized params ---
+        img_size: tuple,
         generator: Optional[random.Random] = None,
         seed: int = 42,
         num_classes: int = 16,
-        img_size: tuple = (10, 120, 120),
         
         # --- randomized params ---
         # hyperparameters
         lr: float = 5e-4,
-        batch_size: int = 32,
-        drop_rate: Optional[float] = 0.2,
-        drop_path_rate: Optional[float] = None,
+        batch_size: int = 256,
+        drop_rate: Optional[float] = 0.0,
+        drop_path_rate: Optional[float] = 0.0,
 
         # data augmentations
         train_transforms: Optional[Callable] = None,
@@ -57,26 +57,12 @@ class TrainLightningConfiguration:
         class_distribution: Optional[pd.DataFrame] = None,
 
         # optimizers 
-        patience: int = 6,
+        patience: int = 5,
         optimizer: callable = torch.optim.AdamW,
     ):
         """
             This configuration class is designed to work with the 
             train_lightning training script.
-
-            :param generator: Variable to hold own instance of Random if 
-                preferred to use custom generators or generators that don't 
-                share state.
-
-                :default: None
-
-            :param seed: Random seed for reproducibility.
-
-                :default: 42
-            
-            :param num_classes: The number of classes in the dataset.
-
-                :default: 16
 
             :param img_size: The size of the images (c, h, w). Note that this 
             includes the number of channels (c). For example, if the images 
@@ -92,7 +78,21 @@ class TrainLightningConfiguration:
                 - 14 -> Sentinel-1 + 10m/20m/60m Sentinel-2 (in original 
                     order)
 
-                :default: (10, 120, 120)
+                :example: (10, 120, 120)
+
+            :param generator: Variable to hold own instance of Random if 
+                preferred to use custom generators or generators that don't 
+                share state.
+
+                :default: None
+
+            :param seed: Random seed for reproducibility.
+
+                :default: 42
+            
+            :param num_classes: The number of classes in the dataset.
+
+                :default: 16
 
             :param lr: The learning rate for the optimizer.
 
@@ -107,7 +107,7 @@ class TrainLightningConfiguration:
                 (e.g., standard dropout in the backbone). Standard backbone 
                 regularization for the image encoder.
 
-                :default: 0.2
+                :default: 0.0
 
             :param drop_path_rate: Drop path rate for timm models. 
                 Applied internally within the layers of the Timm Image Model 
@@ -116,7 +116,7 @@ class TrainLightningConfiguration:
                 residual paths/branches within the network, often more 
                 effective than standard dropout in deep models.
 
-                :default: None
+                :default: 0.0
 
             :param train_transforms: A callable that is used to transform 
                 the training images. If None is provided, the default train 
@@ -179,7 +179,7 @@ class TrainLightningConfiguration:
             np.random.seed(seed)
         # torch seeds should be set in the main training script
 
-    def _set_class_weights(self, alpha: float = 0.0625) -> torch.Tensor:
+    def _set_class_weights(self, alpha: float = 0.75) -> torch.Tensor:
         """
         Compute inverse class weights from a parquet file that stores absolute counts for each label.
 
@@ -249,7 +249,7 @@ class TrainLightningConfiguration:
         """Randomizes the learning rate on a logarithmic scale."""
         if seed is not None: self._set_seed(seed)
         # Log-uniform distribution is common for learning rate searches, commonly 10^-5 <= lr <= 10^-1
-        self.lr = float(np.exp(np.random.uniform(np.log(1e-5), np.log(1e-2))))
+        self.lr = float(np.exp(np.random.uniform(np.log(1e-5), np.log(1e-1))))
 
     def randomize_batch_size(self, seed: Optional[int] = None) -> None:
         """Randomizes the batch size from a set of common values (powers of 2)."""
@@ -290,7 +290,7 @@ class TrainLightningConfiguration:
             #v2.ElasticTransform(alpha=50.0, sigma=5.0, fill=ben_mean_list),
             v2.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9,1.1), fill=ben_mean_list),
             v2.RandomPerspective(distortion_scale=0.25, p=0.5, fill=ben_mean_list),
-            v2.RandomCrop((self.img_size[1],self.img_size[2]), fill=ben_mean_list),
+            v2.RandomCrop((self.img_size[1],self.img_size[2]), padding=12, fill=ben_mean_list),
             v2.GaussianBlur(kernel_size=(3,3),sigma=(0.1,1.5)), 
             #v2.RandomChannelPermutation(),
         ]
@@ -338,7 +338,7 @@ class TrainLightningConfiguration:
 
         if technique == 'alpha':
             # Generate a random dampening factor
-            alpha = np.random.uniform(0.0, 0.25)
+            alpha = np.random.uniform(0.0, 1.0)
             self.class_weights = self._set_class_weights(alpha=alpha)
         if technique == 'per-class':
             # Generate a random weight scalar, e.g., between 0.5 and 2.0 for each class
