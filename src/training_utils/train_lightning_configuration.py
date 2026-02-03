@@ -224,15 +224,14 @@ class TrainLightningConfiguration:
             chance = 0.5
 
         tasks = { 
-             'lr': self.randomize_lr,
              'batch_size': self.randomize_batch_size,
              'drop_rate': self.randomize_drop_rate,
              'drop_path_rate': self.randomize_drop_path_rate,
-             'train_tarnsforms': self.randomize_train_transforms,
+             'train_transforms': self.randomize_train_transforms,
              'loss_fn': self.randomize_loss_fn,
              'class_weights': self.randomize_class_weights,
              'patience': self.randomize_patience,
-             'optimizer': self.randomize_optimizer,
+             'optimizer_and_lr': self.randomize_optimizer_and_lr,
         }
 
         for param, func in tasks.items():
@@ -361,6 +360,37 @@ class TrainLightningConfiguration:
             torch.optim.RMSprop,
         ]
         self.optimizer = random.choice(optimizers)
+
+    def randomize_optimizer_and_lr(self, seed: Optional[int] = None) -> None:
+        """Randomizes the optimizer and learning rate based on optimizer groups."""
+        if seed is not None: self._set_seed(seed)
+
+        optimizer_groups = {
+            'Adam': (
+                [torch.optim.AdamW, torch.optim.Adam, torch.optim.NAdam, 
+                 torch.optim.RAdam, torch.optim.Adamax],
+                (1e-5, 1e-2)
+            ),
+            'SGD': (
+                [torch.optim.SGD, torch.optim.ASGD, torch.optim.RMSprop],
+                (1e-3, 2e-1)
+            ),
+        }
+
+        # choose a group of optimizer
+        chosen_group = random.choice(list(optimizer_groups.keys()))
+        
+        # get the available configurations
+        optimizers, (lr_min, lr_max) = optimizer_groups[chosen_group]
+
+        # exclude the default optimizer to ensure a change
+        choices = [o for o in optimizers if o is not self.optimizer]
+        
+        # choose out of valid choices only
+        self.optimizer = random.choice(choices)
+
+        # randomize lr adjusted to optimizer family
+        self.lr = float(np.exp(np.random.uniform(np.log(lr_min), np.log(lr_max))))
 
     def randomize_patience(self, seed: Optional[int] = None) -> None:
         """Randomizes the early stopping patience."""
