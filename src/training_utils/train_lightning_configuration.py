@@ -492,7 +492,7 @@ if __name__ == '__main__':
 
     # 1. Create a config and show its initial state
     print("--- 1. Initial Configuration State ---")
-    config = TrainLightningConfiguration()
+    config = TrainLightningConfiguration(img_size=(10, 120, 120))
     config.info()
     
     # 2. Randomize all parameters and show the results
