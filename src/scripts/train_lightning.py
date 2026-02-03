@@ -125,14 +125,6 @@ def main():
     print(f"OS CPU count: {os.cpu_count()}")
 
     # --- Model, Dataset, Trainer Setup ---
-    # Define Training Parameters
-    tc = TrainLightningConfiguration(class_distribution=class_distribution, seed=seed)
-    tc.randomize_all(seed=seed)
-    tc.info()
-
-    # Set PL Seed For Training Reproducibility
-    pl.seed_everything(seed, workers=True) # Function that sets seed for pseudo-random number generators in: pytorch, numpy, python.random 
-
     # Define Model Parameters
     model_name = 'resnet18'
     """ about number_of_channels
@@ -150,6 +142,14 @@ def main():
     else:
         num_workers = max(1,min(os.cpu_count()//4-1,10)) # /2 for two sockets and /2 cause os.cpu_count returns thread as multithreads (2 per core) and -1 to keep some for the main process
         print(f"Num_workers set to {num_workers} with max(1,min(os.cpu_count()//4-1,10))")
+
+    # Define Training Parameters
+    tc = TrainLightningConfiguration(img_size=(number_of_channels,image_size,image_size), class_distribution=class_distribution, seed=seed)
+    tc.randomize_all(seed=seed)
+    tc.info()
+
+    # Set PL Seed For Training Reproducibility
+    pl.seed_everything(seed, workers=True) # Function that sets seed for pseudo-random number generators in: pytorch, numpy, python.random 
 
     # Instantiate Model Config
     model_config = ILMConfiguration(
