@@ -226,8 +226,8 @@ class TrainLightningConfiguration:
         normalized_weights = dampened_weights * (self.num_classes / dampened_weights.sum())
 
         return torch.tensor(normalized_weights, dtype=torch.float32) 
-        
-    def _trunc_norm(mean, std, low, upp):
+    
+    def _trunc_norm(self, mean, std, low, upp):
         """Returns a float form a truncated normal distribution."""
         return truncnorm(
                 (low - mean) / std, 
@@ -238,7 +238,7 @@ class TrainLightningConfiguration:
 
     def _trunc_norm_int(self, mean, std, low, upp):
         """Returns an int from a truncated normal distribution."""
-         return int(round(self._trunc_norm(mean=mean, std=std, low=low, upp=upp)))
+        return int(round(self._trunc_norm(mean=mean, std=std, low=low, upp=upp)))
 
     def randomize_all(self, seed: Optional[int] = None, chance: float = 0.5) -> None:
         """Runs all randomization methods.
