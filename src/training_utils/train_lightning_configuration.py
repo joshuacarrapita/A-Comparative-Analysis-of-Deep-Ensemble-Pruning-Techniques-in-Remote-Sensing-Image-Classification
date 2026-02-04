@@ -189,8 +189,10 @@ class TrainLightningConfiguration:
         # torch seeds should be set in the main training script
 
     def _set_class_weights(self, alpha: float = 0.75) -> torch.Tensor:
-        """
-            Compute inverse class weights from a parquet file that stores absolute counts for each label.
+        """Computes inverse class weights from absolute label counts.
+
+            The counts are stored in a parquet file and count the number of 
+            patches assigned with the respective class.
 
             :param alpha: Dampening factor. 
                   alpha=1.0 ---> full Inverse Frequency (Standard).
@@ -217,6 +219,7 @@ class TrainLightningConfiguration:
         return torch.tensor(normalized_weights, dtype=torch.float32) 
         
     def _trunc_norm(mean, std, low, upp):
+        """Returns a float form a truncated normal distribution."""
         return truncnorm(
                 (low - mean) / std, 
                 (upp - mean) / std, 
@@ -225,11 +228,11 @@ class TrainLightningConfiguration:
         )
 
     def _trunc_norm_int(self, mean, std, low, upp):
+        """Returns an int from a truncated normal distribution."""
          return int(round(self._trunc_norm(mean=mean, std=std, low=low, upp=upp)))
 
     def randomize_all(self, seed: Optional[int] = None, chance: float = 0.5) -> None:
-        """
-            Runs all randomization methods.
+        """Runs all randomization methods.
 
             :param seed: The random seed to use for all operations.
 
@@ -289,10 +292,9 @@ class TrainLightningConfiguration:
         self.drop_path_rate = np.random.uniform(0.0, 0.2)
 
     def randomize_train_transforms(self, seed: Optional[int] = None) -> None:
-        """
-        Randomizes the image augmentation pipeline for training.
-        A set of potential augmentations is defined, and a random subset is
-        chosen and composed.
+        """Randomizes the image augmentation pipeline for training.
+            A set of potential augmentations is defined, and a random subset is
+            chosen and composed.
         """
         if seed is not None: self._set_seed(seed)
         
@@ -329,9 +331,7 @@ class TrainLightningConfiguration:
         self.train_transforms = v2.Compose(final_transforms)
 
     def randomize_loss_fn(self, seed: Optional[int] = None) -> None:
-        """
-        Randomizes the loss function from a predefined list.
-        """
+        """Randomizes the loss function from a predefined list."""
         if seed is not None: self._set_seed(seed)
 
         # Predefine cross_entropy with a random label smoothing value sampled once and remaining constant for the entire training run
@@ -349,10 +349,9 @@ class TrainLightningConfiguration:
         self.loss_fn = random.choice(choices)
     
     def randomize_class_weights(self, seed: Optional[int] = None) -> None:
-        """
-        Randomizes the class weights for the loss function.
-        This can either set weights to None (no weighting) or create a tensor
-        of random weights.
+        """Randomizes the class weights for the loss function.
+            This can either set weights to None (no weighting) or create a tensor
+            of random weights.
         """
         if seed is not None: self._set_seed(seed)
 
