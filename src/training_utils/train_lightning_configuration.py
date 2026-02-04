@@ -425,7 +425,7 @@ class TrainLightningConfiguration:
             ),
             'SGD': (
                 [torch.optim.SGD, torch.optim.ASGD],
-                (1e-3, 2e-1)
+                (1e-3, 4e-1)
             ),
         }
 
