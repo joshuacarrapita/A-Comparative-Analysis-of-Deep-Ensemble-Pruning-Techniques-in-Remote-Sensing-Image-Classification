@@ -149,6 +149,7 @@ class TrainLightningConfiguration:
                 alpha=1.0 ---> full Inverse Frequency (Standard).
                 alpha=0.5 ---> Square Root Inverse Frequency (Dampened).
                 alpha=0 ---> no Inverse Frequency (regular loss without class weights).
+
                 :default: 0.75
 
             :param patience: Number of epochs with no improvement after which 
