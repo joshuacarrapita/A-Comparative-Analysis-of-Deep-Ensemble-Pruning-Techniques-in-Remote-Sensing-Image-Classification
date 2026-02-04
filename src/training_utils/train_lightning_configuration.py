@@ -225,7 +225,7 @@ class TrainLightningConfiguration:
                 (upp - mean) / std, 
                 loc=mean, 
                 scale=std
-        )
+        ).rvs()
 
     def _trunc_norm_int(self, mean, std, low, upp):
         """Returns an int from a truncated normal distribution."""
