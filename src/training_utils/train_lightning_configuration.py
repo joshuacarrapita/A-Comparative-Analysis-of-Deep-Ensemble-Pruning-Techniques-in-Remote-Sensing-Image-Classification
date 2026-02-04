@@ -301,7 +301,7 @@ class TrainLightningConfiguration:
         """Randomizes the timm model's drop path rate."""
         if seed is not None: self._set_seed(seed)
         # drop_path_rate often benefits from being 0 or a low value
-        self.drop_path_rate = np.random.uniform(0.0, 0.2)
+        self.drop_path_rate = np.random.uniform(0.0, 0.4)
 
     def randomize_train_transforms(self, seed: Optional[int] = None) -> None:
         """Randomizes the image augmentation pipeline for training.
