@@ -414,19 +414,29 @@ class TrainLightningConfiguration:
             'Adam': (
                 [torch.optim.AdamW, torch.optim.Adam, torch.optim.NAdam, 
                  torch.optim.RAdam, torch.optim.Adamax],
-                (1e-5, 1e-2)
+                (1e-5, 5e-3)
+            ),
+            'RMSprop': (
+                [torch.optim.RMSprop],
+                (1e-5, 3e-2)
             ),
             'SGD': (
-                [torch.optim.SGD, torch.optim.ASGD, torch.optim.RMSprop],
+                [torch.optim.SGD, torch.optim.ASGD],
                 (1e-3, 2e-1)
             ),
         }
 
         # choose a group of optimizer
         chosen_group = random.choice(list(optimizer_groups.keys()))
-        
+
         # get the available configurations
         optimizers, (lr_min, lr_max) = optimizer_groups[chosen_group]
+
+        # in case we chose the group of self.optimizer and it contains only self.optimizer
+        if self.optimizer in optimizers and len(optimizers) == 1:
+            chosen_group = random.choice(list(optimizer_groups.keys() - {chosen_group}))
+
+            optimizers, (lr_min, lr_max) = optimizer_groups[chosen_group]
 
         # exclude the default optimizer to ensure a change
         choices = [o for o in optimizers if o is not self.optimizer]
