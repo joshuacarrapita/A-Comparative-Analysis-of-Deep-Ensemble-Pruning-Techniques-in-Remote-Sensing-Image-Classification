@@ -144,8 +144,12 @@ def main():
         print(f"Num_workers set to {num_workers} with max(1,min(os.cpu_count()//4-1,10))")
 
     # Define Training Parameters
-    tc = TrainLightningConfiguration(img_size=(number_of_channels,image_size,image_size), class_distribution=class_distribution, seed=seed)
-    tc.randomize_all(seed=seed)
+    tc = TrainLightningConfiguration(
+        img_size=(number_of_channels,image_size,image_size), 
+        class_distribution=class_distribution, 
+        seed=seed,
+    )
+    tc.randomize_all(seed=seed, chance=0.5)
     tc.info()
 
     # Set PL Seed For Training Reproducibility
