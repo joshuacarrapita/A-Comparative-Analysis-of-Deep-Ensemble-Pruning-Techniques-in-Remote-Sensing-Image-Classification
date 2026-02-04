@@ -146,9 +146,10 @@ class TrainLightningConfiguration:
                 :default: None
 
             :param alpha: Dampening factor for the class_weight calculation.
-                alpha=1.0 ---> full Inverse Frequency (Standard).
+                alpha>1.0 ---> Amplified Inverse Frequency.
+                alpha=1.0 ---> Full Inverse Frequency (Unaltered).
                 alpha=0.5 ---> Square Root Inverse Frequency (Dampened).
-                alpha=0 ---> no Inverse Frequency (regular loss without class weights).
+                alpha=0 ---> No Inverse Frequency (regular loss without class weights).
 
                 :default: 0.75
 
