@@ -56,6 +56,7 @@ class TrainLightningConfiguration:
         # loss functions 
         loss_fn: callable = F.cross_entropy,
         class_distribution: Optional[pd.DataFrame] = None,
+        alpha: float = 0.75,
 
         # optimizers 
         patience: int = 5,
@@ -135,6 +136,12 @@ class TrainLightningConfiguration:
 
                 :default: None
 
+            :param alpha: Dampening factor for the class_weight calculation.
+                alpha=1.0 ---> full Inverse Frequency (Standard).
+                alpha=0.5 ---> Square Root Inverse Frequency (Dampened).
+                alpha=0 ---> no Inverse Frequency (regular loss without class weights).
+                :default: 0.75
+
             :param patience: Number of epochs with no improvement after which 
                 training may be stopped. Used for EarlyStopping callbacks.
 
@@ -163,7 +170,8 @@ class TrainLightningConfiguration:
         self.patience = patience
         self.optimizer = optimizer
         self.class_distribution = class_distribution
-        self.class_weights = self._set_class_weights()
+        self.alpha = alpha
+        self.class_weights = self._set_class_weights(alpha=self.alpha)
 
         self._initial_params = self.__dict__.copy()
         self._set_seed(seed)
@@ -182,14 +190,14 @@ class TrainLightningConfiguration:
 
     def _set_class_weights(self, alpha: float = 0.75) -> torch.Tensor:
         """
-        Compute inverse class weights from a parquet file that stores absolute counts for each label.
+            Compute inverse class weights from a parquet file that stores absolute counts for each label.
 
-        :param alpha: Dampening factor. 
+            :param alpha: Dampening factor. 
                   alpha=1.0 ---> full Inverse Frequency (Standard).
                   alpha=0.5 ---> Square Root Inverse Frequency (Dampened).
                   alpha=0 ---> no Inverse Frequency (regular loss without class weights).
 
-        :returns torch.Tensor: Tensor of shape (self.num_classes,) with the weight for each class.
+            :returns torch.Tensor: Tensor of shape (self.num_classes,) with the weight for each class.
         """
         if self.class_distribution is None: return torch.ones(self.num_classes, dtype=torch.float32)
 
@@ -216,13 +224,16 @@ class TrainLightningConfiguration:
                 scale=std
         )
 
+    def _trunc_norm_int(self, mean, std, low, upp):
+         return int(round(self._trunc_norm(mean=mean, std=std, low=low, upp=upp)))
+
     def randomize_all(self, seed: Optional[int] = None, chance: float = 0.0) -> None:
         """
-        Runs all randomization methods.
+            Runs all randomization methods.
 
-        :param seed: The random seed to use for all operations.
+            :param seed: The random seed to use for all operations.
 
-        :param chance: The chance a parameter gets randomized.
+            :param chance: The chance a parameter gets randomized.
         """
         if seed is not None: self._set_seed(seed)
         print("\nRandomizing all hyperparameters...")
@@ -306,6 +317,7 @@ class TrainLightningConfiguration:
 
         # Randomly select a number of transforms to apply (e.g., 2 to 4)
         num_transforms_to_apply = random.randint(1, len(potential_transforms))
+        num_transforms_to_apply = self._trunc_norm_int(mean=4, std=2, low=0, upp=len(potential_transforms))
         selected_transforms = random.sample(potential_transforms, num_transforms_to_apply)
 
         # Basic transforms that are almost always needed
@@ -349,7 +361,7 @@ class TrainLightningConfiguration:
 
         if technique == 'alpha':
             # Generate a random dampening factor
-            alpha = np.random.uniform(0.0, 1.0)
+            alpha = _trunc_norm(mean=0.75, std=1.0, low=0.0, upp=3.0)
             self.class_weights = self._set_class_weights(alpha=alpha)
         if technique == 'per-class':
             # Generate a random weight scalar, e.g., between 0.5 and 2.0 for each class
