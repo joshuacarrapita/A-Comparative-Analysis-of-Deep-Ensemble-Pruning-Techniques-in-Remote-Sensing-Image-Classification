@@ -206,9 +206,10 @@ class TrainLightningConfiguration:
             patches assigned with the respective class.
 
             :param alpha: Dampening factor. 
-                  alpha=1.0 ---> full Inverse Frequency (Standard).
-                  alpha=0.5 ---> Square Root Inverse Frequency (Dampened).
-                  alpha=0 ---> no Inverse Frequency (regular loss without class weights).
+                alpha>1.0 ---> Amplified Inverse Frequency.
+                alpha=1.0 ---> Full Inverse Frequency (Unaltered).
+                alpha=0.5 ---> Square Root Inverse Frequency (Dampened).
+                alpha=0 ---> No Inverse Frequency (regular loss without class weights).
 
             :returns torch.Tensor: Tensor of shape (self.num_classes,) with the weight for each class.
         """
