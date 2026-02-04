@@ -227,7 +227,7 @@ class TrainLightningConfiguration:
     def _trunc_norm_int(self, mean, std, low, upp):
          return int(round(self._trunc_norm(mean=mean, std=std, low=low, upp=upp)))
 
-    def randomize_all(self, seed: Optional[int] = None, chance: float = 0.0) -> None:
+    def randomize_all(self, seed: Optional[int] = None, chance: float = 0.5) -> None:
         """
             Runs all randomization methods.
 
@@ -316,7 +316,6 @@ class TrainLightningConfiguration:
         ]
 
         # Randomly select a number of transforms to apply (e.g., 2 to 4)
-        num_transforms_to_apply = random.randint(1, len(potential_transforms))
         num_transforms_to_apply = self._trunc_norm_int(mean=4, std=2, low=0, upp=len(potential_transforms))
         selected_transforms = random.sample(potential_transforms, num_transforms_to_apply)
 
