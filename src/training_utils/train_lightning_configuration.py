@@ -368,11 +368,25 @@ class TrainLightningConfiguration:
 
         if technique == 'alpha':
             # Generate a random dampening factor
-            alpha = _trunc_norm(mean=0.75, std=1.0, low=0.0, upp=3.0)
-            self.class_weights = self._set_class_weights(alpha=alpha)
+            print(f'-------- Regenerating class_weights with random dampening factor alpha')
+            self.alpha = self._trunc_norm(mean=0.75, std=1.0, low=0.0, upp=3.0)
+            self.class_weights = self._set_class_weights(alpha=self.alpha)
         if technique == 'per-class':
             # Generate a random weight scalar, e.g., between 0.5 and 2.0 for each class
-            scalars = torch.FloatTensor([np.random.uniform(0.5, 2.0) for _ in range(self.num_classes)])
+            print(f'-------- Rescaling class_weights with random per-class scalars')
+            scalars = []
+            for _ in range(self.num_classes):
+                # only randomize in some cases
+                if np.random.random() > 0.3:
+                    val = 1.0
+                else:
+                    # but if randomized, should be noticeable impact
+                    if np.random.random() < 0.5:
+                        val = np.random.uniform(0.3, 0.6)
+                    else:
+                        val = np.random.uniform(1.5, 3.0)
+                scalars.append(val)
+            scalars = torch.FloatTensor(scalars)
             scaled_weights = self.class_weights * scalars
             normalized_weights = scaled_weights * (self.num_classes / scaled_weights.sum())
             self.class_weights = normalized_weights
