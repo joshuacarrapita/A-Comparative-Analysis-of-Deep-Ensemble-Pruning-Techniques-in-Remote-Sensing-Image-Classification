@@ -330,7 +330,7 @@ class TrainLightningConfiguration:
         ]
 
         # Randomly select a number of transforms to apply (e.g., 2 to 4)
-        num_transforms_to_apply = self._trunc_norm_int(mean=4, std=2, low=0, upp=len(potential_transforms))
+        num_transforms_to_apply = self._trunc_norm_int(mean=3, std=2, low=0, upp=len(potential_transforms))
         selected_transforms = random.sample(potential_transforms, num_transforms_to_apply)
 
         # Basic transforms that are almost always needed
