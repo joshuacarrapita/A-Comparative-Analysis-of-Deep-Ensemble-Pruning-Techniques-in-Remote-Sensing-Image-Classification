@@ -280,7 +280,7 @@ class TrainLightningConfiguration:
         ben_mean_list = ben_mean.tolist()
 
         potential_transforms = [
-            MyGaussianNoise(sigma=20.0),
+            MyGaussianNoise(sigma=120.0),
             v2.RandomHorizontalFlip(p=0.5),
             v2.RandomVerticalFlip(p=0.5),
             MyRotateTransform([0, 90, 180, 270]),
@@ -288,10 +288,10 @@ class TrainLightningConfiguration:
             v2.RandomResizedCrop(size=(self.img_size[1],self.img_size[2]),scale=(0.5,1.0),antialias=True),
             v2.RandomErasing(p=0.5, scale=(0.02, 0.1), ratio=(0.3, 3.3), value=random.choice([ben_mean_list,'random'])),
             #v2.ElasticTransform(alpha=50.0, sigma=5.0, fill=ben_mean_list),
-            v2.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9,1.1), fill=ben_mean_list),
-            v2.RandomPerspective(distortion_scale=0.25, p=0.5, fill=ben_mean_list),
+            v2.RandomAffine(degrees=15, translate=(0.2, 0.2), scale=(0.75,1.5), fill=ben_mean_list),
+            v2.RandomPerspective(distortion_scale=0.4, p=0.5, fill=ben_mean_list),
             v2.RandomCrop((self.img_size[1],self.img_size[2]), padding=12, fill=ben_mean_list),
-            v2.GaussianBlur(kernel_size=(3,3),sigma=(0.1,1.5)), 
+            v2.GaussianBlur(kernel_size=(9,9),sigma=(0.1,1.5)), 
             #v2.RandomChannelPermutation(),
         ]
 
