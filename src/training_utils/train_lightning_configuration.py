@@ -27,6 +27,7 @@ from configilm.extra.BENv2_utils import band_combi_to_mean_std
 from configilm.extra.CustomTorchClasses import MyGaussianNoise
 from configilm.extra.CustomTorchClasses import MyRotateTransform
 from configilm.extra._defaults import default_train_transform
+from scipy.stats import truncnorm
 
 
 class TrainLightningConfiguration:
@@ -207,6 +208,14 @@ class TrainLightningConfiguration:
 
         return torch.tensor(normalized_weights, dtype=torch.float32) 
         
+    def _trunc_norm(mean, std, low, upp):
+        return truncnorm(
+                (low - mean) / std, 
+                (upp - mean) / std, 
+                loc=mean, 
+                scale=std
+        )
+
     def randomize_all(self, seed: Optional[int] = None, chance: float = 0.0) -> None:
         """
         Runs all randomization methods.
