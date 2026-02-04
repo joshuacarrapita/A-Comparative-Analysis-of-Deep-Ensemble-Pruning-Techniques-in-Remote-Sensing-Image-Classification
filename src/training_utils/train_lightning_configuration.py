@@ -3,13 +3,22 @@ Randomizer for the train_lightning script. Sets the seed and randomizes 
 the following parameters in order to create diversity between trained 
 models: 
 
-    - verschiedene Data Augmentations
-    - leicht unterschiedliche Hyperparameter (Lernrate, dropout rates, batch size, etc.)
-    - unterschiedliches dropout
-    - kleine Änderungen der Architektur (layer width, normalization type, ...)
-    - unterschiedliches shuffling der Trainingsdaten
-    - Variation in den loss functions (zB leicht unterschiedliche Klassengewichte und andere loss functions (dice, focal)
-    - Variation in den optimizern (Adam vs. AdamW vs. SGD, Early stopping patience) 
+    - hyperparameters
+        - lr
+        - batch_size
+        - drop_rate
+        - drop_path_rate
+
+    - data augmentations
+        - train_transforms
+
+    - loss functions 
+        - loss_fn
+        - class_weights
+
+    - optimizers 
+        - patience
+        - optimizer
 """
 import random
 import textwrap
