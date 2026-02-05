@@ -23,4 +23,4 @@ COPY src/shared_utils/custom_logging.py /app/src/shared_utils/custom_logging.py
 ENV PYTHONPATH="${PYTHONPATH}:/app/src"
 
 # Define entrypoint
-CMD ["python", "-O", "src/scipts/train_lightning.py", "data/BENv2.lmdb/", "data/metadata.parquet", "data/metadata_for_patches_with_snow_cloud_or_shadow.parquet", "data/class_distribution.parquet", "models/"]
+CMD ["python", "-O", "src/scripts/train_lightning.py", "data/BENv2.lmdb/", "data/metadata.parquet", "data/metadata_for_patches_with_snow_cloud_or_shadow.parquet", "data/class_distribution.parquet", "models/"]
