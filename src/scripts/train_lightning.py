@@ -24,9 +24,9 @@ from configilm import ConfigILM, util
 from configilm.ConfigILM import ILMConfiguration, ILMType
 from configilm.extra.DataModules import BENv2_DataModule
 from configilm.extra.BENv2_utils import NEW_LABELS_16, NEW_LABELS_16_ORIGINAL_ORDER
+from training_utils.lit_models import LitImageEncoder
 from training_utils.train_lightning_configuration import TrainLightningConfiguration
 from training_utils.run_tracker import RunTracker
-from training_utils.lit_models import LitImageEncoder
 
 # ===========================================================================
 # Helper Functions
