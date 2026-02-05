@@ -6,7 +6,7 @@ WORKDIR /app
 
 # COPY and install requirements
 COPY build/train_lightning/requirements.txt /app/build/train_lightning/requirements.txt
-RUN --mount=type=cache,target=~/.cache/pip pip install -r build/train_lightning/requirements.txt
+RUN pip install --no-cache-dir -r build/train_lightning/requirements.txt
 
 # COPY files
 # main script
