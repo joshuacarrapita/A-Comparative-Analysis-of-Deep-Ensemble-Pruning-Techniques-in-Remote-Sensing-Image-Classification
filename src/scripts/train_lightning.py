@@ -132,7 +132,7 @@ def main():
         ---> the two SAR sentinel 1 band (2) and the 10 optical sentinel 2 bands (10) (combined would be 12)
         ---> they should be separated so that I have one ensemble for sar and one ensemble for optical input
     """
-    number_of_channels = 10
+    number_of_channels = 2
     image_size = 120
     epochs = 50
     if slurm_cpus_per_task is not None:

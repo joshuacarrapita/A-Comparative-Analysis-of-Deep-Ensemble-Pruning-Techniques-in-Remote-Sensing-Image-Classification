@@ -314,7 +314,7 @@ class TrainLightningConfiguration:
         ben_mean_list = ben_mean.tolist()
 
         potential_transforms = [
-            MyGaussianNoise(sigma=120.0),
+            MyGaussianNoise(sigma=1.0),
             v2.RandomHorizontalFlip(p=0.5),
             v2.RandomVerticalFlip(p=0.5),
             MyRotateTransform([0, 90, 180, 270]),
@@ -322,13 +322,13 @@ class TrainLightningConfiguration:
             v2.RandomResizedCrop(size=(self.img_size[1],self.img_size[2]),scale=(0.5,1.0),antialias=True),
             v2.RandomErasing(p=0.5, scale=(0.02, 0.1), ratio=(0.3, 3.3), value=ben_mean_list),
             v2.RandomAffine(degrees=15, translate=(0.2, 0.2), scale=(0.75,1.5), fill=ben_mean_list),
-            v2.RandomPerspective(distortion_scale=0.4, p=0.5, fill=ben_mean_list),
+            v2.RandomPerspective(distortion_scale=0.2, p=0.5, fill=ben_mean_list),
             v2.RandomCrop((self.img_size[1],self.img_size[2]), padding=12, fill=ben_mean_list),
-            v2.GaussianBlur(kernel_size=(9,9),sigma=(0.1,1.5)), 
+            v2.GaussianBlur(kernel_size=(5,5),sigma=(0.1,1.5)), 
         ]
 
         # Randomly select a number of transforms to apply (e.g., 2 to 4)
-        num_transforms_to_apply = self._trunc_norm_int(mean=3, std=2, low=0, upp=len(potential_transforms))
+        num_transforms_to_apply = self._trunc_norm_int(mean=2, std=1, low=0, upp=len(potential_transforms))
         selected_transforms = random.sample(potential_transforms, num_transforms_to_apply)
 
         # Basic transforms that are almost always needed
