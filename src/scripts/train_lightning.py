@@ -284,6 +284,7 @@ def main():
     elif hasattr(model.loss_fn, '__name__'): loss_str = model.loss_fn.__name__
     tracker.log('Optimization', 'Loss Function', loss_str)
     
+    tracker.log('Optimization', 'Dampening Factor (alpha)', tc.alpha)
     cw_np = model.class_weights.numpy() if isinstance(model.class_weights, torch.Tensor) else model.class_weights
     tracker.log('Optimization', 'Class Weights', str(list(cw_np)) if cw_np is not None else "None")
 
