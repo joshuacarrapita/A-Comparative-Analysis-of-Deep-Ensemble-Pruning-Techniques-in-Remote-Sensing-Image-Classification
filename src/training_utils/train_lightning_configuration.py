@@ -453,7 +453,7 @@ class TrainLightningConfiguration:
     def randomize_patience(self, seed: Optional[int] = None) -> None:
         """Randomizes the early stopping patience."""
         if seed is not None: self._set_seed(seed)
-        choices = list(set(range(3,11)) - {self.patience})
+        choices = list(set(range(3,15)) - {self.patience})
         self.patience = random.choice(choices)
 
     def info(self) -> None:
