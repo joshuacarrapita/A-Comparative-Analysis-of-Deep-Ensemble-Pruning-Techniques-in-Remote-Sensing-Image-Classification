@@ -320,13 +320,11 @@ class TrainLightningConfiguration:
             MyRotateTransform([0, 90, 180, 270]),
             v2.RandomRotation(degrees=180,fill=ben_mean_list),
             v2.RandomResizedCrop(size=(self.img_size[1],self.img_size[2]),scale=(0.5,1.0),antialias=True),
-            v2.RandomErasing(p=0.5, scale=(0.02, 0.1), ratio=(0.3, 3.3), value=random.choice([ben_mean_list,'random'])),
-            #v2.ElasticTransform(alpha=50.0, sigma=5.0, fill=ben_mean_list),
+            v2.RandomErasing(p=0.5, scale=(0.02, 0.1), ratio=(0.3, 3.3), value=ben_mean_list),
             v2.RandomAffine(degrees=15, translate=(0.2, 0.2), scale=(0.75,1.5), fill=ben_mean_list),
             v2.RandomPerspective(distortion_scale=0.4, p=0.5, fill=ben_mean_list),
             v2.RandomCrop((self.img_size[1],self.img_size[2]), padding=12, fill=ben_mean_list),
             v2.GaussianBlur(kernel_size=(9,9),sigma=(0.1,1.5)), 
-            #v2.RandomChannelPermutation(),
         ]
 
         # Randomly select a number of transforms to apply (e.g., 2 to 4)
