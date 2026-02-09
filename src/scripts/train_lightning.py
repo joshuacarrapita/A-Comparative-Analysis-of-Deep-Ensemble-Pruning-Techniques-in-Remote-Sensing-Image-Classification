@@ -258,8 +258,8 @@ def main():
              prop = torch.cuda.get_device_properties(i)
              tracker.log('System', f'GPU {i} Name', torch.cuda.get_device_name(i))
              tracker.log('System', f'GPU {i} VRAM (total)', f"{prop.total_memory / (1024**3):.2f} GB")
-             tracker.log('System', f'GPU {i} VRAM (allocated)', f"{prop.allocated_memory / (1024**3):.2f} GB")
-             tracker.log('System', f'GPU {i} VRAM (cached)', f"{prop.memory_cached / (1024**3):.2f} GB")
+             tracker.log('System', f'GPU {i} VRAM (allocated)', f"{torch.cuda.memory_allocated(i) / (1024**3):.2f} GB")
+             tracker.log('System', f'GPU {i} VRAM (cached)', f"{torch.cuda.memory_reserved(i) / (1024**3):.2f} GB")
 
     else:
         tracker.log('System', 'GPU Count', 0)
