@@ -113,7 +113,7 @@ def main():
             # Get and print memory information for each GPU
             total_memory = torch.cuda.get_device_properties(i).total_memory / (1024**3)
             allocated_memory = torch.cuda.memory_allocated(i) / (1024**3)
-            cached_memory = torch.cuda.memory_cached(i) / (1024**3)
+            cached_memory = torch.cuda.memory_reserved(i) / (1024**3)
             
             print(f"  Total memory: {total_memory:.2f} GB")
             print(f"  Allocated memory: {allocated_memory:.2f} GB")
