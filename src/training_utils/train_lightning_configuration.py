@@ -429,25 +429,23 @@ class TrainLightningConfiguration:
             ),
         }
 
-        # choose a group of optimizer
-        chosen_group = random.choice(list(optimizer_groups.keys()))
+        # retrieve all candidates
+        all_optimizers = []
+        for optimizer, _ in optimizer_groups.values():
+            all_optimizers.extend(optimizer)
 
-        # get the available configurations
-        optimizers, (lr_min, lr_max) = optimizer_groups[chosen_group]
+        # remove default optimizer choice
+        candidates = [o for o in all_optimizers if o is not self.optimizer] 
 
-        # in case we chose the group of self.optimizer and it contains only self.optimizer
-        if self.optimizer in optimizers and len(optimizers) == 1:
-            chosen_group = random.choice(list(optimizer_groups.keys() - {chosen_group}))
+        if len(candidates) > 0:
+            self.optimizer = random.choice(candidates)
 
-            optimizers, (lr_min, lr_max) = optimizer_groups[chosen_group]
+        lr_min, lr_max = 1e-5, 1e-3
+        for optimizers, (min_val, max_val) in optimizer_groups.values():
+            if self.optimizer in optimizers:
+                lr_min, lr_max = min_val, max_val
+                break
 
-        # exclude the default optimizer to ensure a change
-        choices = [o for o in optimizers if o is not self.optimizer]
-        
-        # choose out of valid choices only
-        self.optimizer = random.choice(choices)
-
-        # randomize lr adjusted to optimizer family
         self.lr = float(np.exp(np.random.uniform(np.log(lr_min), np.log(lr_max))))
 
     def randomize_patience(self, seed: Optional[int] = None) -> None:
