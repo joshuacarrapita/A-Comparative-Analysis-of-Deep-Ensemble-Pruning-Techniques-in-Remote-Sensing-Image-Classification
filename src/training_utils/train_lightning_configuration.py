@@ -417,15 +417,15 @@ class TrainLightningConfiguration:
             'Adam': (
                 [torch.optim.AdamW, torch.optim.Adam, torch.optim.NAdam, 
                  torch.optim.RAdam, torch.optim.Adamax],
-                (1e-5, 5e-3)
+                (1e-5, 1e-3)
             ),
             'RMSprop': (
                 [torch.optim.RMSprop],
-                (1e-5, 3e-2)
+                (1e-5, 1e-3)
             ),
             'SGD': (
                 [torch.optim.SGD, torch.optim.ASGD],
-                (1e-3, 4e-1)
+                (1e-4, 5e-2)
             ),
         }
 
