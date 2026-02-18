@@ -372,7 +372,7 @@ class TrainLightningConfiguration:
         if technique == 'alpha':
             # Generate a random dampening factor
             print(f'-------- Regenerating class_weights with random dampening factor alpha')
-            self.alpha = self._trunc_norm(mean=0.75, std=1.0, low=0.0, upp=3.0)
+            self.alpha = self._trunc_norm(mean=0.75, std=0.75, low=0.0, upp=2.0)
             self.class_weights = self._set_class_weights(alpha=self.alpha)
         if technique == 'per-class':
             # Generate a random weight scalar, e.g., between 0.5 and 2.0 for each class
