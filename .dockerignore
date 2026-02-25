@@ -1,7 +1,7 @@
 * 
 !build/train_lightning/Dockerfile
-!build/train_lightning/requirements_base.txt
-!build/train_lightning/requirements_volatile.txt
+!build/train_lightning/requirements_remote.txt
+!build/train_lightning/requirements_local.txt
 !src/scripts/train_lightning.py
 !src/training_utils/lit_models.py
 !src/training_utils/train_lightning_configuration.py
