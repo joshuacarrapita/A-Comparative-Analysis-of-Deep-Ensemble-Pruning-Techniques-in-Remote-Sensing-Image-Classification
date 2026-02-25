@@ -1,0 +1,4 @@
+git+https://git.tu-berlin.de/joshuacar/EPFD.git@8e71f478bdb704fa0cf34729ee8eb13712a86ada
+git+https://git.tu-berlin.de/joshuacar/GASEN@856104f202611d849268ecbcfbccd1ce81fc2adc
+git+https://git.tu-berlin.de/joshuacar/PyEnsemble.git@dcac97d28d99af48fa2e2ec21ac0921b8c51bde2
+git+https://git.tu-berlin.de/joshuacar/PyPruning.git@aa594739290f9c007da25017e9b28ae14f2532dc

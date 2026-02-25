@@ -211,7 +211,7 @@ def execute_inference(trainer: pl.Trainer, model: pl.LightningModule, datamodule
     return model_inference_results, model_inference_target_labels
 
 def save_model_inference_results(model_inference_results: torch.Tensor, ensemble_inference_dir: Path, start_time: str, seed: int, model_name: str):
-    results_file_path = ensemble_inference_dir / f'inference_results-{start_time}_seed-{seed}_model-{model_name}.pt'
+    results_file_path = ensemble_inference_dir / f'model_inference_results-{start_time}_seed-{seed}_model-{model_name}.pt'
     torch.save(model_inference_results, results_file_path)
 
     logger.newline()
@@ -318,14 +318,16 @@ def main():
 
     try:
         base_export_dir = run_config['base_export_dir']
-        slurm_job_id = os.getenv('SLURM_JOB_ID')
-        
-        if slurm_job_id is not None:
-            run_dir_name = f'inference_{slurm_job_id}_{start_time}'
-        else:
-            run_dir_name = f'inference_{start_time}'
-            
-        ensemble_inference_dir = base_export_dir / run_dir_name
+        # TODO: clean up the export_dir naming
+        # slurm_job_id = os.getenv('SLURM_JOB_ID')
+        # 
+        # if slurm_job_id is not None:
+        #     run_dir_name = f'{slurm_job_id}_{start_time}'
+        # else:
+        #     run_dir_name = f'{start_time}'
+        #     
+        # ensemble_inference_dir = base_export_dir / run_dir_name
+        ensemble_inference_dir = base_export_dir
         ensemble_inference_dir.mkdir(parents=True, exist_ok=True)
         run_config['ensemble_inference_dir'] = ensemble_inference_dir
     except Exception as e:
@@ -369,7 +371,7 @@ def main():
             logger.critical(f"ERROR processing {model_checkpoint_path}: {e}", exc_info=__debug__)
             sys.exit(1)
 
-    aggregate_and_save_ensemble_inference_results(all_inference_results, reference_inference_target_labels, all_inference_model_checkpoint_paths, run_config['ensemble_inference_dir'])
+    aggregate_and_save_ensemble_inference_results(all_inference_results, reference_inference_target_labels, all_inference_model_checkpoint_paths, ensemble_inference_dir)
 
 if __name__ == '__main__':
     main()
