@@ -5,8 +5,11 @@ FROM python:3.11.13-bookworm
 WORKDIR /app
 
 # COPY and install requirements
-COPY build/train_lightning/requirements.txt /app/build/train_lightning/requirements.txt
-RUN pip install --no-cache-dir -r build/train_lightning/requirements.txt
+COPY build/train_lightning/requirements_remote.txt /app/build/train_lightning/requirements_remote.txt
+RUN pip install --no-cache-dir -r build/train_lightning/requirements_remote.txt
+
+COPY build/train_lightning/requirements_local.txt /app/build/train_lightning/requirements_local.txt
+RUN pip install --no-cache-dir -r build/train_lightning/requirements_local.txt
 
 # COPY files
 # main script
