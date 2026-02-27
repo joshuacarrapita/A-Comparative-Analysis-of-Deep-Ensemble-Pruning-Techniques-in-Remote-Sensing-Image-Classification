@@ -42,28 +42,28 @@ def parse_cli_arguments() -> Dict[str, Any]:
     parser.add_argument('images_lmdb', type=Path)
     parser.add_argument('metadata_parquet', type=Path)
     parser.add_argument('metadata_snow_cloud_parquet', type=Path)
-    parser.add_argument('all_model_checkpoints_dir', type=Path)
+    parser.add_argument('model_checkpoints_dir', type=Path)
     parser.add_argument('base_export_dir', type=Path)
     parser.add_argument('--seed', type=int, default=666)
     
     args = parser.parse_args()
     
     # resolve paths
-    results = {key: value.resolve() if isinstance(value, Path) else value for key, value in vars(args).items()}
+    args = {key: value.resolve() if isinstance(value, Path) else value for key, value in vars(args).items()}
     
     # validate paths 
-    if not results['images_lmdb'].is_dir():
-        parser.error(f"Input directory does not exist: {results['images_lmdb']}")
-    if not results['metadata_parquet'].is_file():
-        parser.error(f"Input file does not exist: {results['metadata_parquet']}")
-    if not results['metadata_snow_cloud_parquet'].is_file():
-        parser.error(f"Input file does not exist: {results['metadata_snow_cloud_parquet']}")
-    if not results['all_model_checkpoints_dir'].is_dir():
-        parser.error(f"Model checkpoint directory does not exist: {results['all_model_checkpoints_dir']}")
-    if not results['base_export_dir'].is_dir():
-        parser.error(f"Export path is not a directory or does not exist: {results['base_export_dir']}")
+    if not args['images_lmdb'].is_dir():
+        parser.error(f"Input directory does not exist: {args['images_lmdb']}")
+    if not args['metadata_parquet'].is_file():
+        parser.error(f"Input file does not exist: {args['metadata_parquet']}")
+    if not args['metadata_snow_cloud_parquet'].is_file():
+        parser.error(f"Input file does not exist: {args['metadata_snow_cloud_parquet']}")
+    if not args['model_checkpoints_dir'].is_dir():
+        parser.error(f"Model checkpoint directory does not exist: {args['model_checkpoints_dir']}")
+    if not args['base_export_dir'].is_dir():
+        parser.error(f"Export path is not a directory or does not exist: {args['base_export_dir']}")
     
-    return results
+    return args
 
 def get_model_name(model_checkpoint_path: Path) -> str:
     try:
@@ -158,7 +158,7 @@ def setup_datamodule(run_config: Dict[str, Any]) -> BENv2_DataModule.BENv2DataMo
 
     return dm
 
-def setup_trainer(ensemble_inference_dir: Path) -> pl.Trainer:
+def setup_trainer(default_root_dir: Path) -> pl.Trainer:
     trainer = pl.Trainer(
         inference_mode=True,
         max_epochs=-1,
@@ -167,7 +167,7 @@ def setup_trainer(ensemble_inference_dir: Path) -> pl.Trainer:
         strategy='auto',
         logger=False,
         precision='16-mixed',
-        default_root_dir=ensemble_inference_dir,
+        default_root_dir=default_root_dir,
         deterministic=True,
     )
 
@@ -182,42 +182,42 @@ def setup_trainer(ensemble_inference_dir: Path) -> pl.Trainer:
 
     return trainer
 
-def run_debug_metadata_save(datamodule: pl.LightningDataModule, ensemble_inference_dir: Path):
+def save_debug_metadata(datamodule: pl.LightningDataModule, export_dir: Path):
     if __debug__:
-        export_dir_debug_datasets = ensemble_inference_dir / "datasets"
-        export_dir_debug_datasets.mkdir(parents=True, exist_ok=True)
+        export_dir = export_dir / "inference" / "datasets"
+        export_dir.mkdir(parents=True, exist_ok=True)
         logger.newline()
         logger.debug("Running dm.setup() for metadata export ...")
         datamodule.setup()
-        datamodule.save_metadata(export_dir_debug_datasets)
-        logger.debug(f'Datasets metadata saved in: {export_dir_debug_datasets}\n')
+        datamodule.save_metadata(export_dir)
+        logger.debug(f'Datasets metadata saved in: {export_dir}\n')
         logger.newline()
 
 def execute_inference(trainer: pl.Trainer, model: pl.LightningModule, datamodule: pl.LightningDataModule) -> Tuple[torch.Tensor, torch.Tensor]:
     logger.newline()
-    logger.info("Executing inference to generate results...")
+    logger.info("Executing inference...")
     logger.newline()
 
     inference_outputs = trainer.predict(model, datamodule=datamodule)
     
     model_inference_results = torch.unsqueeze(inference_outputs[0]["prediction_results"], 0)
-    model_inference_target_labels = inference_outputs[0]["target_labels"]
+    model_target_labels = inference_outputs[0]["target_labels"]
 
     torch.set_printoptions(precision=2, linewidth=80, threshold=1000, sci_mode=False)
     logger.newline()
     logger.info(f"Inference results sample (from tensor of shape {model_inference_results.shape}):\n{model_inference_results}")
-    logger.info(f"Inference target labels sample (from tensor of shape {model_inference_target_labels.shape}):\n{model_inference_target_labels}")
+    logger.info(f"Inference target labels sample (from tensor of shape {model_target_labels.shape}):\n{model_target_labels}")
     logger.newline()
 
-    return model_inference_results, model_inference_target_labels
+    return model_inference_results, model_target_labels
 
-def save_model_inference_results(model_inference_results: torch.Tensor, ensemble_inference_dir: Path, start_time: str, seed: int, model_name: str):
-    results_file_path = ensemble_inference_dir / f'{model_name}.pt'
-    torch.save(model_inference_results, results_file_path)
+def save_model_inference_results(model_inference_results: torch.Tensor, export_dir: Path, start_time: str, seed: int, model_name: str):
+    export_dir = export_dir / f'{model_name}' / 'inference' / 'results.pt'
+    torch.save(model_inference_results, export_dir)
 
     logger.newline()
     logger.info('Inference complete.')
-    logger.info(f'Individual model inference results tensor saved to: {results_file_path}\n')
+    logger.info(f'Individual model inference results tensor saved to: {export_dir}\n')
     logger.newline()
 
 def log_run_setup_info(run_config: Dict[str, Any], model_checkpoint_path: Path):
@@ -229,10 +229,9 @@ def log_run_setup_info(run_config: Dict[str, Any], model_checkpoint_path: Path):
     logger.debug("------------------------------")
     logger.newline()
 
-def run_model_inference(run_config: Dict[str, Any], model_checkpoint_path: Path, model_name: str, datamodule: pl.LightningDataModule, trainer: pl.Trainer) -> Tuple[torch.Tensor, torch.Tensor]: 
-    start_time = time.strftime('%Y%m%d-%H%M%S')
+def run_model_inference(run_config: Dict[str, Any], model_checkpoint_path: Path, model_name: str, datamodule: pl.LightningDataModule, trainer: pl.Trainer, export_dir: Path) -> Tuple[torch.Tensor, torch.Tensor]: 
+    start_time = time.strftime('%Y-%m-%d_%H-%M-%S')
     seed = run_config['seed']
-    ensemble_inference_dir = run_config['ensemble_inference_dir']
 
     log_run_setup_info(run_config, model_checkpoint_path)
 
@@ -240,20 +239,20 @@ def run_model_inference(run_config: Dict[str, Any], model_checkpoint_path: Path,
     
     model = load_model(model_checkpoint_path)
     
-    model_inference_results, model_inference_target_labels = execute_inference(trainer, model, datamodule)
+    model_inference_results, model_target_labels = execute_inference(trainer, model, datamodule)
     
-    save_model_inference_results(model_inference_results, ensemble_inference_dir, start_time, seed, model_name)
+    save_model_inference_results(model_inference_results, export_dir, start_time, seed, model_name)
 
-    logger.info(f'Returning inference results with shape {model_inference_results.shape} and inference target labels with shape {model_inference_target_labels.shape} for aggregation.')
+    logger.info(f'Returning model inference results with shape {model_inference_results.shape} and target labels with shape {model_target_labels.shape} for aggregation.')
     logger.newline()
 
-    return model_inference_results, model_inference_target_labels
+    return model_inference_results, model_target_labels
 
-def find_model_checkpoint_paths(all_model_checkpoints_dir: Path, checkpoint_suffix: str) -> list[Path]:
+def find_model_checkpoint_paths(model_checkpoints_dir: Path, checkpoint_suffix: str) -> list[Path]:
     logger.newline()
-    logger.info(f"Searching for {checkpoint_suffix} in {all_model_checkpoints_dir} ...")
+    logger.info(f"Searching for {checkpoint_suffix} in {model_checkpoints_dir} ...")
     logger.newline()
-    found_files = list(all_model_checkpoints_dir.rglob(f'*{checkpoint_suffix}'))
+    found_files = list(model_checkpoints_dir.rglob(f'*{checkpoint_suffix}'))
     if not found_files:
         logger.critical("No model checkpoint files found.")
         sys.exit(0)
@@ -271,90 +270,94 @@ def find_model_checkpoint_paths(all_model_checkpoints_dir: Path, checkpoint_suff
 
     return model_checkpoint_paths
 
-def aggregate_and_save_ensemble_inference_results(all_inference_results: list, ensemble_inference_target_labels: torch.Tensor, ensemble_member_checkpoint_paths: list, ensemble_inference_dir: Path):
+def aggregate_and_save_single_model_inference_results(results: list, target_labels: torch.Tensor, member_ids_to_ckpt_paths: list, export_dir: Path):
     logger.newline()
     logger.info("--- All processing complete ---")
         
-    if not all_inference_results:
+    if not results:
         logger.info("No inference results were generated from any model.")
-    elif len(all_inference_results) == 1:
+    elif len(results) == 1:
         logger.info("No ensemble aggregation was performed for a single model inference.")
     else:
-        ensemble_inference_results = torch.cat(all_inference_results, dim=0)
+        export_dir = export_dir / 'inference'
+        aggregated_results = torch.cat(results, dim=0)
         
         logger.newline()
-        logger.info(f"Final ensemble inference results shape: {ensemble_inference_results.shape}")
+        logger.info(f"Final ensemble inference results shape: {aggregated_results.shape}")
         torch.set_printoptions(precision=2, linewidth=80, threshold=1000, sci_mode=False)
-        logger.info(f"Ensemble inference results sample (from tensor):\n{ensemble_inference_results}")
-        logger.info(f"Ensemble inference target labels (from tensor):\n{ensemble_inference_target_labels}")
-        
+        logger.info(f"Ensemble inference results sample (from tensor):\n{aggregated_results}")
+        logger.info(f"Ensemble inference target labels (from tensor):\n{target_labels}")
+
         try:
-            export_path_ensemble_inference_results = ensemble_inference_dir / f'ensemble_inference_results.pt'
-            export_path_ensemble_inference_target_labels = ensemble_inference_dir / f'ensemble_inference_target_labels.pt'
-            export_path_ensemble_member_checkpoint_paths = ensemble_inference_dir / f'ensemble_member_checkpoint_paths.csv'
+            aggregated_results_file = export_dir / f'results.pt'
+            target_labels_file = export_dir / f'target_labels.pt'
+            member_ids_to_ckpt_paths_file = export_dir / f'member_to_checkpoint_paths.csv'
             
-            torch.save(ensemble_inference_results, export_path_ensemble_inference_results)
-            torch.save(ensemble_inference_target_labels, export_path_ensemble_inference_target_labels)
-            pd.DataFrame(ensemble_member_checkpoint_paths, columns=['Path']).to_csv(export_path_ensemble_member_checkpoint_paths, index_label='Index')
-            
-            logger.info(f"Aggregated ensemble inference results saved to: {export_path_ensemble_inference_results}")
-            logger.info(f"Ensemble inference target labels saved to: {export_path_ensemble_inference_target_labels}")
-            logger.info(f"Ensemble member checkpoint path list saved to: {export_path_ensemble_member_checkpoint_paths}")
+            torch.save(aggregated_results, aggregated_results_file)
+            torch.save(target_labels, target_labels_file)
+            pd.DataFrame(member_ids_to_ckpt_paths, columns=['Path']).to_csv(member_ids_to_ckpt_paths_file, index_label='Index')
+
+            logger.info(f"Aggregated ensemble inference results saved to: {aggregated_results_file}")
+            logger.info(f"Ensemble inference target labels saved to: {target_labels_file}")
+            logger.info(f"Ensemble member checkpoint path list saved to: {member_ids_to_ckpt_paths_file}")
         except Exception as e:
             logger.critical(f"Error saving aggregated ensemble tensors: {e}")
 
 def main():
-    start_time = time.strftime('%Y%m%d-%H%M%S')
+    start_time = time.strftime('%Y-%m-%d_%H-%M-%S')
 
     run_config = parse_cli_arguments()
 
     try:
-        stem = run_config['all_model_checkpoints_dir'].stem
+        # get array task ID or whatever the models were collected in
+        stem = run_config['model_checkpoints_dir'].stem 
 
-        # TODO: adjust export dir and everything to match the new dir scheme
-        base_export_dir = run_config['base_export_dir']
         slurm_job_id = os.getenv('SLURM_JOB_ID')
         
         if slurm_job_id is not None:
-            run_dir_name = f'inference_{slurm_job_id}_{start_time}'
+            run_config['base_export_dir'] = run_config['base_export_dir'] / f'{stem}' / f'{slurm_job_id}'
         else:
-            run_dir_name = f'inference_{start_time}'
+            run_config['base_export_dir'] = run_config['base_export_dir'] / f'{stem}' / f'{start_time}'
+        run_config['base_export_dir'].mkdir(parents=True, exist_ok=True)
             
-        ensemble_inference_dir = base_export_dir / run_dir_name
-        ensemble_inference_dir.mkdir(parents=True, exist_ok=True)
-        run_config['ensemble_inference_dir'] = ensemble_inference_dir
+        run_config['full_ensemble_export_dir'] = base_export_dir / 'full_ensemble'
+        run_config['full_ensemble_export_dir'].mkdir(parents=True, exist_ok=True)
+
+        run_config['single_models_export_dir'] = base_export_dir / 'single_models'
+        run_config['single_models_export_dir'] .mkdir(parents=True, exist_ok=True)
+
     except Exception as e:
         logger.critical(f"Error creating ensemble inference directory: {e}")
         sys.exit(1)
 
     log_system_info()
 
-    ensemble_inference_dir = run_config['ensemble_inference_dir']
-
     all_inference_results = []
-    all_inference_model_checkpoint_paths = []
-    reference_inference_target_labels = torch.tensor([])
+    all_model_checkpoint_paths = []
+    reference_target_labels = torch.tensor([])
 
-    model_checkpoint_paths = find_model_checkpoint_paths(run_config['all_model_checkpoints_dir'], MODEL_CHECKPOINT_SUFFIX)
+    model_checkpoint_paths = find_model_checkpoint_paths(run_config['model_checkpoints_dir'], MODEL_CHECKPOINT_SUFFIX)
 
     datamodule = setup_datamodule(run_config)
-    trainer = setup_trainer(ensemble_inference_dir)
+    trainer = setup_trainer(run_config['single_models_export_dir'])
 
-    run_debug_metadata_save(datamodule, ensemble_inference_dir)
+    save_debug_metadata(datamodule, run_config['full_ensemble_export_dir'])
 
     for model_checkpoint_path in model_checkpoint_paths:
         model_name = get_model_name(model_checkpoint_path)
         logger.info(f"--- Processing model: {model_name}, checkpoint: {model_checkpoint_path.name} ---")
         try:
-            model_inference_results, current_inference_target_labels = run_model_inference(run_config, model_checkpoint_path, model_name, datamodule=datamodule, trainer=trainer)
+            model_inference_results, model_target_labels = run_model_inference(run_config, model_checkpoint_path, model_name, datamodule=datamodule, trainer=trainer, run_config['single_models_export_dir'])
             
             if model_inference_results.numel() > 0:
                 all_inference_results.append(model_inference_results)
-                all_inference_model_checkpoint_paths.append(str(model_checkpoint_path))
-                if reference_inference_target_labels.numel() == 0:
-                    reference_inference_target_labels = current_inference_target_labels
+                all_model_checkpoint_paths.append(str(model_checkpoint_path))
+                if reference_target_labels.numel() == 0:
+                    reference_target_labels = model_target_labels
                 else:
-                    assert torch.equal(reference_inference_target_labels, current_inference_target_labels), "Targets from previous model do not match targets from this model."
+                    if not torch.equal(reference_target_labels, model_target_labels):
+                        logger.critical(f"Targets from previous model do not match targets from this model.")
+                        sys.exit(1)
             else:
                 logger.warning(f"Warning: run_model_inference() returned an empty tensor for {model_checkpoint_path}")
         except AssertionError as ae:
@@ -364,7 +367,7 @@ def main():
             logger.critical(f"ERROR processing {model_checkpoint_path}: {e}", exc_info=__debug__)
             sys.exit(1)
 
-    aggregate_and_save_ensemble_inference_results(all_inference_results, reference_inference_target_labels, all_inference_model_checkpoint_paths, run_config['ensemble_inference_dir'])
+    aggregate_and_save_single_model_inference_results(all_inference_results, reference_target_labels, all_model_checkpoint_paths, run_config['full_ensemble_export_dir'])
 
 if __name__ == '__main__':
     main()
