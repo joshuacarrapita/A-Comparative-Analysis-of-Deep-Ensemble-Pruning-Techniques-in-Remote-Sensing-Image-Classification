@@ -309,6 +309,9 @@ def main():
     run_config = parse_cli_arguments()
 
     try:
+        stem = run_config['all_model_checkpoints_dir'].stem
+
+        # TODO: adjust export dir and everything to match the new dir scheme
         base_export_dir = run_config['base_export_dir']
         slurm_job_id = os.getenv('SLURM_JOB_ID')
         
