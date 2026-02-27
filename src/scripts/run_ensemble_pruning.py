@@ -280,6 +280,7 @@ def main():
 
         # Save Results
         df = pd.DataFrame(results_data)
+        df.to_csv(f'{outfile}.csv', index=False)
         
         # Save to HTML
         try:
