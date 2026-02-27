@@ -249,17 +249,14 @@ def run_model_inference(run_config: Dict[str, Any], model_checkpoint_path: Path,
 
     return model_inference_results, model_inference_target_labels
 
-def find_model_checkpoint_paths(all_model_checkpoints_path: Path, checkpoint_suffix: str) -> list[Path]:
-    if all_model_checkpoints_path.is_dir():
-        logger.newline()
-        logger.info(f"Searching for {checkpoint_suffix} in {all_model_checkpoints_path} ...")
-        logger.newline()
-        found_files = list(all_model_checkpoints_path.rglob(f'*{checkpoint_suffix}'))
-        if not found_files:
-            logger.critical("No model checkpoint files found.")
-            sys.exit(0)
-    else:
-        found_files = [all_model_checkpoints_path]
+def find_model_checkpoint_paths(all_model_checkpoints_dir: Path, checkpoint_suffix: str) -> list[Path]:
+    logger.newline()
+    logger.info(f"Searching for {checkpoint_suffix} in {all_model_checkpoints_dir} ...")
+    logger.newline()
+    found_files = list(all_model_checkpoints_dir.rglob(f'*{checkpoint_suffix}'))
+    if not found_files:
+        logger.critical("No model checkpoint files found.")
+        sys.exit(0)
 
     model_checkpoint_paths = []
     for file in found_files:
@@ -341,7 +338,7 @@ def main():
     all_inference_model_checkpoint_paths = []
     reference_inference_target_labels = torch.tensor([])
 
-    model_checkpoint_paths = find_model_checkpoint_paths(run_config['all_model_checkpoints_path'], MODEL_CHECKPOINT_SUFFIX)
+    model_checkpoint_paths = find_model_checkpoint_paths(run_config['all_model_checkpoints_dir'], MODEL_CHECKPOINT_SUFFIX)
 
     datamodule = setup_datamodule(run_config)
     trainer = setup_trainer(ensemble_inference_dir)
