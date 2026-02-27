@@ -71,10 +71,9 @@ def get_model_name(model_checkpoint_path: Path) -> str:
         logs_index = parts.index('lightning_logs') # all checkpoint paths should contain the term 'lightning_logs'
         model_name = parts[logs_index - 1]
     except (ValueError, IndexError):
-        model_name = "unknown_model"
         logger.newline()
-        logger.warning(f"Could not parse model name from path (expected '.../<model_name>/lightning_logs/...'). "
-                       f"Using '{model_name}' as fallback.\nPath was: {model_checkpoint_path}")
+        logger.critical(f"Could not parse model name from path (expected '.../<model_name>/lightning_logs/...'). "
+        sys.exit(1)
         logger.newline()
     return model_name
 
@@ -213,7 +212,7 @@ def execute_inference(trainer: pl.Trainer, model: pl.LightningModule, datamodule
     return model_inference_results, model_inference_target_labels
 
 def save_model_inference_results(model_inference_results: torch.Tensor, ensemble_inference_dir: Path, start_time: str, seed: int, model_name: str):
-    results_file_path = ensemble_inference_dir / f'inference_results-{start_time}_seed-{seed}_model-{model_name}.pt'
+    results_file_path = ensemble_inference_dir / f'{model_name}.pt'
     torch.save(model_inference_results, results_file_path)
 
     logger.newline()
