@@ -306,13 +306,7 @@ def aggregate_and_save_ensemble_inference_results(all_inference_results: list, e
 def main():
     start_time = time.strftime('%Y%m%d-%H%M%S')
 
-    try:
-        run_config = parse_cli_arguments()
-    except Exception as e:
-        logger.newline()
-        logger.critical(f'An error occured: {e}.\n\nUsage: python {sys.argv[0]} /path/to/lmdb_dir/ /path/to/metadata.parquet /path/to/metadata_snow_cloud_parquet /path/to/model_source_dir_or_file /path/to/base_export/dir/ --seed [Number]')
-        logger.newline()
-        sys.exit(1)
+    run_config = parse_cli_arguments()
 
     try:
         base_export_dir = run_config['base_export_dir']
