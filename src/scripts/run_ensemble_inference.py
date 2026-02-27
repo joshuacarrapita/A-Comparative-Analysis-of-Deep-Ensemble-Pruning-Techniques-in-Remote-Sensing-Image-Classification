@@ -11,6 +11,7 @@ from typing import Tuple, Dict, Any
 import torch
 import lightning.pytorch as pl
 import pandas as pd
+import argparse
 
 # import local libs
 from configilm import util
@@ -36,32 +37,33 @@ else:
 
 # define functions
 def parse_cli_arguments() -> Dict[str, Any]:
-    if not (len(sys.argv) == 6 or (len(sys.argv) == 8 and sys.argv[6] == '--seed')): 
-        # ensure correct script usage
-        raise ValueError("Invalid argument count or format.")
-
-    paths = {
-        'images_lmdb': Path(sys.argv[1]).resolve(),
-        'metadata_parquet': Path(sys.argv[2]).resolve(),
-        'metadata_snow_cloud_parquet': Path(sys.argv[3]).resolve(),
-        'all_model_checkpoints_path': Path(sys.argv[4]).resolve(),
-        'base_export_dir': Path(sys.argv[5]).resolve(),
-    }
-
-    # set seed
-    if len(sys.argv) == 8:
-        seed = int(sys.argv[7])
-    else:
-        seed = 666
-
-    # assert correct formats
-    assert paths['images_lmdb'].is_dir(), f"Input directory does not exist: {paths['images_lmdb']}"
-    assert paths['metadata_parquet'].is_file(), f"Input file does not exist: {paths['metadata_parquet']}"
-    assert paths['metadata_snow_cloud_parquet'].is_file(), f"Input file does not exist: {paths['metadata_snow_cloud_parquet']}"
-    assert paths['base_export_dir'].is_dir(), f"Export path is not a directory or does not exist: {paths['base_export_dir']}"
-    assert paths['all_model_checkpoints_path'].exists(), f"Model checkpoint directory or file does not exist: {paths['all_model_checkpoints_path']}"
-
-    return {**paths, 'seed': seed}
+    parser = argparse.ArgumentParser()
+    
+    parser.add_argument('images_lmdb', type=Path)
+    parser.add_argument('metadata_parquet', type=Path)
+    parser.add_argument('metadata_snow_cloud_parquet', type=Path)
+    parser.add_argument('all_model_checkpoints_dir', type=Path)
+    parser.add_argument('base_export_dir', type=Path)
+    parser.add_argument('--seed', type=int, default=666)
+    
+    args = parser.parse_args()
+    
+    # resolve paths
+    results = {key: value.resolve() if isinstance(value, Path) else value for key, value in vars(args).items()}
+    
+    # validate paths 
+    if not results['images_lmdb'].is_dir():
+        parser.error(f"Input directory does not exist: {results['images_lmdb']}")
+    if not results['metadata_parquet'].is_file():
+        parser.error(f"Input file does not exist: {results['metadata_parquet']}")
+    if not results['metadata_snow_cloud_parquet'].is_file():
+        parser.error(f"Input file does not exist: {results['metadata_snow_cloud_parquet']}")
+    if not results['all_model_checkpoints_dir'].is_dir():
+        parser.error(f"Model checkpoint directory does not exist: {results['all_model_checkpoints_dir']}")
+    if not results['base_export_dir'].is_dir():
+        parser.error(f"Export path is not a directory or does not exist: {results['base_export_dir']}")
+    
+    return results
 
 def get_model_name(model_checkpoint_path: Path) -> str:
     try:
