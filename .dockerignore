@@ -1,9 +1,7 @@
 * 
-!build/train_lightning/Dockerfile
-!build/train_lightning/requirements_remote.txt
-!build/train_lightning/requirements_local.txt
-!src/scripts/train_lightning.py
+!build/inference/Dockerfile
+!build/inference/requirements_remote.txt
+!build/inference/requirements_local.txt
+!src/scripts/run_ensemble_inference.py
 !src/training_utils/lit_models.py
-!src/training_utils/train_lightning_configuration.py
-!src/training_utils/run_tracker.py
 !src/shared_utils/custom_logging.py
