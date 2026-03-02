@@ -232,7 +232,7 @@ def log_run_setup_info(run_config: Dict[str, Any], model_checkpoint_path: Path):
     logger.newline()
 
 def run_model_inference(run_config: Dict[str, Any], model_checkpoint_path: Path, model_name: str, datamodule: pl.LightningDataModule, trainer: pl.Trainer, export_dir: Path) -> Tuple[torch.Tensor, torch.Tensor]: 
-    start_time = time.strftime('%Y-%m-%d_%H-%M-%S')
+    start_time = time.strftime('%d-%m-%Y_%H-%M-%S')
 
     seed = run_config['seed']
 
@@ -308,20 +308,20 @@ def aggregate_and_save_single_model_inference_results(results: list, target_labe
             logger.critical(f"Error saving aggregated ensemble tensors: {e}")
 
 def main():
-    start_time = time.strftime('%Y-%m-%d_%H-%M-%S')
+    start_time = time.strftime('%d-%m-%Y_%H-%M-%S')
 
     run_config = parse_cli_arguments()
 
     try:
         # get array task ID or whatever the models were collected in
-        stem = run_config['model_checkpoints_dir'].stem 
+        train_array_task_id = os.getenv('TRAIN_ARRAY_TASK_ID', default='')
 
-        slurm_job_id = os.getenv('SLURM_JOB_ID')
+        slurm_job_id = os.getenv('SLURM_JOB_ID', default='')
         
-        if slurm_job_id is not None:
-            run_config['base_export_dir'] = run_config['base_export_dir'] / f'{stem}' / f'{slurm_job_id}'
+        if train_array_task_id != '' or slurm_job_id != '':
+            run_config['base_export_dir'] = run_config['base_export_dir'] / f'{train_array_task_id}' / f'{slurm_job_id}'
         else:
-            run_config['base_export_dir'] = run_config['base_export_dir'] / f'{stem}' / f'{start_time}'
+            run_config['base_export_dir'] = run_config['base_export_dir'] / f'{start_time}'
         run_config['base_export_dir'].mkdir(parents=True, exist_ok=True)
             
         run_config['full_ensemble_export_dir'] = run_config['base_export_dir'] / 'full_ensemble'
