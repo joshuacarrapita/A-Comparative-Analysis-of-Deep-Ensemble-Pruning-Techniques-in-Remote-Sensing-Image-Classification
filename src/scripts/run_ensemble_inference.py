@@ -72,7 +72,7 @@ def get_model_name(model_checkpoint_path: Path) -> str:
         model_name = parts[logs_index - 1]
     except (ValueError, IndexError):
         logger.newline()
-        logger.critical(f"Could not parse model name from path (expected '.../<model_name>/lightning_logs/...'). "
+        logger.critical(f"Could not parse model name from path (expected '.../<model_name>/lightning_logs/...').")
         sys.exit(1)
         logger.newline()
     return model_name
@@ -212,8 +212,10 @@ def execute_inference(trainer: pl.Trainer, model: pl.LightningModule, datamodule
     return model_inference_results, model_target_labels
 
 def save_model_inference_results(model_inference_results: torch.Tensor, export_dir: Path, start_time: str, seed: int, model_name: str):
-    export_dir = export_dir / f'{model_name}' / 'inference' / 'results.pt'
-    torch.save(model_inference_results, export_dir)
+    export_dir = export_dir / f'{model_name}' / 'inference'
+    export_dir.mkdir(parents=True, exist_ok=True)
+    export_file = export_dir / 'results.pt'
+    torch.save(model_inference_results, export_file)
 
     logger.newline()
     logger.info('Inference complete.')
@@ -231,6 +233,7 @@ def log_run_setup_info(run_config: Dict[str, Any], model_checkpoint_path: Path):
 
 def run_model_inference(run_config: Dict[str, Any], model_checkpoint_path: Path, model_name: str, datamodule: pl.LightningDataModule, trainer: pl.Trainer, export_dir: Path) -> Tuple[torch.Tensor, torch.Tensor]: 
     start_time = time.strftime('%Y-%m-%d_%H-%M-%S')
+
     seed = run_config['seed']
 
     log_run_setup_info(run_config, model_checkpoint_path)
@@ -280,6 +283,7 @@ def aggregate_and_save_single_model_inference_results(results: list, target_labe
         logger.info("No ensemble aggregation was performed for a single model inference.")
     else:
         export_dir = export_dir / 'inference'
+        export_dir.mkdir(parents=True, exist_ok=True)
         aggregated_results = torch.cat(results, dim=0)
         
         logger.newline()
@@ -320,10 +324,10 @@ def main():
             run_config['base_export_dir'] = run_config['base_export_dir'] / f'{stem}' / f'{start_time}'
         run_config['base_export_dir'].mkdir(parents=True, exist_ok=True)
             
-        run_config['full_ensemble_export_dir'] = base_export_dir / 'full_ensemble'
+        run_config['full_ensemble_export_dir'] = run_config['base_export_dir'] / 'full_ensemble'
         run_config['full_ensemble_export_dir'].mkdir(parents=True, exist_ok=True)
 
-        run_config['single_models_export_dir'] = base_export_dir / 'single_models'
+        run_config['single_models_export_dir'] = run_config['base_export_dir'] / 'single_models'
         run_config['single_models_export_dir'] .mkdir(parents=True, exist_ok=True)
 
     except Exception as e:
@@ -347,7 +351,7 @@ def main():
         model_name = get_model_name(model_checkpoint_path)
         logger.info(f"--- Processing model: {model_name}, checkpoint: {model_checkpoint_path.name} ---")
         try:
-            model_inference_results, model_target_labels = run_model_inference(run_config, model_checkpoint_path, model_name, datamodule=datamodule, trainer=trainer, run_config['single_models_export_dir'])
+            model_inference_results, model_target_labels = run_model_inference(run_config, model_checkpoint_path, model_name, datamodule, trainer, run_config['single_models_export_dir'])
             
             if model_inference_results.numel() > 0:
                 all_inference_results.append(model_inference_results)
