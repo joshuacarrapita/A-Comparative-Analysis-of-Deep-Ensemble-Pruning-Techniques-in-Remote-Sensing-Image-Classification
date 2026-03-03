@@ -2,6 +2,7 @@
 import argparse
 import sys
 import time
+import os
 
 # 3rd party imports
 import numpy as np
@@ -222,17 +223,14 @@ def main():
 
     # Target size can't be larger than ensemble size, no duplicate runs
     target_sizes = sorted(list(set([max(min(x,M),1) for x in args.nb_pru])))
+
+    # Save start time for output creation
+    slurm_job_id = os.getenv('SLURM_JOB_ID', default='')
+    start_time = ('' if slurm_job_id != '' else time.strftime("%d-%m-%Y_%H-%M-%S"))
     
     for nb_pru in target_sizes:
         
-        # Set outdir
-        outdir = Path(args.outdir).resolve()
-        if outdir.is_dir():
-            outfile = outdir / ("pruning_results_" + str(nb_pru))
-        else:
-            outfile = Path("pruning_results_" + str(nb_pru)).resolve()
-            outdir = Path(".").resolve()
-
+        # Print run info
         print("\n" + "-" * 80)
         print(f"\n--- Starting Benchmark ---")
         print(f"Total Algorithms to run: {len(tasks)}")
@@ -279,11 +277,15 @@ def main():
                 })
 
         # Save Results
-        df = pd.DataFrame(results_data)
-        df.to_csv(f'{outfile}.csv', index=False)
-        
-        # Save to HTML
         try:
+            outdir = Path(args.outdir).resolve() / "pruning" / f"{slurm_job_id}" / f"{start_time}" / f"{nb_pru}"
+            outdir.mkdir(exist_ok=True, parents=True)
+
+            # Save to CSV
+            df = pd.DataFrame(results_data)
+            df.to_csv(outdir / f'results.csv', index=False)
+            
+            # Save to HTML
             html_string = df.to_html(classes='table table-striped', index=False)
             final_html = f"""
             <html>
@@ -307,14 +309,13 @@ def main():
             </html>
             """
             
-            outfile_html = Path(f'{outfile}.html')
-            with open(outfile_html, 'w') as f:
+            with open(outdir / f'results.html', 'w') as f:
                 f.write(final_html)
                 
-            print(f"\nResults successfully saved to {outfile_html}")
+            print(f"\nResults successfully saved to {outdir}")
             
         except Exception as e:
-            print(f"Error saving HTML: {e}")
+            print(f"Error saving results: {e}")
 
 if __name__ == "__main__":
     main()
