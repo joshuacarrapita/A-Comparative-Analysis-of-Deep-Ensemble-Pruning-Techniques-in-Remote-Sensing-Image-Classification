@@ -24,4 +24,4 @@ COPY src/shared_utils/custom_logging.py /app/src/shared_utils/custom_logging.py
 ENV PYTHONPATH="${PYTHONPATH}:/app/src"
 
 # Define entrypoint
-CMD ["python", "-O", "src/scripts/run_ensemble_inference.py", "data/BENv2.lmdb/", "data/metadata.parquet", "data/metadata_for_patches_with_snow_cloud_or_shadow.parquet", "data/checkpoints/", "results/"]
+ENTRYPOINT ["python", "-O", "src/scripts/run_ensemble_inference.py", "data/BENv2.lmdb/", "data/metadata.parquet", "data/metadata_for_patches_with_snow_cloud_or_shadow.parquet", "data/checkpoints/", "results/"]
