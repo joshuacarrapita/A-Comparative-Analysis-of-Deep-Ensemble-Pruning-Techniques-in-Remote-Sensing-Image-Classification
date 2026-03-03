@@ -28,4 +28,4 @@ COPY src/shared_utils/custom_logging.py src/shared_utils/custom_logging.py
 ENV PYTHONPATH="${PYTHONPATH}:/app/src"
 
 # define entrypoint
-ENTRYPOINT ["bash", "src/scripts/run_ensemble_pruning_pipeline.sh"]
+ENTRYPOINT ["python", "-O", "run_ensemble_pruning.py", "--results", "data/inference/results.pt", "--targets", "data/inference/target_labels.pt", "--outdir", "data/pruning/"]
