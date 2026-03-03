@@ -122,10 +122,10 @@ def load_model(model_checkpoint_path: Path) -> LitImageEncoder:
 def setup_datamodule(run_config: Dict[str, Any]) -> BENv2_DataModule.BENv2DataModule:
     slurm_cpus_per_task = os.getenv('SLURM_CPUS_PER_TASK')
     if slurm_cpus_per_task is not None:
-        num_workers_dataloader = int(slurm_cpus_per_task) - 2
+        num_workers_dataloader = int(slurm_cpus_per_task) - 1
         worker_source = "(from SLURM_CPUS_PER_TASK)"
     else:
-        num_workers_dataloader = max(1, min(os.cpu_count() // 4 - 2, 10))
+        num_workers_dataloader = max(1, min(os.cpu_count() // 4 - 1, 10))
         worker_source = "(from os.cpu_count())"
 
     channels = run_config['channels'] #2: "Sentinel-1", 10: "10m + 20m Sentinel-2 (in original order)"
