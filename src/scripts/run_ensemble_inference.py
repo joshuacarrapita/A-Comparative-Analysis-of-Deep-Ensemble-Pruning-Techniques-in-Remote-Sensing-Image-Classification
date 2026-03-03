@@ -44,6 +44,7 @@ def parse_cli_arguments() -> Dict[str, Any]:
     parser.add_argument('metadata_snow_cloud_parquet', type=Path)
     parser.add_argument('model_checkpoints_dir', type=Path)
     parser.add_argument('base_export_dir', type=Path)
+    parser.add_argument('--channels', type=int, default=10)
     parser.add_argument('--seed', type=int, default=666)
     
     args = parser.parse_args()
@@ -62,6 +63,8 @@ def parse_cli_arguments() -> Dict[str, Any]:
         parser.error(f"Model checkpoint directory does not exist: {args['model_checkpoints_dir']}")
     if not args['base_export_dir'].is_dir():
         parser.error(f"Export path is not a directory or does not exist: {args['base_export_dir']}")
+    if not args['channels'] in [2,10]:
+        parser.error(f"Channels must be one of: 2, 10")
     
     return args
 
@@ -125,7 +128,7 @@ def setup_datamodule(run_config: Dict[str, Any]) -> BENv2_DataModule.BENv2DataMo
         num_workers_dataloader = max(1, min(os.cpu_count() // 4 - 2, 10))
         worker_source = "(from os.cpu_count())"
 
-    channels = 10 #2: "Sentinel-1", 10: "10m + 20m Sentinel-2 (in original order)"
+    channels = run_config['channels'] #2: "Sentinel-1", 10: "10m + 20m Sentinel-2 (in original order)"
     image_size = 120
     batch_size = 1024
     seed = run_config['seed']
