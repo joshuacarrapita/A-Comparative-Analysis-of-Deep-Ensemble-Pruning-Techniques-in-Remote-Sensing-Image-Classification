@@ -13,19 +13,13 @@ RUN pip install --no-cache-dir -r build/pruning/requirements_local.txt
 
 # COPY files
 # main script
-COPY src/scripts/run_ensemble_pruning_pipeline.sh src/scripts/run_ensemble_pruning_pipeline.sh
-COPY src/scripts/run_ensemble_inference.py src/scripts/run_ensemble_inference.py
-COPY src/scripts/run_subensemble_inference.sh src/scripts/run_subensemble_inference.sh
 COPY src/scripts/run_ensemble_pruning.py src/scripts/run_ensemble_pruning.py
-COPY src/scripts/run_ensemble_evaluation.py src/scripts/run_ensemble_evaluation.py
 
 # pruning submodules
 COPY src/pruning_submodules/ src/pruning_submodules/
 
-# shared utils
-COPY src/shared_utils/custom_logging.py src/shared_utils/custom_logging.py
-
+# define path of installed modules
 ENV PYTHONPATH="${PYTHONPATH}:/app/src"
 
 # define entrypoint
-ENTRYPOINT ["python", "-O", "run_ensemble_pruning.py", "--results", "data/inference/results.pt", "--targets", "data/inference/target_labels.pt", "--outdir", "data/pruning/"]
+ENTRYPOINT ["python", "-O", "src/scripts/run_ensemble_pruning.py", "--results", "data/inference/results.pt", "--targets", "data/inference/target_labels.pt", "--outdir", "data/pruning/out/"]
