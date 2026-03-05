@@ -276,11 +276,19 @@ def main():
                     "Result": f"Error: {str(e)}"
                 })
 
-        # Save Results
-        try:
-            outdir = Path(args.outdir).resolve() / "pruning" / f"{slurm_job_id}" / f"{start_time}" / f"{nb_pru}"
-            outdir.mkdir(exist_ok=True, parents=True)
+j       # Save Results
+        # Save time for output creation
+        slurm_job_id = os.getenv('SLURM_JOB_ID', default='')
+        slurm_array_job_id = os.getenv('SLURM_ARRAY_JOB_ID', default='')
+        end_time = ('' if slurm_job_id != '' else time.strftime("%d-%m-%Y_%H-%M-%S"))
 
+        try:
+            if len(results_data) == 1:
+                outdir = Path(args.outdir).resolve() / "pruning" / f"{slurm_array_job_id}" / f"{nb_pru}" / f"{results_data[0]['Library']}" / f"{results_data[0]['Algorithm']}" / f"{slurm_job_id}" / f"{end_time}" 
+            else:
+                outdir = Path(args.outdir).resolve() / "pruning" / f"{slurm_array_job_id}" / f"{nb_pru}" / f"{slurm_job_id}" / f"{end_time}" 
+
+            outdir.mkdir(exist_ok=True, parents=True)
             # Save to CSV
             df = pd.DataFrame(results_data)
             df.to_csv(outdir / f'results.csv', index=False)
