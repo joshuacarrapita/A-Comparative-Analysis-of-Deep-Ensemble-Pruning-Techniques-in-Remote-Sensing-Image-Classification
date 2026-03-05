@@ -202,9 +202,14 @@ def execute_inference(trainer: pl.Trainer, model: pl.LightningModule, datamodule
     logger.newline()
 
     inference_outputs = trainer.predict(model, datamodule=datamodule)
+
+    all_predictions = [batch['prediction_results'] for batch in inference_outputs]
+    all_targets = [batch['target_labels'] for batch in inference_outputs]
+
+    concatenated_predictions = torch.cat(all_predictions, dim=0)
+    model_target_labels = torch.cat(all_targets, dim=0)
     
-    model_inference_results = torch.unsqueeze(inference_outputs[0]["prediction_results"], 0)
-    model_target_labels = inference_outputs[0]["target_labels"]
+    model_inference_results = torch.unsqueeze(concatenated_predictions, 0)
 
     torch.set_printoptions(precision=2, linewidth=80, threshold=1000, sci_mode=False)
     logger.newline()
