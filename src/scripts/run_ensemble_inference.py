@@ -321,13 +321,10 @@ def main():
     run_config = parse_cli_arguments()
 
     try:
-        # get array task ID or whatever the models were collected in
-        train_array_job_id = os.getenv('TRAIN_ARRAY_JOB_ID', default='')
-
         slurm_job_id = os.getenv('SLURM_JOB_ID', default='')
         
-        if train_array_job_id != '' or slurm_job_id != '':
-            run_config['base_export_dir'] = run_config['base_export_dir'] / f'{train_array_job_id}' / f'{slurm_job_id}'
+        if slurm_job_id != '':
+            run_config['base_export_dir'] = run_config['base_export_dir'] / f'{slurm_job_id}'
         else:
             run_config['base_export_dir'] = run_config['base_export_dir'] / f'{start_time}'
         run_config['base_export_dir'].mkdir(parents=True, exist_ok=True)
