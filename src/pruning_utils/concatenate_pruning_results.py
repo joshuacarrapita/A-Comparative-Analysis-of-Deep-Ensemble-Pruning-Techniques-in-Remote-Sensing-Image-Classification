@@ -13,27 +13,27 @@ def parse_cli_args():
     
     # define parser
     parser = argparse.ArgumentParser(
-            prog='Concatenate Pruning Results',
+            prog='concatenate_pruning_results.py',
             description='''Concatenates the results produced by running multiple
                 ensemble pruning algos separately on ensemble inference output''',
             )
 
     # define available parser arguments
-    parser.add_argument('--pruning-root', type=Path, help='''The path to the
+    parser.add_argument('--pruning_root', type=Path, help='''The path to the
         root directory of the run where the separate pruning outputs are 
         saved. The pruning root needs to be the SLURM_ARRAY_JOB_ID or the 
         timestamp of relevant pruning run''')
-    parser.add_argument('--slurm_array_job_id', type=int, help='''The SLURM_
-        ARRAY_JOB_ID of the job that ran the pruning task''')
-    parser.add_argument('--target-size', type=int, help='''The target ensemble
+    parser.add_argument('--identifier', type=str, help='''The SLURM_
+        ARRAY_JOB_ID or the timestamp of the job that ran the pruning task''')
+    parser.add_argument('--target_size', type=int, help='''The target ensemble
         size to which the ensemble was pruned''')
     parser.add_argument('--outdir', type=Path, help='''The path to the output
         directory where the combined csv should be saved.''')
 
     # check arguments format
     args = parser.parse_args()
-    if not args['pruning-root'].is_dir():
-        parser.error('--pruning-root is not a directory or doesn`t exist.')
+    if not args.pruning_root or not args.pruning_root.is_dir():
+        parser.error('--pruning_root is not a directory or doesn`t exist.')
 
     return args
 
