@@ -1,5 +1,7 @@
 # std
 import sys
+import os
+import time
 
 # third party
 import pandas as pd
@@ -44,13 +46,23 @@ def main():
     try:
         args = parse_cli_args()
 
-        pruning_root = args['pruning-root'].resolve()
+        # find all results.csv for a given ensemble size of this pruning run 
+        # target_size and identifier 
+        pruning_root = args.pruning_root.resolve()
 
-        pruning_results_csv = pruning_root.glob(f'**/{args["slurm_array_job_id"]}/**/{args["target-size"]}/**/results.csv')
+        pruning_results_csv = pruning_root.glob(f'**/{args.identifier}/**/{args.target_size}/**/results.csv')
 
+        # concatenate these results
         concatenated_pruning_results = pd.concat([pd.read_csv(r) for r in pruning_results_csv])
 
-        concatenated_pruning_results.to_csv(args['outdir'], index=False)
+        # create unique outdir
+        slurm_job_id = os.getenv('SLURM_JOB_ID', default='')
+        export_time = ('' if slurm_job_id != '' else time.strftime('%d-%m-%Y_%H-%M-%S'))
+        outdir = args.outdir / f'{args.identifier}' / f'{args.target_size}' / f'{slurm_job_id}' / f'{export_time}'
+        outdir.mkdir(parents=True, exist_ok=True)
+
+        # export results
+        concatenated_pruning_results.to_csv(outdir / f'results.csv', index=False)
 
     except Exception as e:
         logger.critical(f'Error during processing: {e}')
