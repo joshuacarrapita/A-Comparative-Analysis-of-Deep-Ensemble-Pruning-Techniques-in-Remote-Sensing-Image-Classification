@@ -224,10 +224,6 @@ def main():
     # Target size can't be larger than ensemble size, no duplicate runs
     target_sizes = sorted(list(set([max(min(x,M),1) for x in args.nb_pru])))
 
-    # Save start time for output creation
-    slurm_job_id = os.getenv('SLURM_JOB_ID', default='')
-    start_time = ('' if slurm_job_id != '' else time.strftime("%d-%m-%Y_%H-%M-%S"))
-    
     for nb_pru in target_sizes:
         
         # Print run info
