@@ -209,7 +209,17 @@ def main():
         json.dump(all_data, f, indent=4)
     
     # HTML export with embedded images
-    html_content = "<html><head><title>Ensemble Evaluation Report</title></head><body>"
+    html_content = f"""
+    <html>
+    <head>
+        <title>Ensemble Evaluation Report</title>
+    </head>
+    <body>
+        <h1>Ensemble Evaluation Results</h1>
+        <p><strong>Evaluated Results:</strong> {args.results}</p>
+        <p><strong>Using Targets:</strong> {args.targets}</p>
+        <p><strong>Evaluated Ensemble Members:</strong> {args.member_ids}</p>
+    """
 
     # global metrics table
     if global_metric_results:
