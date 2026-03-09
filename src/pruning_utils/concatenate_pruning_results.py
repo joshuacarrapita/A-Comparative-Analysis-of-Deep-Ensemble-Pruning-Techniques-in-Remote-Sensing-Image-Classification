@@ -61,8 +61,36 @@ def main():
         outdir = args.outdir / f'{args.identifier}' / f'{args.target_size}' / f'{slurm_job_id}' / f'{export_time}'
         outdir.mkdir(parents=True, exist_ok=True)
 
-        # export results
+        # export results to csv
         concatenated_pruning_results.to_csv(outdir / f'results.csv', index=False)
+    
+        # export results to html
+        html_string = concatenated_pruning_results.to_html(classes='table table-striped', index=False)
+        final_html = f"""
+        <html>
+        <head>
+            <title>Ensemble Pruning Benchmark Results</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                table {{ border-collapse: collapse; width: 100%; }}
+                th, td {{ padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }}
+                th {{ background-color: #f2f2f2; }}
+            </style>
+        </head>
+        <body>
+            <h2>Ensemble Pruning Results</h2>
+            <p><strong>Input Pruning Run (Identifier):</strong> {args.identifier}</p>
+            <p><strong>Target Ensemble Size:</strong> {args.target_size}</p>
+            <br>
+            {html_string}
+        </body>
+        </html>
+        """
+        
+        with open(outdir / f'results.html', 'w') as f:
+            f.write(final_html)
+            
+        print(f"\nResults successfully saved to {args.outdir}")
 
     except Exception as e:
         logger.critical(f'Error during processing: {e}')
