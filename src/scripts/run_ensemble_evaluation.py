@@ -63,6 +63,7 @@ def define_params():
     # data arguments
     parser.add_argument('--results', type=str, required=True, help='Path to tensor with inference results (M, N, C)')
     parser.add_argument('--targets', type=str, required=True, help='Path to tensor with targets (N,)')
+    parser.add_argument('--member_ids', type=int, nargs='+', help='List of ensemble members (IDs) to perform evaluation on')
     parser.add_argument('--outdir', type=str, default='.', help='Directory for output file(s)')
 
     # metric arguments
@@ -75,13 +76,16 @@ def define_params():
 
     return parser.parse_args()
 
-def load_data(results_path, targets_path):
+def load_data(results_path, targets_path, indices):
     """Loads tensors and infers dimensions M, N, C."""
     logger.info(f"\nLoading data from:\n  Probas: {results_path}\n  Targets: {targets_path}")
     
     probas = torch.load(Path(results_path).resolve(), map_location='cpu').float().numpy()
     targets = torch.load(Path(targets_path).resolve(), map_location='cpu').long().numpy()
-    
+
+    # filter unneeded indices
+    probas = probas[indices]
+
     M, N, C = probas.shape
 
     logger.info(f"Inferred Dimensions -> Models (M): {M}, Samples (N): {N}, Classes (C): {C}")
@@ -103,7 +107,7 @@ def main():
 
     # load data
     try:
-        probas, targets, M, N, C = load_data(args.results, args.targets)
+        probas, targets, M, N, C = load_data(args.results, args.targets, args.member_ids)
     except Exception as e:
         logger.critical(f'Error loading data: {e}')
         sys.exit(1)
