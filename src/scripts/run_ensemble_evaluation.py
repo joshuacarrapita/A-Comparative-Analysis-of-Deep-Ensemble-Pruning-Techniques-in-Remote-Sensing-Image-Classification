@@ -10,7 +10,6 @@ import torch
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.clmp as clmp
 import seaborn as sns
 from sklearn.metrics import (
     confusion_matrix, precision_score, recall_score, f1_score,
@@ -176,7 +175,7 @@ def main():
                     plt.title(metric)
                 elif 'ROC' in metric: 
                     y_bin = label_binarize(targets, classes=np.arange(C))
-                    colors = clmp.get_map('tab20', C)
+                    colors = plt.get_cmap('tab20', C)
                     for i in range(C):
                         fpr, tpr, _ = roc_curve(y_bin[:, i], y_score[:, i])
                         plt.plot(fpr, tpr, label=f'Class {i}', color=colors(i))
@@ -184,7 +183,7 @@ def main():
                     plt.title(metric)
                 elif metric == 'One-vs-Rest Precision-Recall Curve':
                     y_bin = label_binarize(targets, classes=np.arange(C))
-                    colors = clmp.get_map('tab20', C)
+                    colors = plt.get_cmap('tab20', C)
                     for i in range(C):
                         prec, rec, _ = precision_recall_curve(y_bin[:, i], y_score[:, i])
                         plt.plot(rec, prec, label=f'Class {i}', color=colors(i))
