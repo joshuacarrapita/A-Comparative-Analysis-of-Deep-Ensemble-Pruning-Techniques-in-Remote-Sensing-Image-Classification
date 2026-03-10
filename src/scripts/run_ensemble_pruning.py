@@ -280,9 +280,9 @@ def main():
 
         try:
             if len(results_data) == 1:
-                outdir = Path(args.outdir).resolve() / "pruning" / f"{end_time}" / f"{slurm_array_job_id}" / f"{nb_pru}" / f"{results_data[0]['Library']}" / f"{results_data[0]['Algorithm']}" / f"{slurm_job_id}"
+                outdir = Path(args.outdir).resolve() / "pruning" / f"{end_time}" / f"{slurm_array_job_id}" / f"separate" / f"{nb_pru}" / f"{results_data[0]['Library']}" / f"{results_data[0]['Algorithm']}" / f"{slurm_job_id}"
             else:
-                outdir = Path(args.outdir).resolve() / "pruning" / f"{end_time}" / f"{slurm_array_job_id}" / f"{nb_pru}" / f"{slurm_job_id}"
+                outdir = Path(args.outdir).resolve() / "pruning" / f"{end_time}" / f"{slurm_array_job_id}" / f"concatenated" / f"{nb_pru}" / f"{slurm_job_id}"
 
             outdir.mkdir(exist_ok=True, parents=True)
             # Save to CSV

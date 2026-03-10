@@ -50,7 +50,7 @@ def main():
         # target_size and identifier 
         pruning_root = args.pruning_root.resolve()
 
-        pruning_results_csv = pruning_root.glob(f'**/{args.identifier}/**/{args.target_size}/**/results.csv')
+        pruning_results_csv = pruning_root.glob(f'**/{args.identifier}/separate/**/{args.target_size}/**/results.csv')
 
         # concatenate these results
         concatenated_pruning_results = pd.concat([pd.read_csv(r) for r in pruning_results_csv])
@@ -58,7 +58,7 @@ def main():
         # create unique outdir
         slurm_job_id = os.getenv('SLURM_JOB_ID', default='')
         export_time = ('' if slurm_job_id != '' else time.strftime('%d-%m-%Y_%H-%M-%S'))
-        outdir = args.outdir / f'{args.identifier}' / f'{args.target_size}' / f'{slurm_job_id}' / f'{export_time}'
+        outdir = args.outdir / f'{args.identifier}' / f'concatenated' / f'{args.target_size}' / f'{slurm_job_id}' / f'{export_time}'
         outdir.mkdir(parents=True, exist_ok=True)
 
         # export results to csv
