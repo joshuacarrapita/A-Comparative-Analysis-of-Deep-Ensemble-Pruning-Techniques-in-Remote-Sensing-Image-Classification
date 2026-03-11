@@ -134,7 +134,7 @@ def main():
 
     # evaluate subensembles found in pruning results files if any were given
     pruning_results_root = Path(args.pruning_results_root).resolve()
-    pruning_results_file_paths = pruning_results_root.glob(f'**/results.csv')
+    pruning_results_file_paths = [pruning_results_root] if pruning_results_root.is_file() else list(pruning_results_root.glob(f'**/results.csv'))
 
     for file_path in pruning_results_file_paths:
 
