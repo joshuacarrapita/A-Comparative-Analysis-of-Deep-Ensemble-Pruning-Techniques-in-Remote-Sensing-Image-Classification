@@ -129,7 +129,7 @@ def main():
 
     # evaluate subensemble if member IDs were specifically given
     if args.member_ids:
-        member_ids_subensemble = pd.DataFrame([['manual','by_member_id',None,args.member_ids]],columns=subensembles.columns)
+        member_ids_subensemble = pd.DataFrame([['manual','by_member_id',None,str(args.member_ids)]],columns=subensembles.columns)
         subensembles = pd.concat([subensembles,member_ids_subensemble], ignore_index=True)
 
     # evaluate subensembles found in pruning results files if any were given
