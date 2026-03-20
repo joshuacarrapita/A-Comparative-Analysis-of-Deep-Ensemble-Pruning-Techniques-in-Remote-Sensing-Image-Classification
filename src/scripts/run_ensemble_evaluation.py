@@ -131,6 +131,39 @@ def ensemble_decision(probas):
     y_pred = np.argmax(avg_probas, axis=1)
     return y_pred, avg_probas
 
+def my_cohen_kappa_score(y_true: np.ndarray, y_pred: np.ndarray):
+    """
+    Calculates the Cohen Kappa Score manually in order to also yield observed
+    accuracy (p_o) and expected accuracy (p_e) from the formula 
+    k = (p_o - p_e) / (1 - p_e). 
+
+    k is a number between -1 and 1. The maximum value means complete agreement; zero or lower means chance agreement.
+    """
+    cm = confusion_matrix(y_true, y_pred)
+    total_samples = np.sum(cm)
+
+    # p_o = correct predictions / total samples
+    p_o = np.trace(cm) / total_samples
+
+    sum_cols = np.sum(cm, axis=0)
+    sum_rows = np.sum(cm, axis=1)
+    p_e = np.sum((sum_rows * sum_cols) / total_samples) / total_samples
+
+    k = (p_o - p_e) / (1 - p_e) if p_e != 1 else numpy.nan
+
+    accuracy_gain = k * (1 - p_e)
+
+    sklearn_k = cohen_kappa_score(y_true, y_pred)
+    matches_sklearn = np.isclose(k,sklearn_k)
+
+    return {
+        'k': k,
+        'Expected Accuracy': p_e,
+        'Observed Accuracy': p_o,
+        'Accuracy Gain over Expected Accuracy': accuracy_gain,
+        'Matches Sklearn': bool(matches_sklearn),
+    }
+
 # --- MAIN LOGIC ---
 def main():
     args = define_params()
@@ -242,7 +275,8 @@ def main():
             try:
                 if metric_type == 'global':
                     if metric == 'Cohen`s Kappa':
-                        global_metric_results[metric] = cohen_kappa_score(targets, y_pred)
+                        global_metric_results[metric] = my_cohen_kappa_score(targets, y_pred)
+                        logger.info(f"{metric} ({metric_type}) done: {global_metric_results[metric]['k']:.4f}")
                     elif metric == 'Matthews Correlation Coefficient':
                         global_metric_results[metric] = {'': matthews_corrcoef(targets, y_pred)}
                         logger.info(f"{metric} ({metric_type}) done: {global_metric_results[metric]['']:.4f}")
