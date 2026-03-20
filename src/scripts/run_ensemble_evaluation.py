@@ -39,19 +39,29 @@ else:
 
 # --- metrics ---
 CLASS_WISE_METRICS = [
-        'Classification Report',
+        'Classification Report', # checked
+        # TODO: Add One-vs-Rest ROC AUC's
 ]
 
 GLOBAL_METRICS = [
-        'Cohen`s Kappa', 
-        'Matthews Correlation Coefficient', 
+        'Cohen`s Kappa', # DONE: check
+        'Matthews Correlation Coefficient', # DONE: check
+        'Micro-Averaged One-vs-Rest ROC AUC', # DONE: check
+        'Macro-Averaged One-vs-Rest ROC AUC', # DONE: check
+        # TODO: check and maybe add
+        # Average Precision
+        # Brier Score
+        # ECE
+
 ]
 
-VISUALIZATIONS = [
-        'Heatmap', 
-        'One-vs-Rest ROC',
-        'One-vs-One ROC', 
-        'Macro-averaged ROC', 
+VISUALIZATIONS = [ # TODO: check
+        'Heatmap',
+        'One-vs-Rest ROC Curves', # DONE: check
+            # 'One-vs-One ROC', # DONE: excluded because it would be too much
+        'Macro-Averaged One-vs-Rest ROC Curve',  # DONE: check
+        'Micro-Averaged One-vs-Rest ROC Curve',  # DONE: check
+        'All-in-One One-vs-Rest ROC Curves', # DONE: check
         'One-vs-Rest Precision-Recall Curve',
 ]
 
