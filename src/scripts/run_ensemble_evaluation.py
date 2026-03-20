@@ -392,7 +392,7 @@ def main():
         # global metrics table
         if global_metric_results:
             html_content += "<h1>Global Metrics</h1>"
-            df_global = pd.DataFrame.from_dict(global_metric_results, orient='index', columns=['Value'])
+            df_global = pd.DataFrame.from_dict(global_metric_results, orient='index').stack().to_frame(name='Value')
             html_content += df_global.to_html()
                 
         # class-wise report table
