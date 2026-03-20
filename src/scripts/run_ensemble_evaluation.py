@@ -224,7 +224,6 @@ def main():
 
         # filter data
         try:
-            print(type(subensemble['Result']))
             probas_filtered, M = filter_data(probas, subensemble['Result'])
         except Exception as e:
             logger.critical(f'Error filtering data: {e}')
