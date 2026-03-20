@@ -16,12 +16,13 @@ import seaborn as sns
 from sklearn.metrics import (
     confusion_matrix, precision_score, recall_score, f1_score,
     accuracy_score, cohen_kappa_score, matthews_corrcoef,
-    classification_report, roc_auc_score, roc_curve, precision_recall_curve
+    classification_report, roc_auc_score, auc, roc_curve, precision_recall_curve
 )
 from sklearn.preprocessing import label_binarize
 
 # local imports
 from shared_utils.custom_logging import create_logger
+from configilm.extra.BENv2_utils import NEW_LABELS, NEW_LABELS_ORIGINAL_ORDER, NEW_LABELS_16, NEW_LABELS_16_ORIGINAL_ORDER
 
 # --- GLOBAL DEFINITIONS ---
 
@@ -130,6 +131,15 @@ def main():
     # load data
     try:
         probas, targets, M, N, C = load_data(args.inference_results, args.targets)
+        targets_onehot = label_binarize(targets, classes=np.arange(C))
+        LABELS = [f'Class {i}' for i in range(C)]
+        if C == 16:
+            for i in range(C):
+                LABELS[i] = LABELS[i] + " - " + NEW_LABELS_16[i]
+        elif C == 19:
+            for i in range(C):
+                LABELS[i] = LABELS[i] + " - " + NEW_LABELS[i]
+            
     except Exception as e:
         logger.critical(f'Error loading data: {e}')
         sys.exit(1)
@@ -222,8 +232,18 @@ def main():
                     if metric == 'Cohen`s Kappa':
                         global_metric_results[metric] = cohen_kappa_score(targets, y_pred)
                     elif metric == 'Matthews Correlation Coefficient':
-                        global_metric_results[metric] = matthews_corrcoef(targets, y_pred)
-                    logger.info(f"{metric} ({metric_type}) done: {global_metric_results[metric]:.4f}")
+                        global_metric_results[metric] = {'': matthews_corrcoef(targets, y_pred)}
+                        logger.info(f"{metric} ({metric_type}) done: {global_metric_results[metric]['']:.4f}")
+                    elif metric == 'Micro-Averaged One-vs-Rest ROC AUC':
+                        micro_roc_auc_ovr = roc_auc_score(targets_onehot, y_score, multi_class="ovr", average="micro",)
+                        logger.info(f"{metric} ({metric_type}) done: {micro_roc_auc_ovr:.4f}")
+                        if np.isnan(micro_roc_auc_ovr).any(): micro_roc_auc_ovr = 'N/A'
+                        global_metric_results[metric] = {'': micro_roc_auc_ovr}
+                    elif metric == 'Macro-Averaged One-vs-Rest ROC AUC':
+                        macro_roc_auc_ovr = roc_auc_score(targets_onehot, y_score, multi_class="ovr", average="macro",)
+                        logger.info(f"{metric} ({metric_type}) done: {macro_roc_auc_ovr:.4f}")
+                        if np.isnan(macro_roc_auc_ovr).any(): macro_roc_auc_ovr = 'N/A'
+                        global_metric_results[metric] = {'': macro_roc_auc_ovr}
 
                 elif metric_type == 'class-wise':
                     report = classification_report(targets, y_pred, output_dict=True, zero_division=0)
@@ -235,34 +255,72 @@ def main():
                 elif metric_type == 'visualization':
                     plt.figure(figsize=(12, 10))
                     filename = f"{metric.replace(' ', '_').lower()}.png"
-                    
+                    empty_figure = True
+
                     if metric == 'Heatmap':
+                        empty_figure = False
                         cm = confusion_matrix(targets, y_pred, normalize=args.normalizeheatmap)
                         sns.heatmap(cm, annot=False, cmap='Blues')
                         plt.title(metric)
-                    elif 'ROC' in metric: 
-                        y_bin = label_binarize(targets, classes=np.arange(C))
+                    if metric == 'One-vs-Rest ROC Curves' or metric == 'All-in-One One-vs-Rest ROC Curves':
                         colors = plt.get_cmap('tab20', C)
                         for i in range(C):
-                            fpr, tpr, _ = roc_curve(y_bin[:, i], y_score[:, i])
-                            plt.plot(fpr, tpr, label=f'Class {i}', color=colors(i))
-                        plt.legend(loc='best', fontsize='xx-small', ncol=2)
+                            fpr, tpr, _ = roc_curve(targets_onehot[:, i], y_score[:, i])
+                            if not np.isnan(fpr).any() and not np.isnan(tpr).any():
+                                empty_figure = False
+                                roc_auc = auc(fpr, tpr)
+                                plt.plot(fpr, tpr, label=f'{LABELS[i]} (AUC = {roc_auc:.2f})', color=colors(i),)
+                        plt.legend(loc='best', fontsize='xx-small', ncol=1)
                         plt.title(metric)
-                    elif metric == 'One-vs-Rest Precision-Recall Curve':
+                    if metric == 'Micro-Averaged One-vs-Rest ROC Curve' or metric == 'All-in-One One-vs-Rest ROC Curves':
+                        fpr, tpr, _ = roc_curve(targets_onehot.ravel(), y_score.ravel())
+                        if not np.isnan(fpr).any() and not np.isnan(tpr).any():
+                            empty_figure = False
+                            roc_auc = auc(fpr, tpr)
+                            plt.plot(fpr, tpr, label=f'Micro-Averaged (AUC = {roc_auc:.2f})', color="deeppink",)
+                        plt.legend(loc='best', fontsize='xx-small', ncol=1)
+                        plt.title(metric)
+                    if metric == 'Macro-Averaged One-vs-Rest ROC Curve' or metric == 'All-in-One One-vs-Rest ROC Curves':
+                        fpr_grid = np.linspace(0.0,1.0,1000)
+                        mean_tpr = np.zeros_like(fpr_grid)
+                        feasible = True
+                        for i in range(C):
+                            fpr, tpr, _ = roc_curve(targets_onehot[:, i], y_score[:, i])
+                            if not np.isnan(fpr).any() and not np.isnan(tpr).any():
+                                mean_tpr += np.interp(fpr_grid, fpr, tpr)
+                            else:
+                                feasible = False
+                        if feasible == True:
+                            empty_figure = False
+                            mean_tpr /= C
+                            fpr = fpr_grid
+                            tpr = mean_tpr
+                            roc_auc = auc(fpr, tpr)
+                            plt.plot(fpr, tpr, label=f'Macro-Averaged (AUC = {roc_auc:.2f})', color="navy",)
+                            plt.legend(loc='best', fontsize='xx-small', ncol=1)
+                            plt.title(metric)
+                    if metric == 'All-in-One One-vs-Rest ROC Curves':
+                        plt.legend(loc='best', fontsize='xx-small', ncol=1)
+                        plt.title(metric)
+                    if metric == 'One-vs-Rest Precision-Recall Curve':
+                        empty_figure = False # TODO: Figure out if there are cases where PR-Curve is N/A
                         y_bin = label_binarize(targets, classes=np.arange(C))
                         colors = plt.get_cmap('tab20', C)
                         for i in range(C):
                             prec, rec, _ = precision_recall_curve(y_bin[:, i], y_score[:, i])
-                            plt.plot(rec, prec, label=f'Class {i}', color=colors(i))
-                        plt.legend(loc='best', fontsize='xx-small', ncol=2)
+                            plt.plot(rec, prec, label=f'{LABELS[i]}', color=colors(i))
+                        plt.legend(loc='best', fontsize='xx-small', ncol=1)
                         plt.title(metric)
                     
                     resources = outdir_run / 'resources'
                     resources.mkdir(exist_ok=True, parents=True)
-                    plt.savefig(resources / filename)
+                    if not empty_figure:
+                        plt.savefig(resources / filename)
+                        generated_plots.append(filename)
+                        logger.info(f"Saved Plot for metric: {metric}")
+                    else:
+                        logger.info(f"Did not save plot for metric: {metric} due to inapplicability")
                     plt.close()
-                    generated_plots.append(filename)
-                    logger.info(f"Saved Plot for metric: {metric}")
 
             except Exception as e:
                 logger.error(f"Failed processing metric {metric} of type {metric_type}: {e}")
