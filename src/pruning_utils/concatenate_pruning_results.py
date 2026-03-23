@@ -21,13 +21,13 @@ def parse_cli_args():
             )
 
     # define available parser arguments
-    parser.add_argument('--pruning_root', type=Path, help='''The path to the
+    parser.add_argument('--pruning-root', type=Path, help='''The path to the
         root directory of the run where the separate pruning outputs are 
         saved. The pruning root needs to be the SLURM_ARRAY_JOB_ID or the 
         timestamp of relevant pruning run''')
     parser.add_argument('--identifier', type=str, help='''The SLURM_
         ARRAY_JOB_ID or the timestamp of the job that ran the pruning task''')
-    parser.add_argument('--target_size', type=int, help='''The target ensemble
+    parser.add_argument('--target-size', type=int, help='''The target ensemble
         size to which the ensemble was pruned''')
     parser.add_argument('--outdir', type=Path, help='''The path to the output
         directory where the combined csv should be saved.''')
