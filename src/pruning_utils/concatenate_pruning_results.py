@@ -62,7 +62,7 @@ def main():
         outdir.mkdir(parents=True, exist_ok=True)
 
         # export results to csv
-        concatenated_pruning_results.to_csv(outdir / f'results.csv', index=False)
+        concatenated_pruning_results.to_csv(outdir / f'concatenated_results.csv', index=False, mode='w')
     
         # export results to html
         html_string = concatenated_pruning_results.to_html(classes='table table-striped', index=False)
@@ -87,10 +87,10 @@ def main():
         </html>
         """
         
-        with open(outdir / f'results.html', 'w') as f:
+        with open(outdir / f'concatenated_results.html', 'w') as f:
             f.write(final_html)
             
-        print(f"\nResults successfully saved to {args.outdir}")
+        print(f"\nResults successfully saved to {outdir}")
 
     except Exception as e:
         logger.critical(f'Error during processing: {e}')
