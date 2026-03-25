@@ -40,8 +40,8 @@ else:
 
 # --- metrics ---
 CLASS_WISE_METRICS = [
-        'Classification Report', # checked
-        # TODO: Add One-vs-Rest ROC AUC's
+        'Classification Report', # DONE: check
+        'Per-Class One-vs-Rest ROC AUC', # DONE: check
 ]
 
 GLOBAL_METRICS = [
@@ -58,7 +58,7 @@ GLOBAL_METRICS = [
 
 VISUALIZATIONS = [ # TODO: check
         'Heatmap',
-        'One-vs-Rest ROC Curves', # DONE: check
+        'Per-Class One-vs-Rest ROC Curves', # DONE: check
             # 'One-vs-One ROC', # DONE: excluded because it would be too much
         'Macro-Averaged One-vs-Rest ROC Curve',  # DONE: check
         'Micro-Averaged One-vs-Rest ROC Curve',  # DONE: check
@@ -291,11 +291,24 @@ def main():
                         global_metric_results[metric] = {'': macro_roc_auc_ovr}
 
                 elif metric_type == 'class-wise':
-                    report = classification_report(targets, y_pred, output_dict=True, zero_division=0)
-                    report['accuracy'] = {k: (report['accuracy'] if k != 'support' else report['macro avg']['support']) for k in report['macro avg']}
-                    class_wise_metric_results[metric] = report
-                    classification_report_str = classification_report(targets, y_pred, zero_division=0)
-                    logger.info(f"{metric} ({metric_type}) done:\n{classification_report_str}")
+                    if metric == 'Classification Report':
+                        report = classification_report(targets, y_pred, output_dict=True, zero_division=0)
+
+                        # Move accuracy to global metrics as it is calculated over all samples
+                        global_metric_results['Accuracy'] = {'Micro Accuracy': report['accuracy']}
+                        report.pop('accuracy')
+
+                        # Move Precision, Recall and F1 averages to global as they are calculated over all samples
+
+                        class_wise_metric_results[metric] = report
+                        classification_report_str = classification_report(targets, y_pred, zero_division=0)
+                    elif metric == 'Per-Class One-vs-Rest ROC AUC':
+                        for i in range(C):
+                            fpr, tpr, _ = roc_curve(targets_onehot[:, i], y_score[:, i])
+                            if not np.isnan(fpr).any() and not np.isnan(tpr).any():
+                                roc_auc = auc(fpr, tpr)
+                                class_wise_metric_results["Classification Report"][f"{i}"]["ROC AUC"] = roc_auc
+                    logger.info(f"[{metric_type}] {metric} done")
 
                 elif metric_type == 'visualization':
                     plt.figure(figsize=(12, 10))
@@ -307,7 +320,7 @@ def main():
                         cm = confusion_matrix(targets, y_pred, normalize=args.normalizeheatmap)
                         sns.heatmap(cm, annot=False, cmap='Blues')
                         plt.title(metric)
-                    if metric == 'One-vs-Rest ROC Curves' or metric == 'All-in-One One-vs-Rest ROC Curves':
+                    if metric == 'Per-Class One-vs-Rest ROC Curves' or metric == 'All-in-One One-vs-Rest ROC Curves':
                         colors = plt.get_cmap('tab20', C)
                         for i in range(C):
                             fpr, tpr, _ = roc_curve(targets_onehot[:, i], y_score[:, i])
@@ -347,7 +360,15 @@ def main():
                     if metric == 'All-in-One One-vs-Rest ROC Curves':
                         plt.legend(loc='best', fontsize='xx-small', ncol=1)
                         plt.title(metric)
-                    if metric == 'One-vs-Rest Precision-Recall Curve':
+                    if metric == 'Per-Class One-vs-Rest Precision-Recall Curves' or metric == 'All-in-One Precision-Recall Curves':
+                        # TODO: Implement
+                        continue
+                    if metric == 'Micro-Averaged One-vs-Rest Precision-Recall Curve' or metric == 'All-in-One Precision-Recall Curves':
+                        # TODO: Implement
+                        continue
+                    if metric == 'Macro-Averaged One-vs-Rest Precision-Recall Curve' or metric == 'All-in-One Precision-Recall Curves':
+                        # TODO: Implement
+                        continue
                         empty_figure = False # TODO: Figure out if there are cases where PR-Curve is N/A
                         y_bin = label_binarize(targets, classes=np.arange(C))
                         colors = plt.get_cmap('tab20', C)
@@ -362,9 +383,10 @@ def main():
                     if not empty_figure:
                         plt.savefig(resources / filename)
                         generated_plots.append(filename)
-                        logger.info(f"Saved Plot for metric: {metric}")
+                        logger.info(f"[{metric_type}] {metric} done")
                     else:
-                        logger.info(f"Did not save plot for metric: {metric} due to inapplicability")
+                        logger.warning(f"[{metric_type}] {metric} NOT done:")
+                        logger.warning(f"Did not save plot for metric: {metric} due to inapplicability")
                     plt.close()
 
             except Exception as e:
