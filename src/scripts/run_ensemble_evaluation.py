@@ -272,23 +272,27 @@ def main():
             logger.info(f"Running [{metric_type}] {metric}...")
 
             try:
+
                 if metric_type == 'global':
                     if metric == 'Cohen`s Kappa':
                         global_metric_results[metric] = my_cohen_kappa_score(targets, y_pred)
-                        logger.info(f"{metric} ({metric_type}) done: {global_metric_results[metric]['k']:.4f}")
                     elif metric == 'Matthews Correlation Coefficient':
                         global_metric_results[metric] = {'': matthews_corrcoef(targets, y_pred)}
-                        logger.info(f"{metric} ({metric_type}) done: {global_metric_results[metric]['']:.4f}")
                     elif metric == 'Micro-Averaged One-vs-Rest ROC AUC':
                         micro_roc_auc_ovr = roc_auc_score(targets_onehot, y_score, multi_class="ovr", average="micro",)
-                        logger.info(f"{metric} ({metric_type}) done: {micro_roc_auc_ovr:.4f}")
-                        if np.isnan(micro_roc_auc_ovr).any(): micro_roc_auc_ovr = 'N/A'
-                        global_metric_results[metric] = {'': micro_roc_auc_ovr}
+                        if np.isnan(micro_roc_auc_ovr).any(): micro_roc_auc_ovr = 'NaN'
+                        if not "ROC" in global_metric_results:
+                            global_metric_results['ROC'] = {f"{metric}": micro_roc_auc_ovr}
+                        else:
+                            global_metric_results['ROC'].update({f"{metric}": micro_roc_auc_ovr})
                     elif metric == 'Macro-Averaged One-vs-Rest ROC AUC':
                         macro_roc_auc_ovr = roc_auc_score(targets_onehot, y_score, multi_class="ovr", average="macro",)
-                        logger.info(f"{metric} ({metric_type}) done: {macro_roc_auc_ovr:.4f}")
-                        if np.isnan(macro_roc_auc_ovr).any(): macro_roc_auc_ovr = 'N/A'
-                        global_metric_results[metric] = {'': macro_roc_auc_ovr}
+                        if np.isnan(macro_roc_auc_ovr).any(): macro_roc_auc_ovr = 'NaN'
+                        if not "ROC" in global_metric_results:
+                            global_metric_results['ROC'] = {f"{metric}": macro_roc_auc_ovr}
+                        else:
+                            global_metric_results['ROC'].update({f"{metric}": macro_roc_auc_ovr})
+                    logger.info(f"[{metric_type}] {metric} done")
 
                 elif metric_type == 'class-wise':
                     if metric == 'Classification Report':
