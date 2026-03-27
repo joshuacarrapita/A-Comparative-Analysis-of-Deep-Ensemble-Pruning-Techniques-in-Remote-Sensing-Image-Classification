@@ -129,10 +129,10 @@ def main():
                 logger.info(f"Finished processing {target_size}")
 
         # TODO: Convert csv to html while grouping the 'Target Size' column
-        concatenated_pruning_results = pd.read_csv(outdir / f'concatenated_results.csv')
+        concatenated_pruning_results = pd.read_csv(outdir / f'concatenated_results.csv').set_index(['Target Size', 'Library', 'Algorithm'])
 
         # export results to html
-        html_string = concatenated_pruning_results.to_html(classes='table table-striped', index=False)
+        html_string = concatenated_pruning_results.to_html(classes='table table-striped')
         final_html = f"""
         <html>
         <head>
