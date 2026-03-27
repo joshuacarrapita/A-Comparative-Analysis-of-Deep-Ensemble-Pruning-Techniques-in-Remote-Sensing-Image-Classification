@@ -49,16 +49,16 @@ def main():
     try:
         args = parse_cli_args()
 
+        # parse paths
+        pruning_root = args.pruning_root.resolve()
+        outdir = args.outdir.resolve()
+
         # create unique outdir
         slurm_job_id = os.getenv('SLURM_JOB_ID', default='')
         export_time = ('' if slurm_job_id != '' else time.strftime('%d-%m-%Y_%H-%M-%S'))
         target_size = '-'.join(str(n) for n in args.target_size)
-        outdir = args.outdir.resolve() / f'{args.identifier}' / f'concatenated' / f'{target_size}' / f'{slurm_job_id}' / f'{export_time}'
+        outdir = outdir / f'{args.identifier}' / f'concatenated' / f'{target_size}' / f'{slurm_job_id}' / f'{export_time}'
         outdir.mkdir(parents=True, exist_ok=True)
-
-        # find all results.csv for a given ensemble size of this pruning run 
-        # target_size and identifier 
-        pruning_root = args.pruning_root.resolve()
 
         # open a new file where all csv are concatenated
         with open(outdir / f'concatenated_results.csv', 'a') as outfile:
