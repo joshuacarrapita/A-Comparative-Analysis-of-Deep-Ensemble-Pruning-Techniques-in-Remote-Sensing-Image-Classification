@@ -9,7 +9,7 @@ import traceback
 import pandas as pd
 import argparse
 from pathlib import Path
-from alive_progress import alive_it
+from alive_progress import alive_it, alive_bar
 
 # local libs
 from shared_utils.custom_logging import create_logger
@@ -68,29 +68,40 @@ def main():
 
             logger.info(f"Processing {target_size}...")
 
-            # collect all csv's for target_size
+            # collect all csv's for first target_size
             pruning_results_csv = list(pruning_root.glob(f'{args.identifier}/separate/{target_size}/**/results.csv'))
 
-            # save information of first csv and prepend Target Size
-            with open(pruning_results_csv[0], "r", encoding="utf-8") as first_csv:
-                # save header and prepend "Target Size"
-                outfile.write("Target Size," + first_csv.readline())
-                # save data and prepend target_size
-                for line in first_csv:
-                    outfile.write(f"{target_size}," + line)
+            # go over all the csv's for first target_size (with manual progress bar)
+            with alive_bar(len(pruning_results_csv)) as bar:
 
-            # TODO: Change this alive_it to alive_bar to get full range of files on first glob
-            for path in alive_it(pruning_results_csv[1:]):
+                # save information of first csv and prepend Target Size
+                with open(pruning_results_csv[0], "r", encoding="utf-8") as first_csv:
 
-                # save data of csv and prepend target_size (skipping header)
-                with open(path, "r", encoding="utf-8") as csv:
+                    # save header and prepend "Target Size"
+                    outfile.write("Target Size," + first_csv.readline())
 
-                    # skip header
-                    csv.readline()
-                    
                     # save data and prepend target_size
-                    for line in csv:
+                    for line in first_csv:
                         outfile.write(f"{target_size}," + line)
+
+                    # forward progress bar
+                    bar()
+
+                # go over all remaining csv's
+                for path in pruning_results_csv[1:]:
+
+                    # save data of csv and prepend target_size (skipping header)
+                    with open(path, "r", encoding="utf-8") as csv:
+
+                        # skip header
+                        csv.readline()
+                        
+                        # save data and prepend target_size
+                        for line in csv:
+                            outfile.write(f"{target_size}," + line)
+
+                        # forward progress bar
+                        bar()
 
             logger.info(f"Finished processing {target_size}")
 
@@ -102,6 +113,7 @@ def main():
                 # collect all csv's for target_size
                 pruning_results_csv = list(pruning_root.glob(f'{args.identifier}/separate/{target_size}/**/results.csv'))
 
+                # go over all collected csv's (with automatic progress bar)
                 for path in alive_it(pruning_results_csv):
 
                     # save data of csv and prepend target_size (skipping header)
