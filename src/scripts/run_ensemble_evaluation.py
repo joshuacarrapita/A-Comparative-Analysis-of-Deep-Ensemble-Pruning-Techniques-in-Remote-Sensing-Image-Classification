@@ -342,7 +342,7 @@ def main():
                                 empty_figure = False
                                 roc_auc = auc(fpr, tpr)
                                 plt.plot(fpr, tpr, label=f'{LABELS[i]} (AUC = {roc_auc:.2f})', color=colors(i),)
-                        plt.legend(loc='best', fontsize='xx-small', ncol=1)
+                        plt.legend(loc='best', fontsize='medium', ncol=1)
                         plt.title(metric)
                     if metric == 'Micro-Averaged One-vs-Rest ROC Curve' or metric == 'All-in-One One-vs-Rest ROC Curves':
                         fpr, tpr, _ = roc_curve(targets_onehot.ravel(), y_score.ravel())
@@ -350,7 +350,7 @@ def main():
                             empty_figure = False
                             roc_auc = auc(fpr, tpr)
                             plt.plot(fpr, tpr, label=f'Micro-Averaged (AUC = {roc_auc:.2f})', color="deeppink",)
-                        plt.legend(loc='best', fontsize='xx-small', ncol=1)
+                        plt.legend(loc='best', fontsize='medium', ncol=1)
                         plt.title(metric)
                     if metric == 'Macro-Averaged One-vs-Rest ROC Curve' or metric == 'All-in-One One-vs-Rest ROC Curves':
                         fpr_grid = np.linspace(0.0,1.0,1000)
@@ -369,10 +369,10 @@ def main():
                             tpr = mean_tpr
                             roc_auc = auc(fpr, tpr)
                             plt.plot(fpr, tpr, label=f'Macro-Averaged (AUC = {roc_auc:.2f})', color="navy",)
-                            plt.legend(loc='best', fontsize='xx-small', ncol=1)
+                            plt.legend(loc='best', fontsize='medium', ncol=1)
                             plt.title(metric)
                     if metric == 'All-in-One One-vs-Rest ROC Curves':
-                        plt.legend(loc='best', fontsize='xx-small', ncol=1)
+                        plt.legend(loc='best', fontsize='medium', ncol=1)
                         plt.title(metric)
                     if metric == 'Per-Class One-vs-Rest Precision-Recall Curves' or metric == 'All-in-One Precision-Recall Curves':
                         # TODO: Implement
@@ -382,14 +382,13 @@ def main():
                         continue
                     if metric == 'Macro-Averaged One-vs-Rest Precision-Recall Curve' or metric == 'All-in-One Precision-Recall Curves':
                         # TODO: Implement
-                        continue
                         empty_figure = False # TODO: Figure out if there are cases where PR-Curve is N/A
                         y_bin = label_binarize(targets, classes=np.arange(C))
                         colors = plt.get_cmap('tab20', C)
                         for i in range(C):
                             prec, rec, _ = precision_recall_curve(y_bin[:, i], y_score[:, i])
                             plt.plot(rec, prec, label=f'{LABELS[i]}', color=colors(i))
-                        plt.legend(loc='best', fontsize='xx-small', ncol=1)
+                        plt.legend(loc='best', fontsize='medium', ncol=1)
                         plt.title(metric)
                     
                     resources = outdir_run / 'resources'
