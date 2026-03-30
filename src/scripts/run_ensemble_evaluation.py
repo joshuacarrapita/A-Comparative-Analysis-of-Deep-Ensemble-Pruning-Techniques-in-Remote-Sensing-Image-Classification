@@ -320,10 +320,20 @@ def main():
                     empty_figure = True
 
                     if metric == 'Heatmap':
+
                         empty_figure = False
+
+                        fig, axes = plt.subplots(1, 2, width_ratios=[5,1], figsize=(15,10))
                         cm = confusion_matrix(targets, y_pred, normalize=args.normalizeheatmap)
-                        sns.heatmap(cm, annot=False, cmap='Blues')
-                        plt.title(metric)
+                        sns.heatmap(cm, annot=False, cmap='Blues', ax=axes[0])
+                        axes[0].set_title(metric, fontsize='xx-large')
+                        axes[0].set_xlabel("Predicted", fontsize='x-large')
+                        axes[0].set_ylabel("True", fontsize='x-large')
+
+                        axes[1].set_axis_off()
+                        axes[1].set_title('Legend', fontsize='xx-large')
+                        axes[1].text(-0.2, 0.37, s='\n'.join(LABELS), fontsize='x-large', wrap=True, bbox=dict(boxstyle='round', facecolor='white')) 
+
                     if metric == 'Per-Class One-vs-Rest ROC Curves' or metric == 'All-in-One One-vs-Rest ROC Curves':
                         colors = plt.get_cmap('tab20', C)
                         for i in range(C):
