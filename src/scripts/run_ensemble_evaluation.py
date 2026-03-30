@@ -299,11 +299,11 @@ def main():
                         report = classification_report(targets, y_pred, output_dict=True, zero_division=0)
 
                         # Move accuracy to global metrics as it is calculated over all samples
-                        global_metric_results['Accuracy'] = {'Micro Accuracy': report['accuracy']}
+                        global_metric_results['Accuracy'] = {'Micro Accuracy': report['accuracy']} # = sum_0^n-samples(tp) / (sum_0^n-samples(tp) + sum_0^n-samples(fp)) (or fn instead of fp, doesn't matter) = sum(correct) / (sum(correct) + sum(incorrect)) = sum(correct) / total_samples
                         report.pop('accuracy')
+                        global_metric_results['Accuracy'].update({'Macro Recall': report['macro avg']['recall']}) # = sum_0^n-classes(tp_i / (tp_i + fn_i)) = sum_0^n-classes(#correct_i / #total_i)
 
                         # Move Precision, Recall and F1 averages to global as they are calculated over all samples
-
                         class_wise_metric_results[metric] = report
                         classification_report_str = classification_report(targets, y_pred, zero_division=0)
                     elif metric == 'Per-Class One-vs-Rest ROC AUC':
