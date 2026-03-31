@@ -324,6 +324,8 @@ def main():
                         empty_figure = False
 
                         fig, axes = plt.subplots(1, 2, width_ratios=[5,1], figsize=(15,10))
+                        fig.tight_layout(pad=2)
+
                         cm = confusion_matrix(targets, y_pred, normalize=args.normalizeheatmap)
                         sns.heatmap(cm, annot=False, cmap='Blues', ax=axes[0])
                         axes[0].set_title(metric, fontsize='xx-large')
@@ -332,7 +334,7 @@ def main():
 
                         axes[1].set_axis_off()
                         axes[1].set_title('Legend', fontsize='xx-large')
-                        axes[1].text(-0.2, 0.37, s='\n'.join(LABELS), fontsize='x-large', wrap=True, bbox=dict(boxstyle='round', facecolor='white')) 
+                        axes[1].text(-0.2, 0, s='\n'.join(LABELS), fontsize='xx-large', wrap=True, bbox=dict(boxstyle='round', facecolor='white')) 
 
                     if metric == 'Per-Class One-vs-Rest ROC Curves' or metric == 'All-in-One One-vs-Rest ROC Curves':
                         colors = plt.get_cmap('tab20', C)
