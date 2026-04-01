@@ -16,7 +16,8 @@ import seaborn as sns
 from sklearn.metrics import (
     confusion_matrix, precision_score, recall_score, f1_score,
     accuracy_score, cohen_kappa_score, matthews_corrcoef,
-    classification_report, roc_auc_score, auc, roc_curve, precision_recall_curve
+    classification_report, roc_auc_score, auc, roc_curve, 
+    precision_recall_curve, average_precision_score,
 )
 from sklearn.preprocessing import label_binarize
 
@@ -42,26 +43,29 @@ else:
 CLASS_WISE_METRICS = [
         'Classification Report', # DONE: check
         'Per-Class One-vs-Rest ROC AUC', # DONE: check
+        'Per-Class One-vs-Rest PR-Curve AUC',
 ]
 
 GLOBAL_METRICS = [
         'Cohen`s Kappa', # DONE: check
         'Matthews Correlation Coefficient', # DONE: check
-        'Micro-Averaged One-vs-Rest ROC AUC', # DONE: check
-        'Macro-Averaged One-vs-Rest ROC AUC', # DONE: check
+        'Micro-Average One-vs-Rest ROC AUC', # DONE: check
+        'Macro-Average One-vs-Rest ROC AUC', # DONE: check
+        'Macro-Average One-vs-Rest PR-Curve AUC',
+        'Micro-Average One-vs-Rest PR-Curve AUC',
+        'Weighted-Average One-vs-Rest PR-Curve AUC',
         # TODO: check and maybe add
-        # Average Precision
         # Brier Score
         # ECE
 
 ]
 
 VISUALIZATIONS = [ # TODO: check
-        'Heatmap',
+        'Heatmap', # DONE: check
         'Per-Class One-vs-Rest ROC Curves', # DONE: check
-            # 'One-vs-One ROC', # DONE: excluded because it would be too much
-        'Macro-Averaged One-vs-Rest ROC Curve',  # DONE: check
-        'Micro-Averaged One-vs-Rest ROC Curve',  # DONE: check
+#       'One-vs-One ROC', # DONE: excluded because it would be too much
+        'Macro-Average One-vs-Rest ROC Curve',  # DONE: check
+        'Micro-Average One-vs-Rest ROC Curve',  # DONE: check
         'All-in-One One-vs-Rest ROC Curves', # DONE: check
         'One-vs-Rest Precision-Recall Curve',
 ]
@@ -274,44 +278,94 @@ def main():
             try:
 
                 if metric_type == 'global':
+
                     if metric == 'Cohen`s Kappa':
                         global_metric_results[metric] = my_cohen_kappa_score(targets, y_pred)
+
                     elif metric == 'Matthews Correlation Coefficient':
                         global_metric_results[metric] = {'': matthews_corrcoef(targets, y_pred)}
-                    elif metric == 'Micro-Averaged One-vs-Rest ROC AUC':
+
+                    elif metric == 'Micro-Average One-vs-Rest ROC AUC':
                         micro_roc_auc_ovr = roc_auc_score(targets_onehot, y_score, multi_class="ovr", average="micro",)
                         if np.isnan(micro_roc_auc_ovr).any(): micro_roc_auc_ovr = 'NaN'
-                        if not "ROC" in global_metric_results:
-                            global_metric_results['ROC'] = {f"{metric}": micro_roc_auc_ovr}
+                        if not "Average One-vs-Rest ROC AUC" in global_metric_results:
+                            global_metric_results['Average One-vs-Rest ROC AUC'] = {f"Micro": micro_roc_auc_ovr}
                         else:
-                            global_metric_results['ROC'].update({f"{metric}": micro_roc_auc_ovr})
-                    elif metric == 'Macro-Averaged One-vs-Rest ROC AUC':
+                            global_metric_results['Average One-vs-Rest ROC AUC'].update({f"Micro": micro_roc_auc_ovr})
+
+                    elif metric == 'Macro-Average One-vs-Rest ROC AUC':
                         macro_roc_auc_ovr = roc_auc_score(targets_onehot, y_score, multi_class="ovr", average="macro",)
                         if np.isnan(macro_roc_auc_ovr).any(): macro_roc_auc_ovr = 'NaN'
-                        if not "ROC" in global_metric_results:
-                            global_metric_results['ROC'] = {f"{metric}": macro_roc_auc_ovr}
+                        if not "Average One-vs-Rest ROC AUC" in global_metric_results:
+                            global_metric_results['Average One-vs-Rest ROC AUC'] = {f"Macro": macro_roc_auc_ovr}
                         else:
-                            global_metric_results['ROC'].update({f"{metric}": macro_roc_auc_ovr})
+                            global_metric_results['Average One-vs-Rest ROC AUC'].update({f"Macro": macro_roc_auc_ovr})
+
+                    elif metric == 'Micro-Average One-vs-Rest PR-Curve AUC':
+                        micro_ovr_pr_auc = average_precision_score(targets_onehot, y_score, average='micro',)
+                        if np.isnan(micro_ovr_pr_auc).any(): micro_ovr_pr_auc = 'NaN'
+                        if not 'Average One-vs-Rest PR-Curve AUC<br><br>(Average Precision Score)' in global_metric_results:
+                            global_metric_results['Average One-vs-Rest PR-Curve AUC<br><br>(Average Precision Score)'] = {f'Micro': micro_ovr_pr_auc}
+                        else: 
+                            global_metric_results['Average One-vs-Rest PR-Curve AUC<br><br>(Average Precision Score)'].update({f'Micro': micro_ovr_pr_auc})
+
+                    elif metric == 'Macro-Average One-vs-Rest PR-Curve AUC':
+                        macro_ovr_pr_auc = average_precision_score(targets_onehot, y_score, average='macro',)
+                        if np.isnan(macro_ovr_pr_auc).any(): macro_ovr_pr_auc = 'NaN'
+                        if not 'Average One-vs-Rest PR-Curve AUC<br><br>(Average Precision Score)' in global_metric_results:
+                            global_metric_results['Average One-vs-Rest PR-Curve AUC<br><br>(Average Precision Score)'] = {f'Macro': macro_ovr_pr_auc}
+                        else: 
+                            global_metric_results['Average One-vs-Rest PR-Curve AUC<br><br>(Average Precision Score)'].update({f'Macro': macro_ovr_pr_auc})
+
+                    elif metric == 'Weighted-Average One-vs-Rest PR-Curve AUC':
+                        weighted_ovr_pr_auc = average_precision_score(targets_onehot, y_score, average='weighted',)
+                        if np.isnan(weighted_ovr_pr_auc).any(): weighted_ovr_pr_auc = 'NaN'
+                        if not 'Average One-vs-Rest PR-Curve AUC<br><br>(Average Precision Score)' in global_metric_results:
+                            global_metric_results['Average One-vs-Rest PR-Curve AUC<br><br>(Average Precision Score)'] = {f'Weighted': weighted_ovr_pr_auc}
+                        else: 
+                            global_metric_results['Average One-vs-Rest PR-Curve AUC<br><br>(Average Precision Score)'].update({f'Weighted': weighted_ovr_pr_auc})
+
+
                     logger.info(f"[{metric_type}] {metric} done")
 
                 elif metric_type == 'class-wise':
+
                     if metric == 'Classification Report':
                         report = classification_report(targets, y_pred, output_dict=True, zero_division=0)
 
                         # Move accuracy to global metrics as it is calculated over all samples
-                        global_metric_results['Accuracy'] = {'Micro Accuracy': report['accuracy']} # = sum_0^n-samples(tp) / (sum_0^n-samples(tp) + sum_0^n-samples(fp)) (or fn instead of fp, doesn't matter) = sum(correct) / (sum(correct) + sum(incorrect)) = sum(correct) / total_samples
+                        global_metric_results['Average Accuracy'] = {'Micro<br>(= Micro Precision, Recall, F1-Score)': report['accuracy']} # = sum_0^n-samples(tp) / (sum_0^n-samples(tp) + sum_0^n-samples(fp)) (or fn instead of fp, doesn't matter) = sum(correct) / (sum(correct) + sum(incorrect)) = sum(correct) / total_samples
                         report.pop('accuracy')
-                        global_metric_results['Accuracy'].update({'Macro Recall': report['macro avg']['recall']}) # = sum_0^n-classes(tp_i / (tp_i + fn_i)) = sum_0^n-classes(#correct_i / #total_i)
+                        global_metric_results['Average Accuracy'].update({'Macro<br>(= Macro Recall)': report['macro avg']['recall']}) # = sum_0^n-classes(tp_i / (tp_i + fn_i)) = sum_0^n-classes(#correct_i / #total_i)
+
+                        # Move Macro and Weighteds to Global Metrics
+                        global_metric_results['Average Precision'] = {'Macro': report['macro avg']['precision']}
+                        global_metric_results['Average Recall'] = {'Macro': report['macro avg']['recall']}
+                        global_metric_results['Average F1-Score'] = {'Macro': report['macro avg']['f1-score']}
+
+                        global_metric_results['Average Precision'].update({'Weighted': report['weighted avg']['precision']})
+                        global_metric_results['Average Recall'].update({'Weighted': report['weighted avg']['recall']})
+                        global_metric_results['Average F1-Score'].update({'Weighted': report['weighted avg']['f1-score']})
+
+                        report.pop('macro avg')
+                        report.pop('weighted avg')
 
                         # Move Precision, Recall and F1 averages to global as they are calculated over all samples
                         class_wise_metric_results[metric] = report
                         classification_report_str = classification_report(targets, y_pred, zero_division=0)
+
                     elif metric == 'Per-Class One-vs-Rest ROC AUC':
                         for i in range(C):
                             fpr, tpr, _ = roc_curve(targets_onehot[:, i], y_score[:, i])
                             if not np.isnan(fpr).any() and not np.isnan(tpr).any():
                                 roc_auc = auc(fpr, tpr)
                                 class_wise_metric_results["Classification Report"][f"{i}"]["ROC AUC"] = roc_auc
+
+                    elif metric == 'Per-Class One-vs-Rest PR-Curve AUC':
+                        pc_ovr_pr_auc = average_precision_score(targets_onehot, y_score, average=None)
+                        for i in range(C):
+                            class_wise_metric_results["Classification Report"][f"{i}"]["PR-Curve AUC"] = pc_ovr_pr_auc[i]
+
                     logger.info(f"[{metric_type}] {metric} done")
 
                 elif metric_type == 'visualization':
@@ -346,15 +400,17 @@ def main():
                                 plt.plot(fpr, tpr, label=f'{LABELS[i]} (AUC = {roc_auc:.2f})', color=colors(i),)
                         plt.legend(loc='best', fontsize='medium', ncol=1)
                         plt.title(metric)
-                    if metric == 'Micro-Averaged One-vs-Rest ROC Curve' or metric == 'All-in-One One-vs-Rest ROC Curves':
+                        
+                    if metric == 'Micro-Average One-vs-Rest ROC Curve' or metric == 'All-in-One One-vs-Rest ROC Curves':
                         fpr, tpr, _ = roc_curve(targets_onehot.ravel(), y_score.ravel())
                         if not np.isnan(fpr).any() and not np.isnan(tpr).any():
                             empty_figure = False
                             roc_auc = auc(fpr, tpr)
-                            plt.plot(fpr, tpr, label=f'Micro-Averaged (AUC = {roc_auc:.2f})', color="deeppink",)
+                            plt.plot(fpr, tpr, label=f'Micro-Average (AUC = {roc_auc:.2f})', color="deeppink",)
                         plt.legend(loc='best', fontsize='medium', ncol=1)
                         plt.title(metric)
-                    if metric == 'Macro-Averaged One-vs-Rest ROC Curve' or metric == 'All-in-One One-vs-Rest ROC Curves':
+
+                    if metric == 'Macro-Average One-vs-Rest ROC Curve' or metric == 'All-in-One One-vs-Rest ROC Curves':
                         fpr_grid = np.linspace(0.0,1.0,1000)
                         mean_tpr = np.zeros_like(fpr_grid)
                         feasible = True
@@ -370,19 +426,23 @@ def main():
                             fpr = fpr_grid
                             tpr = mean_tpr
                             roc_auc = auc(fpr, tpr)
-                            plt.plot(fpr, tpr, label=f'Macro-Averaged (AUC = {roc_auc:.2f})', color="navy",)
+                            plt.plot(fpr, tpr, label=f'Macro-Average (AUC = {roc_auc:.2f})', color="navy",)
                             plt.legend(loc='best', fontsize='medium', ncol=1)
                             plt.title(metric)
+
                     if metric == 'All-in-One One-vs-Rest ROC Curves':
                         plt.legend(loc='best', fontsize='medium', ncol=1)
                         plt.title(metric)
+
                     if metric == 'Per-Class One-vs-Rest Precision-Recall Curves' or metric == 'All-in-One Precision-Recall Curves':
                         # TODO: Implement
                         continue
-                    if metric == 'Micro-Averaged One-vs-Rest Precision-Recall Curve' or metric == 'All-in-One Precision-Recall Curves':
+
+                    if metric == 'Micro-Average One-vs-Rest Precision-Recall Curve' or metric == 'All-in-One Precision-Recall Curves':
                         # TODO: Implement
                         continue
-                    if metric == 'Macro-Averaged One-vs-Rest Precision-Recall Curve' or metric == 'All-in-One Precision-Recall Curves':
+
+                    if metric == 'Macro-Average One-vs-Rest Precision-Recall Curve' or metric == 'All-in-One Precision-Recall Curves':
                         # TODO: Implement
                         empty_figure = False # TODO: Figure out if there are cases where PR-Curve is N/A
                         y_bin = label_binarize(targets, classes=np.arange(C))
@@ -429,8 +489,9 @@ def main():
         # global metrics table
         if global_metric_results:
             html_content += "<h1>Global Metrics</h1>"
+            html_content += "<p><strong>Please note:</strong> Micro-Averages are not given for Precision, Recall and F1-Score as they correspond to (Micro) Accuracy for the multi-class case.</p>"
             df_global = pd.DataFrame.from_dict(global_metric_results, orient='index').stack().to_frame(name='Value')
-            html_content += df_global.to_html()
+            html_content += df_global.to_html(escape=False)
                 
         # class-wise report table
         if class_wise_metric_results:
