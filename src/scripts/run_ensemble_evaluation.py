@@ -168,7 +168,7 @@ def my_cohen_kappa_score(y_true: np.ndarray, y_pred: np.ndarray):
         'k': k,
         'Expected Accuracy': p_e,
         'Observed Accuracy': p_o,
-        'Accuracy Gain over Expected Accuracy': accuracy_gain,
+        'Accuracy Gain<br>(over "Expected Accuracy")': accuracy_gain,
         'Matches Sklearn': bool(matches_sklearn),
     }
 
@@ -413,7 +413,7 @@ def main():
                                 roc_auc = auc(fpr, tpr)
                                 plt.plot(fpr, tpr, label=f'{LABELS[i]} (AUC = {roc_auc:.2f})', color=colors(i))
                         plt.legend(loc='best', fontsize='medium', ncol=1)
-                        plt.title(metric)
+                        plt.title(metric, fontsize='x-large')
                         
                     if metric == 'Micro-Average One-vs-Rest ROC Curve' or metric == 'All-in-One One-vs-Rest ROC Curves':
                         fpr, tpr, _ = roc_curve(targets_onehot.ravel(), y_score.ravel())
@@ -422,7 +422,7 @@ def main():
                             roc_auc = auc(fpr, tpr)
                             plt.plot(fpr, tpr, label=f'Micro-Average (AUC = {roc_auc:.2f})', color="deeppink")
                         plt.legend(loc='best', fontsize='medium', ncol=1)
-                        plt.title(metric)
+                        plt.title(metric, fontsize='x-large')
 
                     if metric == 'Macro-Average One-vs-Rest ROC Curve' or metric == 'All-in-One One-vs-Rest ROC Curves':
                         fpr_grid = np.linspace(0.0,1.0,1000)
@@ -443,11 +443,11 @@ def main():
                             roc_auc = auc(fpr, tpr)
                             plt.plot(fpr, tpr, label=f'Macro-Average (AUC = {roc_auc:.2f})', color="navy")
                             plt.legend(loc='best', fontsize='medium', ncol=1)
-                            plt.title(metric)
+                            plt.title(metric, fontsize='x-large')
 
                     if metric == 'All-in-One One-vs-Rest ROC Curves':
                         plt.legend(loc='best', fontsize='medium', ncol=1)
-                        plt.title(metric)
+                        plt.title(metric, fontsize='x-large')
 
                     if metric == 'Per-Class One-vs-Rest PR Curves' or metric == 'All-in-One One-vs-Rest PR Curves':
                         colors = plt.get_cmap('tab20', C)
@@ -457,7 +457,7 @@ def main():
                                 empty_figure = False # TODO: Figure out if there are cases where PR Curve is N/A
                                 plt.plot(rec, prec, label=f'{LABELS[i]}', color=colors(i))
                         plt.legend(loc='best', fontsize='medium', ncol=1)
-                        plt.title(metric)
+                        plt.title(metric, fontsize='x-large')
 
                     if metric == 'Micro-Average One-vs-Rest PR Curve' or metric == 'All-in-One One-vs-Rest PR Curves':
                         prec, rec, _ = precision_recall_curve(targets_onehot.ravel(), y_score.ravel())
@@ -466,7 +466,7 @@ def main():
                             micro_ovr_pr_auc = average_precision_score(targets_onehot, y_score, average='micro')
                             plt.plot(rec, prec, label=f'Micro-Average (AUC = {micro_ovr_pr_auc:.2f})', color='deeppink')
                         plt.legend(loc='best', fontsize='medium', ncol=1)
-                        plt.title(metric)
+                        plt.title(metric, fontsize='x-large')
 
                     if metric == 'Macro-Average One-vs-Rest PR Curve' or metric == 'All-in-One One-vs-Rest PR Curves':
                         rec_grid = np.linspace(0.0,1.0,1000)
@@ -487,11 +487,18 @@ def main():
                             macro_ovr_pr_auc /= C
                             plt.plot(rec_grid, macro_prec, label=f'Macro-Average (AUC = {macro_ovr_pr_auc:.2f})', color='navy')
                             plt.legend(loc='best', fontsize='medium', ncol=1)
-                            plt.title(metric)
+                            plt.title(metric, fontsize='x-large')
 
                     if metric == 'All-in-One One-vs-Rest PR Curves':
                         plt.legend(loc='best', fontsize='medium', ncol=1)
-                        plt.title(metric)
+                        plt.title(metric, fontsize='x-large')
+
+                    if 'ROC' in metric:
+                        plt.xlabel('FPR',fontsize='x-large')
+                        plt.ylabel('TPR',fontsize='x-large')
+                    elif 'PR' in metric:
+                        plt.xlabel('Recall',fontsize='x-large')
+                        plt.ylabel('Precision',fontsize='x-large')
 
                     resources = outdir_run / 'resources'
                     resources.mkdir(exist_ok=True, parents=True)
