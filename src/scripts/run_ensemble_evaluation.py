@@ -51,6 +51,7 @@ GLOBAL_METRICS = [
         'Matthews Correlation Coefficient', # DONE: check
         'Micro-Average One-vs-Rest ROC AUC', # DONE: check
         'Macro-Average One-vs-Rest ROC AUC', # DONE: check
+        'Weighted-Average One-vs-Rest ROC AUC',
         'Macro-Average One-vs-Rest PR AUC',
         'Micro-Average One-vs-Rest PR AUC',
         'Weighted-Average One-vs-Rest PR AUC',
@@ -304,6 +305,14 @@ def main():
                         else:
                             global_metric_results['Average One-vs-Rest ROC AUC'].update({f"Macro": macro_roc_auc_ovr})
 
+                    elif metric == 'Weighted-Average One-vs-Rest ROC AUC':
+                        weighted_roc_auc_ovr = roc_auc_score(targets_onehot, y_score, multi_class="ovr", average="weighted")
+                        if np.isnan(weighted_roc_auc_ovr).any(): weighted_roc_auc_ovr = 'NaN'
+                        if not "Average One-vs-Rest ROC AUC" in global_metric_results:
+                            global_metric_results['Average One-vs-Rest ROC AUC'] = {f"Weighted": weighted_roc_auc_ovr}
+                        else:
+                            global_metric_results['Average One-vs-Rest ROC AUC'].update({f"Weighted": weighted_roc_auc_ovr})
+
                     elif metric == 'Micro-Average One-vs-Rest PR AUC':
                         micro_ovr_pr_auc = average_precision_score(targets_onehot, y_score, average='micro')
                         if np.isnan(micro_ovr_pr_auc).any(): micro_ovr_pr_auc = 'NaN'
@@ -340,6 +349,8 @@ def main():
                         global_metric_results['Average Accuracy'] = {'Micro<br>(= Micro Precision, Recall, F1-Score)': report['accuracy']} # = sum_0^n-samples(tp) / (sum_0^n-samples(tp) + sum_0^n-samples(fp)) (or fn instead of fp, doesn't matter) = sum(correct) / (sum(correct) + sum(incorrect)) = sum(correct) / total_samples
                         report.pop('accuracy')
                         global_metric_results['Average Accuracy'].update({'Macro<br>(= Macro Recall)': report['macro avg']['recall']}) # = sum_0^n-classes(tp_i / (tp_i + fn_i)) = sum_0^n-classes(#correct_i / #total_i)
+
+                        global_metric_results['Average Accuracy'].update({'Weighted<br>(= Weighted Recall)': report['weighted avg']['recall']})
 
                         # Move Macro and Weighteds to Global Metrics
                         global_metric_results['Average Precision'] = {'Macro': report['macro avg']['precision']}
