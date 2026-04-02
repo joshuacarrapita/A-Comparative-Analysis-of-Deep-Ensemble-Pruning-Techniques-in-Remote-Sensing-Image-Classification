@@ -40,37 +40,38 @@ else:
     logger.newline()
 
 # --- metrics ---
-CLASS_WISE_METRICS = [
+CLASS_WISE_METRICS = [ # DONE: check
         'Classification Report', # DONE: check
         'Per-Class One-vs-Rest ROC AUC', # DONE: check
-        'Per-Class One-vs-Rest PR AUC',
+        'Per-Class One-vs-Rest PR AUC', # DONE: check
 ]
 
-GLOBAL_METRICS = [
+GLOBAL_METRICS = [ # TODO: check
         'Cohen`s Kappa', # DONE: check
         'Matthews Correlation Coefficient', # DONE: check
         'Micro-Average One-vs-Rest ROC AUC', # DONE: check
         'Macro-Average One-vs-Rest ROC AUC', # DONE: check
-        'Weighted-Average One-vs-Rest ROC AUC',
-        'Macro-Average One-vs-Rest PR AUC',
-        'Micro-Average One-vs-Rest PR AUC',
-        'Weighted-Average One-vs-Rest PR AUC',
+        'Weighted-Average One-vs-Rest ROC AUC', # DONE: check
+        'Micro-Average One-vs-Rest PR AUC', # DONE: check
+        'Macro-Average One-vs-Rest PR AUC', # DONE: check
+        'Weighted-Average One-vs-Rest PR AUC', # DONE: check
         # TODO: check and maybe add
         # Brier Score
         # ECE
-
 ]
 
-VISUALIZATIONS = [ # TODO: check
+VISUALIZATIONS = [ # DONE: check
         'Heatmap', # DONE: check
         'Per-Class One-vs-Rest ROC Curves', # DONE: check
 #       'One-vs-One ROC Curves', # DONE: excluded because it would be too much
-        'Macro-Average One-vs-Rest ROC Curve',  # DONE: check
         'Micro-Average One-vs-Rest ROC Curve',  # DONE: check
+        'Macro-Average One-vs-Rest ROC Curve',  # DONE: check
+#       'Weighted-Average One-vs-Rest ROC Curve',  # DONE: excluded because it would be too much
         'Per-Class One-vs-Rest PR Curves', # DONE: check
 #       'One-vs-One PR Curves', # DONE: excluded because it would be too much
-        'Macro-Average One-vs-Rest PR Curve',  # DONE: check
         'Micro-Average One-vs-Rest PR Curve',  # DONE: check
+        'Macro-Average One-vs-Rest PR Curve',  # DONE: check
+#       'Weighted-Average One-vs-Rest PR Curve',  # DONE: excluded because it would be too much
         'All-in-One One-vs-Rest PR Curves', # DONE: check
 ]
 
