@@ -20,6 +20,7 @@ from sklearn.metrics import (
     precision_recall_curve, average_precision_score,
 )
 from sklearn.preprocessing import label_binarize
+from alive_progress import alive_it
 
 # local imports
 from shared_utils.custom_logging import create_logger
@@ -198,6 +199,8 @@ def main():
         logger.critical(f'Error loading data: {e}')
         sys.exit(1)
     
+    logger.info("Collecting subensemble info...")
+
     # define evaluation space
     subensembles = pd.DataFrame(columns=['Library','Algorithm','Runtime','Result'])
 
@@ -210,7 +213,7 @@ def main():
     pruning_results_root = Path(args.pruning_results_root).resolve()
     pruning_results_file_paths = [pruning_results_root] if pruning_results_root.is_file() else list(pruning_results_root.glob(f'**/results.csv'))
 
-    for file_path in pruning_results_file_paths:
+    for file_path in alive_it(pruning_results_file_paths):
 
         subensembles = pd.concat([subensembles,pd.read_csv(file_path)],ignore_index=True)
 
@@ -222,7 +225,9 @@ def main():
     else:
         full_ensemble = False
 
-    for idx, subensemble in subensembles.iterrows():
+    logger.info("Evaluating subensembles...")
+
+    for idx, subensemble in alive_it(subensembles.iterrows(), total=len(subensembles.index)):
         subensemble['Result'] = eval(subensemble['Result'])
         
         # adjust path if evaluating subensembles
