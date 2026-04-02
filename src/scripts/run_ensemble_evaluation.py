@@ -477,7 +477,7 @@ def main():
                             if feasible:
                                 prec, rec, _ = precision_recall_curve(targets_onehot[:, i], y_score[:, i])
                                 if not np.isnan(prec).any() and not np.isnan(rec).any():
-                                    macro_prec += np.interp(rec_grid, rec, prec)
+                                    macro_prec += np.interp(rec_grid, np.flip(rec), np.flip(prec))
                                     macro_ovr_pr_auc += average_precision_score(targets_onehot[:, i], y_score[:, i])
                                 else:
                                     feasible = False
