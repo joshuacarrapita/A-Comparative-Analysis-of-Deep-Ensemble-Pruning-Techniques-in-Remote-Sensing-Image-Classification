@@ -253,7 +253,7 @@ def main():
     # if neither of the two were given, evaluate full ensemble
     if subensembles.empty:
         logger.info("Adding full ensemble for evaluation...")
-        full_ensemble = pd.DataFrame([['','',None,[i for i in range(M)]]],columns=subensembles.columns)
+        full_ensemble = pd.DataFrame([['','',None,str([i for i in range(M)])]],columns=subensembles.columns)
         subensembles = pd.concat([subensembles,full_ensemble], ignore_index=True)
         full_ensemble = True
     else:
