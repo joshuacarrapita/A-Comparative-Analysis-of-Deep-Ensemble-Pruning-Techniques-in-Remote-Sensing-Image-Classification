@@ -6,6 +6,7 @@ import time
 import logging
 import argparse
 from pathlib import Path
+from glob import glob as lnsglob
 
 # 3rd party imports
 import torch
@@ -243,7 +244,7 @@ def main():
     # evaluate subensembles found in pruning results files if any were given
     logger.info("Collecting subensemble info from pruning_results_root...")
     pruning_results_root = Path(args.pruning_results_root).resolve()
-    pruning_results_file_paths = [pruning_results_root] if pruning_results_root.is_file() else list(pruning_results_root.glob(f'**/results.csv'))
+    pruning_results_file_paths = [pruning_results_root] if pruning_results_root.is_file() else list(lnsglob(f'{pruning_results_root}/**/results.csv', recursive=True))
 
     for file_path in alive_it(pruning_results_file_paths):
 
