@@ -264,7 +264,7 @@ def main():
     for idx, subensemble in alive_it(subensembles.iterrows(), total=len(subensembles.index)):
         logger.info(f"Evaluating {subensemble['Library']}, {subensemble['Algorithm']} result: {subensemble['Result']}...")
         try:
-            subensemble['Result'] = eval(subensemble['Result'])
+            subensemble['Result'] = [x for x in eval(subensemble['Result'])]
         except Exception as e:
             logger.error(f"Encountered error during subensemble parsing: {e}")
             logger.warning(f"Skipping {subensemble['Library']}, {subensemble['Algorithm']} result: {subensemble['Result']}...")
