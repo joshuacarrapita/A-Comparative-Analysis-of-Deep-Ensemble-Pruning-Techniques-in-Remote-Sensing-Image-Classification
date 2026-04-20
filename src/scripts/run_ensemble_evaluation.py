@@ -274,8 +274,8 @@ def main():
         if full_ensemble:
             outdir_run = outdir
         else: 
-            outdir_run = outdir / f'{len(subensemble["Result"])}' / f'{subensemble["Library"]}' / f'{subensemble["Algorithm"]}' / f'{"-".join(str(i) for i in subensemble["Result"])}' / f'{slurm_job_id}' / f'{idx}'
-        outdir_run.mkdir(exist_ok=True, parents=True)
+            outdir_run = outdir / f'{len(subensemble["Result"])}' / f'{subensemble["Library"]}' / f'{subensemble["Algorithm"]}' / f'{slurm_job_id}' 
+        outdir_run.mkdir(parents=True, exist_ok=True)
 
         # filter data
         try:
