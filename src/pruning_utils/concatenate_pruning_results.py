@@ -9,6 +9,7 @@ import traceback
 import pandas as pd
 import argparse
 from pathlib import Path
+from glob import glob as lnsglob
 from alive_progress import alive_it, alive_bar
 
 # local libs
@@ -28,12 +29,13 @@ def parse_cli_args():
         root directory of the run where the separate pruning outputs are 
         saved. The pruning root needs to be the SLURM_ARRAY_JOB_ID or the 
         timestamp of relevant pruning run''')
-    parser.add_argument('--identifier', type=str, required=True, help='''The SLURM_
-        ARRAY_JOB_ID or the timestamp of the job that ran the pruning task''')
-    parser.add_argument('--target-size', type=int, nargs='+', required=True, help='''The target ensemble
-        size to which the ensemble was pruned''')
+    parser.add_argument('--identifier', type=str, default='', help='''The SLURM_
+        ARRAY_JOB_ID or the timestamp of the job that ran the pruning task; if not provided
+        --pruning-root needs to contain all and only jobs relevant for concatenation''')
+    parser.add_argument('--target-size', type=int, nargs='*', default=[], help='''The target ensemble
+        size(s) for which you want to concatenate results; concatenates all if empty''')
     parser.add_argument('--outdir', type=Path, nargs='?', default=Path('.').resolve(), help='''The path to the output
-        directory where the combined csv should be saved.''')
+        directory where the combined csv should be saved''')
 
     # check arguments format
     args = parser.parse_args()
@@ -47,6 +49,7 @@ def main():
     logger = create_logger("Concatenate Pruning Results Logger")
 
     try:
+        logger.info(f"Parsing input args...")
         args = parse_cli_args()
 
         # parse paths
@@ -54,6 +57,7 @@ def main():
         outdir = args.outdir.resolve()
 
         # create unique outdir
+        logger.info(f"Creating outdir...")
         slurm_job_id = os.getenv('SLURM_JOB_ID', default='')
         export_time = ('' if slurm_job_id != '' else time.strftime('%d-%m-%Y_%H-%M-%S'))
         target_size = '-'.join(str(n) for n in args.target_size)
@@ -61,17 +65,29 @@ def main():
         outdir.mkdir(parents=True, exist_ok=True)
 
         # open a new file where all csv are concatenated
+        logger.info(f"Creating concatenated_results.csv...")
         with open(outdir / f'concatenated_results.csv', 'a') as outfile:
 
             # set first target_size
+            if not args.target_size:
+                logger.info(f"Collecting target sizes...")
+                with alive_bar() as bar:
+                    args.target_size = sorted(list({int(Path(x).stem) for x in lnsglob(f"{pruning_root}/**/separate/*", recursive=True)}))
+                    bar()
             target_size = args.target_size[0] 
+            logger.info(f"Target sizes collected: {args.target_size}")
 
             logger.info(f"Processing {target_size}...")
 
             # collect all csv's for first target_size
-            pruning_results_csv = list(pruning_root.glob(f'{args.identifier}/separate/{target_size}/**/results.csv'))
+            logger.info(f"Collecting results.csv...")
+            with alive_bar() as bar:
+                pruning_results_csv = list(lnsglob(f'{pruning_root}/**/{args.identifier}/separate/{target_size}/**/results.csv', recursive=True))
+                logger.info(f"Collecting DONE")
+                bar()
 
             # go over all the csv's for first target_size (with manual progress bar)
+            logger.info(f"Concatenating results.csv...")
             with alive_bar(len(pruning_results_csv)) as bar:
 
                 # save information of first csv and prepend Target Size
@@ -103,6 +119,7 @@ def main():
                         # forward progress bar
                         bar()
 
+            logger.info(f"Concatenating DONE")
             logger.info(f"Finished processing {target_size}")
 
             # for all remaining target sizes
@@ -111,9 +128,14 @@ def main():
                 logger.info(f"Processing {target_size}...")
 
                 # collect all csv's for target_size
-                pruning_results_csv = list(pruning_root.glob(f'{args.identifier}/separate/{target_size}/**/results.csv'))
+                logger.info(f"Collecting results.csv...")
+                with alive_bar() as bar:
+                    pruning_results_csv = list(lnsglob(f'{pruning_root}/**/{args.identifier}/separate/{target_size}/**/results.csv', recursive=True))
+                    logger.info(f"Collecting DONE")
+                    bar()
 
                 # go over all collected csv's (with automatic progress bar)
+                logger.info(f"Concatenating results.csv...")
                 for path in alive_it(pruning_results_csv):
 
                     # save data of csv and prepend target_size (skipping header)
@@ -126,38 +148,49 @@ def main():
                         for line in csv:
                             outfile.write(f"{target_size}," + line)
 
+                logger.info(f"Concatenating DONE")
                 logger.info(f"Finished processing {target_size}")
 
-        # TODO: Convert csv to html while grouping the 'Target Size' column
-        concatenated_pruning_results = pd.read_csv(outdir / f'concatenated_results.csv').set_index(['Target Size', 'Library', 'Algorithm'])
+        # Convert csv to html while grouping the 'Target Size' column
+        logger.info(f"Exporting to html...")
+        with alive_bar() as bar:
+            logger.info(f"Reading csv...")
+            concatenated_pruning_results = pd.read_csv(outdir / f'concatenated_results.csv').set_index(['Target Size', 'Library', 'Algorithm'])
 
-        # export results to html
-        html_string = concatenated_pruning_results.to_html(classes='table table-striped')
-        final_html = f"""
-        <html>
-        <head>
-            <title>Ensemble Pruning Benchmark Results</title>
-            <style>
-                body {{ font-family: Arial, sans-serif; margin: 20px; }}
-                table {{ border-collapse: collapse; width: 100%; }}
-                th, td {{ padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }}
-                th {{ background-color: #f2f2f2; }}
-            </style>
-        </head>
-        <body>
-            <h2>Ensemble Pruning Results</h2>
-            <p><strong>Input Pruning Run (Identifier):</strong> {args.identifier}</p>
-            <p><strong>Target Ensemble Size(s):</strong> {args.target_size}</p>
-            <br>
-            {html_string}
-        </body>
-        </html>
-        """
-        
-        with open(outdir / f'concatenated_results.html', 'w') as outfile:
-            outfile.write(final_html)
+            logger.info(f"Sorting csv by 'Runtime' ascending...")
+            concatenated_pruning_results = concatenated_pruning_results.groupby(level=["Target Size", "Library"], group_keys=False).apply(lambda g: g.sort_values("Runtime"))
+
+            # export results to html
+            logger.info(f"Converting to html...")
+            html_string = concatenated_pruning_results.to_html(classes='table table-striped')
+            final_html = f"""
+            <html>
+            <head>
+                <title>Ensemble Pruning Benchmark Results</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                    table {{ border-collapse: collapse; width: 100%; }}
+                    th, td {{ padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }}
+                    th {{ background-color: #f2f2f2; }}
+                </style>
+            </head>
+            <body>
+                <h2>Ensemble Pruning Results</h2>
+                <p><strong>Input Pruning Run (Identifier):</strong> {args.identifier}</p>
+                <p><strong>Target Ensemble Size(s):</strong> {args.target_size}</p>
+                <br>
+                {html_string}
+            </body>
+            </html>
+            """
             
-        print(f"\nResults successfully saved to {outdir}")
+            logger.info(f"Saving...")
+            with open(outdir / f'concatenated_results.html', 'w') as outfile:
+                outfile.write(final_html)
+
+            bar()
+            
+        logger.info(f"\nResults successfully saved to {outdir}")
 
     except Exception as e:
         logger.critical(f'Error during processing: {e}')
