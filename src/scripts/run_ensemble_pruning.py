@@ -153,7 +153,7 @@ def run_pypruning_algo(algo_name, probas, targets, nb_pru, args):
         
     return selected_indices, end_time - start_time
 
-def run_baseline_algo(algo_name, probas, targets, nb_pru):
+def run_baseline_algo(algo_name, probas, targets, nb_pru, args):
     """Wrapper for baseline methods."""
     start_time = time.time()
     
