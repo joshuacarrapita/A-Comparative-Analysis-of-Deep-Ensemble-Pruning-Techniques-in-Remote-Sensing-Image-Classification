@@ -182,10 +182,11 @@ def main():
         for submetric, _ in submetrics.items():
             # convert strings
             metric_san = sanitize(metric)
-            submetric_san = sanitize(submetric)
-            logger.info(f"Creating plot for {metric_san} ({submetric_san})...")
+            submetric_san = f"({sanitize(submetric)})" if submetric else ""
+            logger.info(f"Creating plot for {metric_san} {submetric_san}...")
             # prepare figure
             plt.figure(figsize=(12,16))
+            plt.gca().set_xscale('log')
             empty_figure = True
             # add each metric for all algos to the plot
             for jdx, (algo, results) in enumerate(algo_bins.items()):
@@ -204,10 +205,15 @@ def main():
                     empty_figure = False
             if not empty_figure:
                 # finalize plot
+                if submetric_san:
+                    plt.ylabel(f"{submetric_san}", fontsize="x-large")
+                else: 
+                    plt.ylabel(f"{metric_san}", fontsize="x-large")
+                plt.xlabel(f"{Ensemble Size}", fontsize="x-large")
                 plt.legend(loc="best", fontsize="medium", ncol=1)
-                plt.title(f"{metric_san} ({submetric_san}) vs. Ensemble-Size", fontsize="x-large")
+                plt.title(f"{metric_san} {submetric_san} vs. Ensemble-Size", fontsize="x-large")
                 # save
-                logger.info(f"Saving plot for {metric_san} ({submetric_san})...")
+                logger.info(f"Saving plot for {metric_san} {submetric_san}...")
                 try: 
                     # sanitize strings
                     metric_save = sanitize(metric, save_conform=True)
@@ -220,9 +226,9 @@ def main():
                     # save figure
                     plt.savefig(out_dir / filename)
                     plt.close()
-                    logger.info(f"Plot for {metric_san} ({submetric_san}) saved under: {out_dir}/{filename}")
+                    logger.info(f"Plot for {metric_san} {submetric_san} saved under: {out_dir}/{filename}")
                 except Exception as e:
-                    logger.critical(f"Error while saving plot for {metric_san} ({submetric_san}): {e}")
+                    logger.critical(f"Error while saving plot for {metric_san} {submetric_san}: {e}")
                     raise
                     sys.exit(1)
             else: 
