@@ -93,7 +93,7 @@ def define_params():
     # metric arguments
     parser.add_argument('--metric-types', type=str, default='all', choices=['all', 'class-wise', 'global', 'visualization'], nargs="+", help='Select metric type(s) to evaluate with. Defaults to "all"')
     parser.add_argument('--metrics', type=str, default=[], choices=ALL_METRICS, nargs="+", help='Evaluate using specific metric(s), overrides --metric-types')
-    parser.add_argument('--normalizeheatmap', type=str, default='true', choices=['None', 'true', 'pred', 'all'], help='Normalize the heatmap by row, column or all values. Defaults to None.')
+    parser.add_argument('--normalizeheatmap', type=str, default='true', choices=['None', 'true', 'pred', 'all'], help='Normalize the heatmap by row, column or all values. Defaults to "true".')
     
     # seed
     parser.add_argument('--seed', type=int, default=666, help='Random seed')
