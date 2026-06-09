@@ -31,8 +31,9 @@ PYPRUNING_ALGOS = [
     "error_ambiguity", "largest_mean_distance", "cluster_accuracy", 
     "cluster_centroids", "random"
 ]
+BASELINE_ALGOS = ["bsm", "wsm"]
 
-ALL_ALGOS = EPFD_ALGOS + GASEN_ALGOS + PYPRUNING_ALGOS
+ALL_ALGOS = EPFD_ALGOS + GASEN_ALGOS + PYPRUNING_ALGOS + BASELINE_ALGOS
 
 # --- HELPER FUNCTIONS ---
 def load_data(results_path, targets_path):
@@ -152,6 +153,26 @@ def run_pypruning_algo(algo_name, probas, targets, nb_pru, args):
         
     return selected_indices, end_time - start_time
 
+def run_baseline_algo(algo_name, probas, targets, nb_pru):
+    """Wrapper for baseline methods."""
+    start_time = time.time()
+    
+    predictions = probas.argmax(axis=2) 
+    errors = (predictions != targets).mean(axis=1)
+    
+    if algo_name == "bsm":
+        selected_indices = np.argsort(errors)[:nb_pru]
+    elif algo_name == "wsm":
+        selected_indices = np.argsort(errors)[::-1][:nb_pru]
+
+    end_time = time.time()
+
+    # Convert numpy array to list if needed
+    if isinstance(selected_indices, np.ndarray):
+        selected_indices = selected_indices.tolist()
+        
+    return selected_indices, end_time - start_time
+
 # --- MAIN LOGIC ---
 def define_params():
     parser = argparse.ArgumentParser(description="Run Ensemble Pruning Ensemble Benchmark")
@@ -165,7 +186,7 @@ def define_params():
     parser.add_argument("--nb_pru", type=int, default=[5], nargs="+", help='Target size(s) of the pruned ensemble(s)')
     
     # Selection arguments
-    parser.add_argument("--library", type=str, default='all', choices=['all', 'EPFD', 'GASEN', 'PyPruning'],
+    parser.add_argument("--library", type=str, default='all', choices=['all', 'EPFD', 'GASEN', 'PyPruning', 'Baseline'],
                         help='Select a specific library to run. Defaults to "all".')
     
     # Algorithm choices populated explicitly
@@ -204,6 +225,9 @@ def main():
         elif args.algorithm in PYPRUNING_ALGOS:
             tasks.append(("PyPruning", args.algorithm))
             found = True
+        elif args.algorithm in BASELINE_ALGOS:
+            tasks.append(("Baseline", args.algorithm))
+            found = True
         
         if not found:
             sys.exit(f"Error: Algorithm '{args.algorithm}' not found in any library definitions.")
@@ -220,6 +244,11 @@ def main():
         if args.library in ['all', 'PyPruning']:
             for alg in PYPRUNING_ALGOS:
                 tasks.append(("PyPruning", alg))
+
+        if args.library in ['all', 'Baseline']:
+            for alg in BASELINE_ALGOS:
+                tasks.append(("Baseline", alg))
+
 
     # Target size can't be larger than ensemble size, no duplicate runs
     target_sizes = sorted(list(set([max(min(x,M),1) for x in args.nb_pru])))
@@ -254,6 +283,8 @@ def main():
                     selection, runtime = run_gasen_algo(probas, targets, nb_pru, args)
                 elif lib == "PyPruning":
                     selection, runtime = run_pypruning_algo(algo, probas, targets, nb_pru, args)
+                elif lib == "Baseline":
+                    selection, runtime = run_baseline_algo(algo, probas, targets, nb_pru, args)
                 
                 print(f"Done ({runtime:.4f}s)")
                 results_data.append({
