@@ -3,6 +3,7 @@ import argparse
 import sys
 import time
 import os
+import logging
 
 # 3rd party imports
 import numpy as np
@@ -17,8 +18,23 @@ from epfd.data_distributed import (distributed_single_pruning,
                                    COMEP_Pruning, DOMEP_Pruning)
 import gasen.GA as GA
 from PyPruning.Papers import create_pruner
+from shared_utils.custom_logging import create_logger
+from configilm import util
 
 # --- GLOBAL DEFINITIONS ---
+# --- create global logger
+if __debug__:
+    logger = create_logger("EnsemblePruningLogger", log_level=logging.DEBUG)
+    logger.newline()
+    logger.debug('--- DEBUG ON -- (Log level: DEBUG)')
+    logger.newline()
+    util.MESSAGE_LEVEL = util.MessageLevel.INFO
+else:
+    logger = create_logger("EnsemblePruningLogger", log_level=logging.INFO)
+    logger.newline()
+    logger.info('--- DEBUG OFF --- (Log level: INFO)')
+    logger.newline()
+
 EPFD_ALGOS = [
     'ES', 'KP', 'KL', 'RE', 'OO', 'DREP', 'SEP', 'OEP', 'PEP', 
     'GMA', 'LCS', 'COMEP', 'DOMEP'
@@ -166,6 +182,13 @@ def run_baseline_algo(algo_name, probas, targets, nb_pru, args):
         selected_indices = np.argsort(errors)[::-1][:nb_pru]
 
     end_time = time.time()
+
+    sorted_errors = errors[selected_indices]
+    both = zip(selected_indices,sorted_errors)
+    logger.newline()
+    logger.debug("INIDICES & ERRORS:")
+    for idx, err in both:
+        logger.debug(f"{idx}: {err}")
 
     # Convert numpy array to list if needed
     if isinstance(selected_indices, np.ndarray):
