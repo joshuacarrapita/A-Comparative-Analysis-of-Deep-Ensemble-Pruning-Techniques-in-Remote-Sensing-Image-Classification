@@ -165,7 +165,7 @@ def parse_args():
 
 def sanitize(string: str, save_conform: bool = False):
     if save_conform:
-        return string.replace(" ", "_").replace("`", "").replace("<br>", "_").replace('"', '').replace("(", "").replace(")", "").lower()
+        return string.replace(", ","-").replace(" ", "_").replace("`", "").replace("<br>", "").replace('"', '').replace("(", "_").replace(")", "").replace("=","eq").lower()
     else: 
         return string.replace("<br>", " ", 1).replace("<br>", "")
 
@@ -275,16 +275,15 @@ def main():
                         else:
                             plt.scatter(subensemble_sizes, subensemble_metrics, color=colours(idx))
                             plt.plot(subensemble_sizes, subensemble_metrics, label=f"{algo}", color=colours(idx))
-                        # values to plot
                         empty_figure = False
 
                 if not empty_figure:
                     # finalize plot
                     if submetric_san:
-                        plt.ylabel(f"{submetric_san}", fontsize="x-large")
+                        plt.ylabel(f"{metric_san} {submetric_san}", fontsize="x-large")
                     else: 
                         plt.ylabel(f"{metric_san}", fontsize="x-large")
-                    plt.xlabel(f"{Ensemble Size}", fontsize="x-large")
+                    plt.xlabel(f"Ensemble-Size", fontsize="x-large")
                     plt.legend(loc="best", fontsize="medium", ncol=1)
                     plt.title(f"{type.title()} Pruning Techniques - {metric_san} {submetric_san} vs. Ensemble-Size", fontsize="x-large")
                     # save
