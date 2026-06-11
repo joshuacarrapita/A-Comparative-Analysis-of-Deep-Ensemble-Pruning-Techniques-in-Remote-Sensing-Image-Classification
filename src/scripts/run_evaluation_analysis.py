@@ -4,6 +4,7 @@ import logging
 import argparse
 import sys
 import time
+from copy import deepcopy
 
 # 3-rd party imports
 from pathlib import Path
@@ -21,34 +22,34 @@ logger = create_logger("Analyse Evaluation Results Logger", log_level=logging.IN
 start_time = time.strftime('%d-%m-%Y_%H-%M-%S')
 
 EPFD_ALGOS = [
-    "ES", #"KP", "KL", "RE", "OO", "DREP", "SEP", "OEP", "PEP", 
-    "GMM",# "LCS", "COMEP", "DOMEP"
+        "ES", "KP", "KL", "RE", "OO", "DREP", "SEP", "OEP", "PEP", 
+        "GMM", "LCS", "COMEP", "DOMEP",
 ]
 
 GASEN_ALGOS = ["GASEN"]
 
 PYPRUNING_ALGOS = [
-    "individual_margin_diversity", # "individual_contribution", "individual_error",
-    #"individual_kappa_statistic", "reduced_error", "complementariness", "drep",
-    #"margin_distance", "combined", "reference_vector", "combined_error",
-    #"error_ambiguity", "largest_mean_distance", "cluster_accuracy", 
-    #"cluster_centroids"
+        "individual_margin_diversity", "individual_contribution", "individual_error",
+        "individual_kappa_statistic", "reduced_error", "complementariness", "drep",
+        "margin_distance", "combined", "reference_vector", "combined_error",
+        "error_ambiguity", "largest_mean_distance", "cluster_accuracy", 
+        "cluster_centroids"
 ]
 
 BASELINE_ALGOS = [
-    "bsm",
-    "wsm",
-    "random",
+        "bsm",
+        "wsm",
+        "random",
 ]
 
-ALL_ALGOS = EPFD_ALGOS + GASEN_ALGOS + PYPRUNING_ALGOS
+ALL_ALGOS = EPFD_ALGOS + GASEN_ALGOS + PYPRUNING_ALGOS + BASELINE_ALGOS
 
 ALL_TYPES = [
-    "all", 
-    "greedy",
-    "ranking", 
-    "optimization", 
-    "clustering",
+        "all", 
+        "greedy",
+        "ranking", 
+        "optimization", 
+        "clustering",
 ]
 
 TYPE_OF = {
@@ -207,7 +208,7 @@ def main():
     # for each metrics_results.json
     for result in alive_it(evaluation_results):    
         # for each algo
-        for algo in ALL_ALGOS + BASELINE_ALGOS:
+        for algo in ALL_ALGOS:
             # if metrics_results.json belongs to this algo
             if result.is_relative_to(f"{result.parents[1]}/{algo}"):
                 # get the subensemble_size
@@ -223,12 +224,12 @@ def main():
         algo_bins[algo] = sorted(algo_bins[algo], key=lambda x: x["Size"])
 
     # assign each algo bin to a type
-    types = {type: BASELINE_ALGOS for type in ALL_TYPES} # every type of pruning algorithm has all baseline algos
+    types = {type: deepcopy(BASELINE_ALGOS) for type in ALL_TYPES} # every type of pruning algorithm has all baseline algos
     for algo, _ in algo_bins.items():
         if algo not in BASELINE_ALGOS: # prevent baseline from redundantly being added here
             types['all'].append(algo) # the all type get's all algos 
-            types[TYPE_OF[algo]].append(algo) # the specific algo gets assigned to its type
-            
+            types[TYPE_OF[algo]].append(algo) # the specific algo gets assigned to its typeLL
+
     # plot results
     for type, algos_of_type in types.items():
         logger.info(f"Creating combined plots for {type} ensemble pruning algorithms...")
@@ -250,6 +251,7 @@ def main():
                 # prepare figure
                 plt.figure(figsize=(12,16))
                 plt.gca().set_xscale('log')
+                plt.xlim(1,100)
                 empty_figure = True
 
                 # add each metric for all algos to the plot
@@ -266,9 +268,12 @@ def main():
                             logger.debug(f"subensemble_sizes: {subensemble_sizes}")
                             logger.debug(f"subensemble_metrics: {subensemble_metrics}")
                             interp_metrics = np.interp(interp_grid, subensemble_sizes, subensemble_metrics)
-                            plt.plot(interp_grid, interp_metrics, label=f"{algo}", color='grey', linestyle='--')
+                            if algo == 'bsm':
+                                plt.plot(interp_grid, interp_metrics, label=f"{algo}", color="grey", linestyle="--")
+                            else: 
+                                plt.plot(interp_grid, interp_metrics, label=f"{algo}", color="grey", linestyle="-.")
                         else:
-                            plt.scatter(subensemble_sizes, subensemble_metrics)
+                            plt.scatter(subensemble_sizes, subensemble_metrics, color=colours(idx))
                             plt.plot(subensemble_sizes, subensemble_metrics, label=f"{algo}", color=colours(idx))
                         # values to plot
                         empty_figure = False
