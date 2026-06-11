@@ -228,7 +228,7 @@ def main():
     for algo, _ in algo_bins.items():
         if algo not in BASELINE_ALGOS: # prevent baseline from redundantly being added here
             types['all'].append(algo) # the all type get's all algos 
-            types[TYPE_OF[algo]].append(algo) # the specific algo gets assigned to its typeLL
+            types[TYPE_OF[algo]].append(algo) # the specific algo gets assigned to its type
 
     # plot results
     for type, algos_of_type in types.items():
