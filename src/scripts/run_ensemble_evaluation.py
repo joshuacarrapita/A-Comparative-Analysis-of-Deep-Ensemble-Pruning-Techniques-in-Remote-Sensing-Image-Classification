@@ -78,6 +78,8 @@ VISUALIZATIONS = [ # DONE: check
 
 ALL_METRICS = CLASS_WISE_METRICS + GLOBAL_METRICS + VISUALIZATIONS
 
+VALIDATION_TO_TEST = None
+
 # --- HELPER FUNCTIONS ---
 
 def define_params():
@@ -86,7 +88,8 @@ def define_params():
     # data arguments
     parser.add_argument('--inference_results', type=Path, required=True, help='Path to tensor with inference results (M, N, C)')
     parser.add_argument('--targets', type=Path, required=True, help='Path to tensor with targets (N,)')
-    parser.add_argument('--pruning_results_root', type=Path, default='', help='Path to directory or .csv with (separate!) pruning results (M, N, C)')
+    parser.add_argument('--validation_test_mapping', type=Path, required=False, help='Path to json that maps model indices of validation set inference to those of test set inference')
+    parser.add_argument('--pruning_results_root', type=str, default='', help='Path to directory or .csv with (separate!) pruning results (M, N, C)')
     parser.add_argument('--member_ids', type=int, nargs='+', help='List of ensemble members (IDs) to perform evaluation on')
     parser.add_argument('--outdir', type=str, default='.', help='Directory for output file(s)')
 
@@ -104,8 +107,8 @@ def define_params():
 
     return args
 
-def load_data(inference_results_path, targets_path):
-    """Loads tensors and infers dimensions M, N, C."""
+def load_data(inference_results_path, targets_path, validation_test_mapping):
+    """Loads tensors and mappings and infers dimensions M, N, C."""
     logger.info(f"\nLoading data from:\n  Probas: {inference_results_path}\n  Targets: {targets_path}")
     
     probas = torch.load(Path(inference_results_path).resolve(), map_location='cpu').float().numpy()
@@ -114,6 +117,13 @@ def load_data(inference_results_path, targets_path):
     M, N, C = probas.shape
 
     logger.info(f"Inferred Dimensions of Loaded Data -> Models (M): {M}, Samples (N): {N}, Classes (C): {C}")
+
+    if validation_test_mapping:
+        validation_test_mapping = Path(validation_test_mapping).resolve()
+        with open(validation_test_mapping, 'r') as f:
+            global VALIDATION_TO_TEST
+            VALIDATION_TO_TEST = json.loads(f.read())
+
     return probas, targets, M, N, C
 
 def filter_data(probas, member_ids):
@@ -216,7 +226,7 @@ def main():
 
     # load data
     try:
-        probas, targets, M, N, C = load_data(args.inference_results, args.targets)
+        probas, targets, M, N, C = load_data(args.inference_results, args.targets, args.validation_test_mapping)
         targets_onehot = label_binarize(targets, classes=np.arange(C))
         LABELS = [f'Class {i}' for i in range(C)]
         if C == 16:
@@ -243,12 +253,12 @@ def main():
 
     # evaluate subensembles found in pruning results files if any were given
     logger.info("Collecting subensemble info from pruning_results_root...")
-    pruning_results_root = Path(args.pruning_results_root).resolve()
-    pruning_results_file_paths = [pruning_results_root] if pruning_results_root.is_file() else list(lnsglob(f'{pruning_results_root}/**/results.csv', recursive=True))
+    if args.pruning_results_root:
+        pruning_results_root = Path(args.pruning_results_root).resolve() 
+        pruning_results_file_paths = [pruning_results_root] if pruning_results_root.is_file() else list(lnsglob(f'{pruning_results_root}/**/results.csv', recursive=True))
+        for file_path in alive_it(pruning_results_file_paths):
 
-    for file_path in alive_it(pruning_results_file_paths):
-
-        subensembles = pd.concat([subensembles,pd.read_csv(file_path)],ignore_index=True)
+            subensembles = pd.concat([subensembles,pd.read_csv(file_path)],ignore_index=True)
 
     # if neither of the two were given, evaluate full ensemble
     if subensembles.empty:
@@ -264,7 +274,13 @@ def main():
     for idx, subensemble in alive_it(subensembles.iterrows(), total=len(subensembles.index)):
         logger.info(f"Evaluating {subensemble['Library']}, {subensemble['Algorithm']} result: {subensemble['Result']}...")
         try:
-            subensemble['Result'] = [x for x in eval(subensemble['Result'])]
+            if VALIDATION_TO_TEST:
+                logger.info("Using validation -> test mapping...")
+                logger.debug(VALIDATION_TO_TEST)
+                subensemble['Result'] = [VALIDATION_TO_TEST[str(x)] for x in eval(subensemble['Result'])]
+            else:
+                logger.info("NOT USING validation -> test mapping!")
+                subensemble['Result'] = [x for x in eval(subensemble['Result'])]
         except Exception as e:
             logger.error(f"Encountered error during subensemble parsing: {e}")
             logger.warning(f"Skipping {subensemble['Library']}, {subensemble['Algorithm']} result: {subensemble['Result']}...")
