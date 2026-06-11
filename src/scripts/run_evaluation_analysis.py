@@ -21,19 +21,70 @@ logger = create_logger("Analyse Evaluation Results Logger", log_level=logging.IN
 start_time = time.strftime('%d-%m-%Y_%H-%M-%S')
 
 EPFD_ALGOS = [
-    "ES", "KP", "KL", "RE", "OO", "DREP", "SEP", "OEP", "PEP", 
-    "GMA", "LCS", "COMEP", "DOMEP"
+    "ES", #"KP", "KL", "RE", "OO", "DREP", "SEP", "OEP", "PEP", 
+    "GMM",# "LCS", "COMEP", "DOMEP"
 ]
+
 GASEN_ALGOS = ["GASEN"]
+
 PYPRUNING_ALGOS = [
-    "individual_margin_diversity", "individual_contribution", "individual_error",
-    "individual_kappa_statistic", "reduced_error", "complementariness", "drep",
-    "margin_distance", "combined", "reference_vector", "combined_error",
-    "error_ambiguity", "largest_mean_distance", "cluster_accuracy", 
-    "cluster_centroids", "random"
+    "individual_margin_diversity", # "individual_contribution", "individual_error",
+    #"individual_kappa_statistic", "reduced_error", "complementariness", "drep",
+    #"margin_distance", "combined", "reference_vector", "combined_error",
+    #"error_ambiguity", "largest_mean_distance", "cluster_accuracy", 
+    #"cluster_centroids"
+]
+
+BASELINE_ALGOS = [
+    "bsm",
+    "wsm",
+    "random",
 ]
 
 ALL_ALGOS = EPFD_ALGOS + GASEN_ALGOS + PYPRUNING_ALGOS
+
+ALL_TYPES = [
+    "all", 
+    "greedy",
+    "ranking", 
+    "optimization", 
+    "clustering",
+]
+
+TYPE_OF = {
+        "ES": "greedy",
+        "KP": "greedy",
+        "KL": "greedy", 
+        "RE": "greedy", 
+        "OO": "ranking", 
+        "DREP": "greedy",
+        "SEP": "optimization", 
+        "OEP": "ranking", 
+        "PEP": "greedy", 
+        "GMM": "clustering", 
+        "LCS": "greedy", 
+        "COMEP": "greedy", 
+        "DOMEP": "greedy",
+        "GASEN": "optimization",
+        "individual_margin_diversity": "ranking",
+        "individual_contribution": "ranking",
+        "individual_error": "ranking",
+        "individual_kappa_statistic": "ranking",
+        "reduced_error": "greedy",
+        "complementariness": "greedy",
+        "drep": "greedy",
+        "margin_distance": "greedy",
+        "combined": "optimization",
+        "reference_vector": "ranking",
+        "combined_error": "optimization",
+        "error_ambiguity": "ranking",
+        "largest_mean_distance": "clustering",
+        "cluster_accuracy": "clustering", 
+        "cluster_centroids": "clustering",
+        "random": "baseline",
+        "bsm": "baseline",
+        "wsm": "baseline",
+}
 
 GLOBAL_METRICS = {
     "Cohen`s Kappa": {
@@ -79,7 +130,6 @@ GLOBAL_METRICS = {
         "Weighted": "",
     },
 }
-
 
 # === HELPER FUNCTIONS ===
 def parse_args():
@@ -157,7 +207,7 @@ def main():
     # for each metrics_results.json
     for result in alive_it(evaluation_results):    
         # for each algo
-        for algo in ALL_ALGOS:
+        for algo in ALL_ALGOS + BASELINE_ALGOS:
             # if metrics_results.json belongs to this algo
             if result.is_relative_to(f"{result.parents[1]}/{algo}"):
                 # get the subensemble_size
@@ -172,67 +222,87 @@ def main():
     for algo, _ in alive_it(algo_bins.items()):
         algo_bins[algo] = sorted(algo_bins[algo], key=lambda x: x["Size"])
 
+    # assign each algo bin to a type
+    types = {type: BASELINE_ALGOS for type in ALL_TYPES} # every type of pruning algorithm has all baseline algos
+    for algo, _ in algo_bins.items():
+        if algo not in BASELINE_ALGOS: # prevent baseline from redundantly being added here
+            types['all'].append(algo) # the all type get's all algos 
+            types[TYPE_OF[algo]].append(algo) # the specific algo gets assigned to its type
+            
     # plot results
-    logger.info(f"Creating plots...")
-    # get distinct colours
-    colours = plt.get_cmap("hsv", len(algo_bins))
-    # plot each metric over ensemble size
-    total_algos = len(algo_bins)
-    for metric, submetrics in alive_it(GLOBAL_METRICS.items()):
-        for submetric, _ in submetrics.items():
-            # convert strings
-            metric_san = sanitize(metric)
-            submetric_san = f"({sanitize(submetric)})" if submetric else ""
-            logger.info(f"Creating plot for {metric_san} {submetric_san}...")
-            # prepare figure
-            plt.figure(figsize=(12,16))
-            plt.gca().set_xscale('log')
-            empty_figure = True
-            # add each metric for all algos to the plot
-            for jdx, (algo, results) in enumerate(algo_bins.items()):
-                if results:
-                    logger.info(f"({jdx}/{total_algos}) Creating curve for {algo}...")
-                    # place all sizes and metric values for selected algo in lists
-                    subensemble_sizes = [int(x["Size"]) for x in results]
-                    subensemble_metrics = [float(x["Metrics"][metric][submetric]) for x in results]
-                    # interpolate function over [0,100]
-                    interp_grid = np.linspace(0,100,100)
-                    logger.debug(f"subensemble_sizes: {subensemble_sizes}")
-                    logger.debug(f"subensemble_metrics: {subensemble_metrics}")
-                    interp_metrics = np.interp(interp_grid, subensemble_sizes, subensemble_metrics)
-                    # values to plot
-                    plt.plot(interp_grid, interp_metrics, label=f"{algo}", color=colours(jdx))
-                    empty_figure = False
-            if not empty_figure:
-                # finalize plot
-                if submetric_san:
-                    plt.ylabel(f"{submetric_san}", fontsize="x-large")
+    for type, algos_of_type in types.items():
+        logger.info(f"Creating combined plots for {type} ensemble pruning algorithms...")
+
+        total_algos_of_type = len(algos_of_type)
+
+        # get distinct colours
+        colours = plt.get_cmap("hsv", total_algos_of_type)
+
+        # plot each metric over ensemble size
+        for metric, submetrics in alive_it(GLOBAL_METRICS.items()):
+            for submetric, _ in submetrics.items():
+
+                # convert strings
+                metric_san = sanitize(metric)
+                submetric_san = f"({sanitize(submetric)})" if submetric else ""
+                logger.info(f"Creating plot for {metric_san} {submetric_san}...")
+
+                # prepare figure
+                plt.figure(figsize=(12,16))
+                plt.gca().set_xscale('log')
+                empty_figure = True
+
+                # add each metric for all algos to the plot
+                for idx, algo in enumerate(algos_of_type):
+                    results = algo_bins[algo]
+                    if results:
+                        logger.info(f"({idx}/{total_algos_of_type}) Creating curve for {algo}...")
+                        # place all sizes and metric values for selected algo in lists
+                        subensemble_sizes = [int(x["Size"]) for x in results]
+                        subensemble_metrics = [float(x["Metrics"][metric][submetric]) for x in results]
+                        if algo in ['bsm','wsm']:
+                            # interpolate function over [1,100] to get "base line"
+                            interp_grid = np.linspace(1,100,100)
+                            logger.debug(f"subensemble_sizes: {subensemble_sizes}")
+                            logger.debug(f"subensemble_metrics: {subensemble_metrics}")
+                            interp_metrics = np.interp(interp_grid, subensemble_sizes, subensemble_metrics)
+                            plt.plot(interp_grid, interp_metrics, label=f"{algo}", color='grey', linestyle='--')
+                        else:
+                            plt.scatter(subensemble_sizes, subensemble_metrics)
+                            plt.plot(subensemble_sizes, subensemble_metrics, label=f"{algo}", color=colours(idx))
+                        # values to plot
+                        empty_figure = False
+
+                if not empty_figure:
+                    # finalize plot
+                    if submetric_san:
+                        plt.ylabel(f"{submetric_san}", fontsize="x-large")
+                    else: 
+                        plt.ylabel(f"{metric_san}", fontsize="x-large")
+                    plt.xlabel(f"{Ensemble Size}", fontsize="x-large")
+                    plt.legend(loc="best", fontsize="medium", ncol=1)
+                    plt.title(f"{type.title()} Pruning Techniques - {metric_san} {submetric_san} vs. Ensemble-Size", fontsize="x-large")
+                    # save
+                    logger.info(f"Saving plot for {metric_san} {submetric_san}...")
+                    try: 
+                        # sanitize strings
+                        metric_save = sanitize(metric, save_conform=True)
+                        submetric_save = sanitize(submetric, save_conform=True)
+                        # create filename
+                        filename = f"{submetric_save}.png" if submetric_save else f"out.png"
+                        # create outdir
+                        out_dir = args.out_dir / "analyses" / f"{start_time}" / f"{type}" / f"{metric_save}"
+                        out_dir.mkdir(exist_ok=True, parents=True)
+                        # save figure
+                        plt.savefig(out_dir / filename)
+                        plt.close()
+                        logger.info(f"Plot for {metric_san} {submetric_san} saved under: {out_dir}/{filename}")
+                    except Exception as e:
+                        logger.critical(f"Error while saving plot for {metric_san} {submetric_san}: {e}")
+                        raise
+                        sys.exit(1)
                 else: 
-                    plt.ylabel(f"{metric_san}", fontsize="x-large")
-                plt.xlabel(f"{Ensemble Size}", fontsize="x-large")
-                plt.legend(loc="best", fontsize="medium", ncol=1)
-                plt.title(f"{metric_san} {submetric_san} vs. Ensemble-Size", fontsize="x-large")
-                # save
-                logger.info(f"Saving plot for {metric_san} {submetric_san}...")
-                try: 
-                    # sanitize strings
-                    metric_save = sanitize(metric, save_conform=True)
-                    submetric_save = sanitize(submetric, save_conform=True)
-                    # create filename
-                    filename = f"{submetric_save}.png" if submetric_save else f"out.png"
-                    # create outdir
-                    out_dir = args.out_dir / "analyses" / f"{start_time}" / f"{metric_save}"
-                    out_dir.mkdir(exist_ok=True, parents=True)
-                    # save figure
-                    plt.savefig(out_dir / filename)
-                    plt.close()
-                    logger.info(f"Plot for {metric_san} {submetric_san} saved under: {out_dir}/{filename}")
-                except Exception as e:
-                    logger.critical(f"Error while saving plot for {metric_san} {submetric_san}: {e}")
-                    raise
-                    sys.exit(1)
-            else: 
-                logger.warning("Had nothing to plot")
+                    logger.warning("Had nothing to plot")
     logger.info("DONE")
 
 if __name__ == "__main__":
