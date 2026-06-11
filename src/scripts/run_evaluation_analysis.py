@@ -258,7 +258,7 @@ def main():
                 for idx, algo in enumerate(algos_of_type):
                     results = algo_bins[algo]
                     if results:
-                        logger.info(f"({idx}/{total_algos_of_type}) Creating curve for {algo}...")
+                        logger.info(f"({idx+1}/{total_algos_of_type}) Creating curve for {algo}...")
                         # place all sizes and metric values for selected algo in lists
                         subensemble_sizes = [int(x["Size"]) for x in results]
                         subensemble_metrics = [float(x["Metrics"][metric][submetric]) for x in results]
