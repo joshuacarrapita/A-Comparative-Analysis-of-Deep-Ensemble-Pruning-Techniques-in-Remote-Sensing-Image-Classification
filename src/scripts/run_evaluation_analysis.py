@@ -53,38 +53,39 @@ ALL_TYPES = [
 ]
 
 TYPE_OF = {
-        "ES": "greedy",
-        "KP": "greedy",
-        "KL": "greedy", 
-        "RE": "greedy", 
-        "OO": "ranking", 
-        "DREP": "greedy",
-        "SEP": "optimization", 
-        "OEP": "ranking", 
-        "PEP": "greedy", 
-        "GMM": "clustering", 
-        "LCS": "greedy", 
-        "COMEP": "greedy", 
-        "DOMEP": "greedy",
-        "GASEN": "optimization",
-        "individual_margin_diversity": "ranking",
-        "individual_contribution": "ranking",
-        "individual_error": "ranking",
-        "individual_kappa_statistic": "ranking",
-        "reduced_error": "greedy",
-        "complementariness": "greedy",
-        "drep": "greedy",
-        "margin_distance": "greedy",
-        "combined": "optimization",
-        "reference_vector": "ranking",
-        "combined_error": "optimization",
-        "error_ambiguity": "ranking",
-        "largest_mean_distance": "clustering",
-        "cluster_accuracy": "clustering", 
-        "cluster_centroids": "clustering",
-        "random": "baseline",
-        "bsm": "baseline",
-        "wsm": "baseline",
+        # Library categorizes | Library implements | Algorithm is
+        "ES": "ranking",  # ranking | ranking | ranking
+        "KP": "ranking", # ranking | ranking | ranking
+        "KL": "greedy", # ranking | greedy | greedy 
+        "RE": "greedy", # ranking | greedy | greedy
+        "OO": "ranking", # ranking | ranking | ranking 
+        "DREP": "greedy", # optimization | greedy | greedy
+        "SEP": "optimization", # optimization | optimization | optimization
+        "OEP": "greedy", # ranking | greedy | greedy
+        "PEP": "optimization", # optimization | optimization | optimization
+        "GMM": "clustering",  # composable | clustering | clustering / greedy
+        "LCS": "greedy", # composable | greedy | greedy
+        "COMEP": "greedy", # entropy | greedy | greedy
+        "DOMEP": "greedy", # entropy | greedy | greedy
+        "GASEN": "optimization", # optimization | optimization | optimization
+        "individual_margin_diversity": "ranking",  # ranking | ranking | ranking
+        "individual_contribution": "ranking", # ranking | ranking | ranking
+        "individual_error": "ranking", # ranking | ranking | ranking
+        "individual_kappa_statistic": "ranking", # ranking | ranking | ranking / greedy
+        "reduced_error": "greedy", # greedy | greedy | greedy
+        "complementariness": "greedy", # greedy | greedy | greedy
+        "drep": "greedy", # greedy | greedy | greedy
+        "margin_distance": "greedy", # greedy | greedy | greedy
+        "combined": "optimization", # optimization | optimization | optimization
+        "reference_vector": "ranking", # ranking | ranking | ranking
+        "combined_error": "optimization", # optimization | optimization | optimization
+        "error_ambiguity": "ranking", # ranking | ranking | greedy
+        "largest_mean_distance": "clustering", # clustering | clustering | clustering
+        "cluster_accuracy": "clustering", # clustering | clustering | clustering 
+        "cluster_centroids": "clustering", # clustering | clustering | clustering
+        "random": "baseline", # random | random | baseline
+        "bsm": "baseline", # baseline | ranking | ranking
+        "wsm": "baseline", # baseline | ranking | ranking
 }
 
 GLOBAL_METRICS = {
