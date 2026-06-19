@@ -110,9 +110,9 @@ def run_gasen_algo(probas, targets, nb_pru, args):
     M, N, C = probas.shape
     
     # GA Config
-    n_pop = 10
-    n_generations = 20
-    n_parents = 5
+    n_pop = 30
+    n_generations = 100
+    n_parents = 10
     
     start_time = time.time()
     
