@@ -18,6 +18,9 @@ COPY src/scripts/run_ensemble_pruning.py src/scripts/run_ensemble_pruning.py
 # pruning submodules
 COPY src/pruning_submodules/ src/pruning_submodules/
 
+# shared utils
+COPY src/shared_utils/custom_logging.py src/shared_utils/custom_logging.py
+
 # define path of installed modules
 ENV PYTHONPATH="${PYTHONPATH}:/app/src"
 

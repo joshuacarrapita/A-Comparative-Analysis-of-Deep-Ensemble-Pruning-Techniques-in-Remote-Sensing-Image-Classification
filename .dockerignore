@@ -3,4 +3,5 @@
 !build/pruning/requirements_remote.txt
 !build/pruning/requirements_local.txt
 !src/scripts/run_ensemble_pruning.py
+!src/shared_utils/custom_logging.py
 !src/pruning_submodules/

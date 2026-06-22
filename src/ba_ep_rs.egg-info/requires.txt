@@ -8,6 +8,8 @@ seaborn
 matplotlib
 alive-progress
 rasterio
+scipy
+scikit-learn
 configilm
 PyPruning
 epfd

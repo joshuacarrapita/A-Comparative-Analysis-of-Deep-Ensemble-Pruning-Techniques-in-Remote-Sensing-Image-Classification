@@ -1,4 +1,5 @@
+git+https://git.tu-berlin.de/joshuacar/ConfigILM.git@f0ab956b062308e89ab42e15eda25a3cb73bdd3e
 git+https://git.tu-berlin.de/joshuacar/EPFD.git@8e71f478bdb704fa0cf34729ee8eb13712a86ada
 git+https://git.tu-berlin.de/joshuacar/GASEN@856104f202611d849268ecbcfbccd1ce81fc2adc
-git+https://git.tu-berlin.de/joshuacar/PyEnsemble.git@dcac97d28d99af48fa2e2ec21ac0921b8c51bde2
-git+https://git.tu-berlin.de/joshuacar/PyPruning.git@aa594739290f9c007da25017e9b28ae14f2532dc
+git+https://git.tu-berlin.de/joshuacar/PyEnsemble.git@7aa4740ab4fde949e11f18d66f82ef4bfe19be3f
+git+https://git.tu-berlin.de/joshuacar/PyPruning.git@3d98d9f27085d16557557d3871396189795faf67
