@@ -1,4 +1,0 @@
-pruning_utils
-scripts
-shared_utils
-training_utils
