@@ -21,7 +21,7 @@ Depending on what you are making, it can be a good idea to include screenshots o
 ## Installation
 Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
 
-to install the code run `python -m pip install -r requirements.txt` or `python -m pip install -r dev-requirements.txt` in the src folder of the repo. you can then either edit the files or just execute depending on which mode you chose
+To install the code run `python -m pip install -r requirements.txt` or `python -m pip install -r dev-requirements.txt` in the src folder of the repo, followed by `python -m pip install -e .`. you can then either edit the files or just execute depending on which mode you chose
 
 - Follow "Cloning a Project with Submodules" [from here](https://git-scm.com/book/en/v2/Git-Tools-Submodules).
 - put all data like metadata.parquet, metadata_snow.parquet, reference_maps, bigearthnetv2 etc. in /data/
