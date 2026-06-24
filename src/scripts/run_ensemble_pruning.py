@@ -47,7 +47,7 @@ PYPRUNING_ALGOS = [
     "error_ambiguity", "largest_mean_distance", "cluster_accuracy", 
     "cluster_centroids", "random"
 ]
-BASELINE_ALGOS = ["bsm", "wsm"]
+BASELINE_ALGOS = ["bsm", "wsm", "random_no_replacement"]
 
 ALL_ALGOS = EPFD_ALGOS + GASEN_ALGOS + PYPRUNING_ALGOS + BASELINE_ALGOS
 
@@ -180,15 +180,10 @@ def run_baseline_algo(algo_name, probas, targets, nb_pru, args):
         selected_indices = np.argsort(errors)[:nb_pru]
     elif algo_name == "wsm":
         selected_indices = np.argsort(errors)[::-1][:nb_pru]
+    elif algo_name == 'random_no_replacement':
+        selected_indices = np.random.choice(probas.shape[0], size=nb_pru, replace=False)
 
     end_time = time.time()
-
-    sorted_errors = errors[selected_indices]
-    both = zip(selected_indices,sorted_errors)
-    logger.newline()
-    logger.debug("INIDICES & ERRORS:")
-    for idx, err in both:
-        logger.debug(f"{idx}: {err}")
 
     # Convert numpy array to list if needed
     if isinstance(selected_indices, np.ndarray):
