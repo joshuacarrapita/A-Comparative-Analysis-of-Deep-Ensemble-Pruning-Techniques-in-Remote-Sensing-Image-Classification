@@ -36,6 +36,7 @@ def parse_cli_args():
         size(s) for which you want to concatenate results; concatenates all if empty''')
     parser.add_argument('--outdir', type=Path, nargs='?', default=Path('.').resolve(), help='''The path to the output
         directory where the combined csv should be saved''')
+    parser.add_argument('--list-missing', action='store_true', help='''Print missing algorithms for each target size and append them to the concatenated results csv at the respective target size''')
 
     # check arguments format
     args = parser.parse_args()
@@ -47,6 +48,19 @@ def parse_cli_args():
 def main():
 
     logger = create_logger("Concatenate Pruning Results Logger")
+
+    # define the expected structure for the missing check
+    EXPECTED_ALGOS = {
+        "EPFD": ["ES", "KP", "KL", "RE", "OO", "DREP", "SEP", "OEP", "PEP", "GMA", "LCS", "COMEP", "DOMEP"],
+        "GASEN": ["GASEN"],
+        "PyPruning": [
+            "individual_margin_diversity", "individual_contribution", "individual_error",
+            "individual_kappa_statistic", "reduced_error", "complementariness", "drep",
+            "margin_distance", "combined", "reference_vector", "combined_error", "error_ambiguity",
+            "largest_mean_distance", "cluster_accuracy", "cluster_centroids", "random"
+        ],
+        "Baseline": ["bsm", "wsm", "random_no_replacement"]
+    }
 
     try:
         logger.info(f"Parsing input args...")
@@ -77,7 +91,7 @@ def main():
             target_size = args.target_size[0] 
             logger.info(f"Target sizes collected: {args.target_size}")
 
-            logger.info(f"Processing {target_size}...")
+            logger.info(f"Processing target size: {target_size}...")
 
             # collect all csv's for first target_size
             logger.info(f"Collecting results.csv...")
@@ -88,27 +102,34 @@ def main():
 
             # go over all the csv's for first target_size (with manual progress bar)
             logger.info(f"Concatenating results.csv...")
+            found_combos = set()
             with alive_bar(len(pruning_results_csv)) as bar:
 
                 # save information of first csv and prepend Target Size
-                with open(pruning_results_csv[0], "r", encoding="utf-8") as first_csv:
+                if pruning_results_csv:
+                    p0_parts = Path(pruning_results_csv[0]).parts
+                    sep_idx = p0_parts.index('separate')
+                    found_combos.add((p0_parts[sep_idx+2], p0_parts[sep_idx+3]))
+                    
+                    with open(pruning_results_csv[0], "r", encoding="utf-8") as first_csv:
+                        # save header and prepend "Target Size"
+                        outfile.write("Target Size," + first_csv.readline())
 
-                    # save header and prepend "Target Size"
-                    outfile.write("Target Size," + first_csv.readline())
+                        # save data and prepend target_size
+                        for line in first_csv:
+                            outfile.write(f"{target_size}," + line)
 
-                    # save data and prepend target_size
-                    for line in first_csv:
-                        outfile.write(f"{target_size}," + line)
-
-                    # forward progress bar
-                    bar()
+                        # forward progress bar
+                        bar()
 
                 # go over all remaining csv's
                 for path in pruning_results_csv[1:]:
+                    p_parts = Path(path).parts
+                    sep_idx = p_parts.index('separate')
+                    found_combos.add((p_parts[sep_idx+2], p_parts[sep_idx+3]))
 
                     # save data of csv and prepend target_size (skipping header)
                     with open(path, "r", encoding="utf-8") as csv:
-
                         # skip header
                         csv.readline()
                         
@@ -119,13 +140,21 @@ def main():
                         # forward progress bar
                         bar()
 
+            # check for missing algorithms
+            if args.list_missing:
+                for lib, algs in EXPECTED_ALGOS.items():
+                    for alg in algs:
+                        if (lib, alg) not in found_combos:
+                            logger.info(f"Missing (target size {target_size}): {lib} - {alg}")
+                            outfile.write(f'{target_size},{lib},{alg},-1,"missing"\n')
+
             logger.info(f"Concatenating DONE")
-            logger.info(f"Finished processing {target_size}")
+            logger.info(f"Finished processing target size: {target_size}")
 
             # for all remaining target sizes
             for target_size in args.target_size[1:]:
 
-                logger.info(f"Processing {target_size}...")
+                logger.info(f"Processing target size: {target_size}...")
 
                 # collect all csv's for target_size
                 logger.info(f"Collecting results.csv...")
@@ -136,7 +165,11 @@ def main():
 
                 # go over all collected csv's (with automatic progress bar)
                 logger.info(f"Concatenating results.csv...")
+                found_combos = set()
                 for path in alive_it(pruning_results_csv):
+                    p_parts = Path(path).parts
+                    sep_idx = p_parts.index('separate')
+                    found_combos.add((p_parts[sep_idx+2], p_parts[sep_idx+3]))
 
                     # save data of csv and prepend target_size (skipping header)
                     with open(path, "r", encoding="utf-8") as csv:
@@ -148,10 +181,18 @@ def main():
                         for line in csv:
                             outfile.write(f"{target_size}," + line)
 
-                logger.info(f"Concatenating DONE")
-                logger.info(f"Finished processing {target_size}")
+                # check for missing algorithms
+                if args.list_missing:
+                    for lib, algs in EXPECTED_ALGOS.items():
+                        for alg in algs:
+                            if (lib, alg) not in found_combos:
+                                logger.info(f"Missing (target size {target_size}): {lib} - {alg}")
+                                outfile.write(f'{target_size},{lib},{alg},-1,"missing"\n')
 
-        # Convert csv to html while grouping the 'Target Size' column
+                logger.info(f"Concatenating DONE")
+                logger.info(f"Finished processing target size: {target_size}")
+
+        # convert csv to html while grouping the 'Target Size' column
         logger.info(f"Exporting to html...")
         with alive_bar() as bar:
             logger.info(f"Reading csv...")
