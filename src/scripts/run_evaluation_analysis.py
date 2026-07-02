@@ -40,6 +40,7 @@ BASELINE_ALGOS = [
         "bsm",
         "wsm",
         "random",
+        "random_no_replacement",
 ]
 
 ALL_ALGOS = EPFD_ALGOS + GASEN_ALGOS + PYPRUNING_ALGOS + BASELINE_ALGOS
@@ -86,6 +87,7 @@ TYPE_OF = {
         "random": "baseline", # random | random | baseline
         "bsm": "baseline", # baseline | ranking | ranking
         "wsm": "baseline", # baseline | ranking | ranking
+        "random_no_replacement": "baseline", # baseline | random | baseline
 }
 
 GLOBAL_METRICS = {
