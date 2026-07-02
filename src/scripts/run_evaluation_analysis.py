@@ -266,6 +266,9 @@ def main():
                         subensemble_sizes = [int(x["Size"]) for x in results]
                         subensemble_metrics = [float(x["Metrics"][metric][submetric]) for x in results]
                         if algo in ['bsm','wsm']:
+                            # only consider size one result for bsm and wsm
+                            subensemble_sizes = [subensemble_sizes[0]]
+                            subensemble_metrics = [subensemble_metrics[0]]
                             # interpolate function over [1,100] to get "base line"
                             interp_grid = np.linspace(1,100,100)
                             logger.debug(f"subensemble_sizes: {subensemble_sizes}")
