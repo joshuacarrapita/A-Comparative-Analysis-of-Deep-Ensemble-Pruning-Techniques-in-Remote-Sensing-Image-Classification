@@ -510,6 +510,7 @@ def main():
                                 generated_plots.append(filename)
                                 plt.close()
 
+                        plt.close('all')
                         logger.info(f"[{metric_type}] {metric} done")
                         continue
                         
@@ -581,6 +582,7 @@ def main():
                                 generated_plots.append(filename)
                                 plt.close()
 
+                        plt.close('all')
                         logger.info(f"[{metric_type}] {metric} done")
                         continue
 
@@ -648,7 +650,7 @@ def main():
                     else:
                         logger.warning(f"[{metric_type}] {metric} NOT done:")
                         logger.warning(f"Did not save plot for metric: {metric} due to inapplicability")
-                    plt.close()
+                    plt.close('all')
 
             except Exception as e:
                 logger.error(f"Failed processing metric {metric} of type {metric_type}: {e}")
