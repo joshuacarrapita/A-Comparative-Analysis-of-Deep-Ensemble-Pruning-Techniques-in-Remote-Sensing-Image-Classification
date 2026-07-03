@@ -22,7 +22,7 @@ logger = create_logger("Analyse Evaluation Results Logger", log_level=logging.IN
 start_time = time.strftime('%d-%m-%Y_%H-%M-%S')
 
 EPFD_ALGOS = [
-        "ES", "KP", "KL", "RE", "OO", "DREP", "SEP", "OEP", "PEP", 
+        "ES", "KP", "KL", "RE", "OO", "SEP", "OEP", "PEP", 
         "GMM", "LCS", "COMEP", "DOMEP",
 ]
 
@@ -60,7 +60,6 @@ TYPE_OF = {
         "KL": "greedy", # ranking | greedy | greedy 
         "RE": "greedy", # ranking | greedy | greedy
         "OO": "ranking", # ranking | ranking | ranking 
-        "DREP": "greedy", # optimization | greedy | greedy
         "SEP": "optimization", # optimization | optimization | optimization
         "OEP": "greedy", # ranking | greedy | greedy
         "PEP": "optimization", # optimization | optimization | optimization
@@ -218,9 +217,7 @@ def main():
             if result.is_relative_to(f"{result.parents[1]}/{algo}"):
                 # get the subensemble_size
                 subensemble_size = int(result.parents[2].stem)
-                # get the library
-                subensemble_size = int(result.parents[2].stem)
-                # save both under the algos list
+                # save size and metric under the algos list
                 algo_bins[algo].append({"Size": subensemble_size, "Metrics": pd.read_json(result)})
     
     logger.info(f"Sorting results by ascending ensemble-size within each bin...")
@@ -258,11 +255,21 @@ def main():
                 empty_figure = True
 
                 # set custom x ticks
-                custom_ticks = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 40, 50, 75, 100]
+                custom_ticks = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 40, 50, 75]
+
+                # always plot full ensemble performance as baseline
+                full_ensemble_val = None
+                if "random" in algo_bins:
+                    for results in algo_bins["random"]:
+                        if int(results["Size"]) == 100:
+                            full_ensemble_val = float(results["Metrics"][metric][submetric])
+                            break
+                if full_ensemble_val is not None:
+                    plt.plot(range(len(custom_ticks)), [full_ensemble_val] * len(custom_ticks), label="full ensemble", color="grey", linestyle=":")
 
                 # add each metric for all algos to the plot
                 for idx, algo in enumerate(algos_of_type):
-                    results = algo_bins[algo]
+                    results = [x for x in algo_bins[algo] if int(x["Size"]) <= 75]
                     if results:
                         logger.info(f"({idx+1}/{total_algos_of_type}) Creating curve for {algo}...")
                         # place all sizes and metric values for selected algo in lists
