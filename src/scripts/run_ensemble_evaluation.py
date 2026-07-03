@@ -289,7 +289,7 @@ def main():
             outdir_run = outdir / f'{len(subensemble["Result"])}' / f'{subensemble["Library"]}' / f'{subensemble["Algorithm"]}' / f'{slurm_job_id}' 
 
             if outdir_run.exists():
-            outdir_run = outdir_run / f'{idx}'
+                outdir_run = outdir_run / f'{idx}'
 
         outdir_run.mkdir(parents=True, exist_ok=True)
 
