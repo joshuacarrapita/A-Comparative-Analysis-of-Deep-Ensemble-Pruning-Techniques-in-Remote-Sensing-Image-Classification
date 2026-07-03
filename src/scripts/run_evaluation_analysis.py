@@ -255,9 +255,10 @@ def main():
 
                 # prepare figure
                 plt.figure(figsize=(12,16))
-                plt.gca().set_xscale('log')
-                plt.xlim(1,100)
                 empty_figure = True
+
+                # set custom x ticks
+                custom_ticks = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 40, 50, 75, 100]
 
                 # add each metric for all algos to the plot
                 for idx, algo in enumerate(algos_of_type):
@@ -269,24 +270,32 @@ def main():
                         subensemble_metrics = [float(x["Metrics"][metric][submetric]) for x in results]
                         if algo in ['bsm','wsm']:
                             # only consider size one result for bsm and wsm
-                            subensemble_sizes = [subensemble_sizes[0]]
-                            subensemble_metrics = [subensemble_metrics[0]]
-                            # interpolate function over [1,100] to get "base line"
-                            interp_grid = np.linspace(1,100,100)
+                            subensemble_sizes = range(len(custom_ticks))
+                            subensemble_metrics = [subensemble_metrics[0]] * len(custom_ticks)
                             logger.debug(f"subensemble_sizes: {subensemble_sizes}")
                             logger.debug(f"subensemble_metrics: {subensemble_metrics}")
-                            interp_metrics = np.interp(interp_grid, subensemble_sizes, subensemble_metrics)
                             if algo == 'bsm':
-                                plt.plot(interp_grid, interp_metrics, label=f"{algo}", color="grey", linestyle="--")
+                                plt.plot(subensemble_sizes, subensemble_metrics, label=f"{algo}", color="grey", linestyle="--")
                             else: 
-                                plt.plot(interp_grid, interp_metrics, label=f"{algo}", color="grey", linestyle="-.")
+                                plt.plot(subensemble_sizes, subensemble_metrics, label=f"{algo}", color="grey", linestyle="-.")
                         else:
+                            subensemble_sizes = np.interp(subensemble_sizes, custom_ticks, range(len(custom_ticks))) 
                             plt.scatter(subensemble_sizes, subensemble_metrics, color=colours(idx))
                             plt.plot(subensemble_sizes, subensemble_metrics, label=f"{algo}", color=colours(idx))
+                            if "Loss" in metric or "Error" in metric:
+                                best_idx = np.argmin(subensemble_metrics)
+                            else:
+                                best_idx = np.argmax(subensemble_metrics)
+                                
+                            plt.scatter(subensemble_sizes[best_idx], subensemble_metrics[best_idx], 
+                                        color=colours(idx), marker='*', s=250, zorder=5, edgecolor='black')
                         empty_figure = False
 
                 if not empty_figure:
                     # finalize plot
+                    plt.xticks(ticks=range(len(custom_ticks)), labels=[str(t) for t in custom_ticks])
+                    plt.xlim(0,len(custom_ticks)-1)
+
                     if submetric_san:
                         plt.ylabel(f"{metric_san} {submetric_san}", fontsize="x-large")
                     else: 
