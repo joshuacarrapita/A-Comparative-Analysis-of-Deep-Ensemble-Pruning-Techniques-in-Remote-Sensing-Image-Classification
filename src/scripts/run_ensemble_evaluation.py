@@ -485,7 +485,7 @@ def main():
                         sns.heatmap(cm, annot=False, cmap='Blues', ax=axes[0])
                         axes[0].set_title(metric, fontsize='xx-large')
                         axes[0].set_xlabel("Predicted", fontsize='x-large')
-                        axes[0].set_ylabel("True", fontsize='x-large')
+                        axes[0].set_ylabel("Reference", fontsize='x-large')
 
                         axes[1].set_axis_off()
                         axes[1].set_title('Legend', fontsize='xx-large')
