@@ -111,7 +111,9 @@ GLOBAL_METRICS = {
         "Weighted": "",
     },
     "Brier Score Loss": {
-        "": "",
+        "Micro (Overall)": "",
+        "Macro": "",
+        "Weighted": "",
     },
     "Expected Calibration Error": {
         "": "",
