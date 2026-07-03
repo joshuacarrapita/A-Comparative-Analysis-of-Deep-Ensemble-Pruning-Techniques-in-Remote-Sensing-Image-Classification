@@ -141,12 +141,6 @@ def ensemble_decision(probas):
     # derive the ensemble_decision based on soft voting
     # average probas across all M models -> (N, C)
     avg_probas = np.mean(probas, axis=0)
-    # sum up class probas for eaach sample -> (N, )
-    row_sums = np.sum(avg_probas, axis=1).reshape(N,1)
-    # repeat that sum C times for easier vector arithmetic
-    row_sums = np.repeat(row_sums, C, axis=1)
-    # divide each class probability for each sample by that sum to normalize
-    avg_probas = np.divide(avg_probas,row_sums)
     # argmax to get class predictions -> (N, )
     y_pred = np.argmax(avg_probas, axis=1)
     return y_pred, avg_probas
