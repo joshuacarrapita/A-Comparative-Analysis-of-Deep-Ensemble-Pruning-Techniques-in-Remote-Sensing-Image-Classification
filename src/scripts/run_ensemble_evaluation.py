@@ -46,6 +46,7 @@ CLASS_WISE_METRICS = [ # DONE: check
         'Classification Report', # DONE: check
         'Per-Class One-vs-Rest ROC AUC', # DONE: check
         'Per-Class One-vs-Rest PR AUC', # DONE: check
+        'Per-Class Brier Score Loss', # DONE: check
 ]
 
 GLOBAL_METRICS = [ # DONE: check
@@ -395,7 +396,20 @@ def main():
                             global_metric_results['Average One-vs-Rest PR AUC<br><br>(Average Precision Score)'].update({f'Weighted': weighted_ovr_pr_auc})
 
                     elif metric == 'Brier Score Loss':
-                        global_metric_results[metric] = {'': brier_score_loss(targets, y_score)}
+                        micro_brier = brier_score_loss(targets, y_score) # standard brier
+                        
+                        class_briers = [brier_score_loss(targets_onehot[:, i], y_score[:, i], scale_by_half=False) for i in range(C)]
+                        
+                        macro_brier = np.mean(class_briers)
+                        
+                        supports = np.sum(targets_onehot, axis=0)
+                        weighted_brier = np.average(class_briers, weights=supports)
+
+                        global_metric_results[metric] = {
+                            'Micro (Overall)': micro_brier,
+                            'Macro': macro_brier,
+                            'Weighted': weighted_brier
+                        }
 
                     elif metric == 'Expected Calibration Error':
                         global_metric_results[metric] = {'': expected_calibration_error(y_score, targets)}
@@ -441,6 +455,11 @@ def main():
                         pc_ovr_pr_auc = average_precision_score(targets_onehot, y_score, average=None)
                         for i in range(C):
                             class_wise_metric_results["Classification Report"][f"{i}"]["PR AUC"] = pc_ovr_pr_auc[i]
+
+                    elif metric == 'Per-Class Brier Score Loss':
+                        for i in range(C):
+                            brier = brier_score_loss(targets_onehot[:, i], y_score[:, i], scale_by_half=False)
+                            class_wise_metric_results["Classification Report"][f"{i}"]["Brier Score"] = brier
 
                     logger.info(f"[{metric_type}] {metric} done")
 
