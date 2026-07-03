@@ -472,7 +472,7 @@ def main():
 
                         empty_figure = False
 
-                        fig, axes = plt.subplots(1, 2, width_ratios=[5,1], figsize=(15,10))
+                        fig, axes = plt.subplots(1, 2, width_ratios=[5,1], figsize=(18,10))
                         fig.tight_layout(pad=2)
 
                         cm = confusion_matrix(targets, y_pred, normalize=args.normalizeheatmap)
