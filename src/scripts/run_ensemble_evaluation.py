@@ -74,6 +74,7 @@ VISUALIZATIONS = [ # DONE: check
         'Micro-Average One-vs-Rest PR Curve',  # DONE: check
         'Macro-Average One-vs-Rest PR Curve',  # DONE: check
 #       'Weighted-Average One-vs-Rest PR Curve',  # DONE: excluded because it would be too much
+        'All-in-One One-vs-Rest ROC Curves', # DONE: check
         'All-in-One One-vs-Rest PR Curves', # DONE: check
 ]
 
