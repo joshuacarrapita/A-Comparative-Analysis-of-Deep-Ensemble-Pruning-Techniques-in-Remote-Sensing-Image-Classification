@@ -464,6 +464,7 @@ def main():
                     logger.info(f"[{metric_type}] {metric} done")
 
                 elif metric_type == 'visualization':
+                    colors = plt.get_cmap('tab20', C)
                     plt.figure(figsize=(12, 10))
                     filename = f"{metric.replace(' ', '_').lower()}.png"
                     empty_figure = True
@@ -485,16 +486,31 @@ def main():
                         axes[1].set_title('Legend', fontsize='xx-large')
                         axes[1].text(-0.2, 0, s='\n'.join(LABELS), fontsize='xx-large', wrap=True, bbox=dict(boxstyle='round', facecolor='white')) 
 
-                    if metric == 'Per-Class One-vs-Rest ROC Curves' or metric == 'All-in-One One-vs-Rest ROC Curves':
-                        colors = plt.get_cmap('tab20', C)
+                    if metric == 'Per-Class One-vs-Rest ROC Curves':
+                        resources = outdir_run / 'resources'
+                        resources.mkdir(exist_ok=True, parents=True)
+                        
                         for i in range(C):
                             fpr, tpr, _ = roc_curve(targets_onehot[:, i], y_score[:, i])
                             if not np.isnan(fpr).any() and not np.isnan(tpr).any():
-                                empty_figure = False
+                                plt.figure(figsize=(12, 10))
                                 roc_auc = auc(fpr, tpr)
                                 plt.plot(fpr, tpr, label=f'{LABELS[i]} (AUC = {roc_auc:.2f})', color=colors(i))
-                        plt.legend(loc='best', fontsize='medium', ncol=1)
-                        plt.title(metric, fontsize='x-large')
+                                
+                                plt.plot([0, 1], [0, 1], linestyle='--', color='grey', label='Baseline')
+                                
+                                plt.xlabel('FPR', fontsize='x-large')
+                                plt.ylabel('TPR', fontsize='x-large')
+                                plt.title(f'ROC Curve - {LABELS[i]}', fontsize='x-large')
+                                plt.legend(loc='best', fontsize='medium')
+                                
+                                filename = f"roc_curve_class_{i}.png"
+                                plt.savefig(resources / filename)
+                                generated_plots.append(filename)
+                                plt.close()
+
+                        logger.info(f"[{metric_type}] {metric} done")
+                        continue
                         
                     if metric == 'Micro-Average One-vs-Rest ROC Curve' or metric == 'All-in-One One-vs-Rest ROC Curves':
                         fpr, tpr, _ = roc_curve(targets_onehot.ravel(), y_score.ravel())
@@ -502,8 +518,10 @@ def main():
                             empty_figure = False
                             roc_auc = auc(fpr, tpr)
                             plt.plot(fpr, tpr, label=f'Micro-Average (AUC = {roc_auc:.2f})', color="deeppink")
-                        plt.legend(loc='best', fontsize='medium', ncol=1)
-                        plt.title(metric, fontsize='x-large')
+                            if not metric == 'All-in-One One-vs-Rest ROC Curves':
+                                plt.plot([0, 1], [0, 1], linestyle='--', color='grey', label='Baseline')
+                            plt.legend(loc='best', fontsize='medium', ncol=1)
+                            plt.title(metric, fontsize='x-large')
 
                     if metric == 'Macro-Average One-vs-Rest ROC Curve' or metric == 'All-in-One One-vs-Rest ROC Curves':
                         fpr_grid = np.linspace(0.0,1.0,1000)
@@ -523,22 +541,47 @@ def main():
                             tpr = mean_tpr
                             roc_auc = auc(fpr, tpr)
                             plt.plot(fpr, tpr, label=f'Macro-Average (AUC = {roc_auc:.2f})', color="navy")
+                            if not metric == 'All-in-One One-vs-Rest ROC Curves':
+                                plt.plot([0, 1], [0, 1], linestyle='--', color='grey', label='Baseline')
                             plt.legend(loc='best', fontsize='medium', ncol=1)
                             plt.title(metric, fontsize='x-large')
-
+                
                     if metric == 'All-in-One One-vs-Rest ROC Curves':
+                        for i in range(C):
+                            fpr, tpr, _ = roc_curve(targets_onehot[:, i], y_score[:, i])
+                            if not np.isnan(fpr).any() and not np.isnan(tpr).any():
+                                empty_figure = False
+                                roc_auc = auc(fpr, tpr)
+                                plt.plot(fpr, tpr, label=f'{LABELS[i]} (AUC = {roc_auc:.2f})', color=colors(i))
+                        plt.plot([0, 1], [0, 1], linestyle='--', color='grey', label='Baseline')
                         plt.legend(loc='best', fontsize='medium', ncol=1)
                         plt.title(metric, fontsize='x-large')
 
-                    if metric == 'Per-Class One-vs-Rest PR Curves' or metric == 'All-in-One One-vs-Rest PR Curves':
-                        colors = plt.get_cmap('tab20', C)
+                    if metric == 'Per-Class One-vs-Rest PR Curves':
+                        resources = outdir_run / 'resources'
+                        resources.mkdir(exist_ok=True, parents=True)
+                        
                         for i in range(C):
                             prec, rec, _ = precision_recall_curve(targets_onehot[:, i], y_score[:, i])
                             if not np.isnan(prec).any() and not np.isnan(rec).any():
-                                empty_figure = False # TODO: Figure out if there are cases where PR Curve is N/A
+                                plt.figure(figsize=(12, 10))
                                 plt.plot(rec, prec, label=f'{LABELS[i]}', color=colors(i))
-                        plt.legend(loc='best', fontsize='medium', ncol=1)
-                        plt.title(metric, fontsize='x-large')
+                                
+                                baseline = np.sum(targets_onehot[:, i]) / len(targets)
+                                plt.axhline(y=baseline, linestyle='--', color='grey', label=f'Baseline ({baseline:.3f})')
+                                
+                                plt.xlabel('Recall', fontsize='x-large')
+                                plt.ylabel('Precision', fontsize='x-large')
+                                plt.title(f'PR Curve - {LABELS[i]}', fontsize='x-large')
+                                plt.legend(loc='best', fontsize='medium')
+                                
+                                filename = f"pr_curve_class_{i}.png"
+                                plt.savefig(resources / filename)
+                                generated_plots.append(filename)
+                                plt.close()
+
+                        logger.info(f"[{metric_type}] {metric} done")
+                        continue
 
                     if metric == 'Micro-Average One-vs-Rest PR Curve' or metric == 'All-in-One One-vs-Rest PR Curves':
                         prec, rec, _ = precision_recall_curve(targets_onehot.ravel(), y_score.ravel())
@@ -546,8 +589,13 @@ def main():
                             empty_figure = False # TODO: Figure out if there are cases where PR Curve is N/A
                             micro_ovr_pr_auc = average_precision_score(targets_onehot, y_score, average='micro')
                             plt.plot(rec, prec, label=f'Micro-Average (AUC = {micro_ovr_pr_auc:.2f})', color='deeppink')
-                        plt.legend(loc='best', fontsize='medium', ncol=1)
-                        plt.title(metric, fontsize='x-large')
+
+                            if not metric == 'All-in-One One-vs-Rest PR Curves':
+                                baseline = 1 / C # Total Predictions = Total Samples $\times$ Total Classes ($N \times C$), Positive Labels = N ==> Baseline: $\frac{\text{Total Positives}}{\text{Total Predictions}} = \frac{N}{N \times C} = \frac{1}{C}$ 
+                                plt.axhline(y=baseline, linestyle='--', color='grey', label=f'Baseline ({baseline:.3f})')
+                                
+                            plt.legend(loc='best', fontsize='medium', ncol=1)
+                            plt.title(metric, fontsize='x-large')
 
                     if metric == 'Macro-Average One-vs-Rest PR Curve' or metric == 'All-in-One One-vs-Rest PR Curves':
                         rec_grid = np.linspace(0.0,1.0,1000)
@@ -567,10 +615,19 @@ def main():
                             macro_prec /= C
                             macro_ovr_pr_auc /= C
                             plt.plot(rec_grid, macro_prec, label=f'Macro-Average (AUC = {macro_ovr_pr_auc:.2f})', color='navy')
+                            if not metric == 'All-in-One One-vs-Rest PR Curves':
+                                baseline = 1 / C # $$\text{Macro Baseline} = \frac{1}{C} \sum_{i=1}^{C} \frac{N_i}{N}$$
+                                plt.axhline(y=baseline, linestyle='--', color='grey', label=f'Baseline ({baseline:.3f})')
+                                
                             plt.legend(loc='best', fontsize='medium', ncol=1)
                             plt.title(metric, fontsize='x-large')
 
                     if metric == 'All-in-One One-vs-Rest PR Curves':
+                        for i in range(C):
+                            prec, rec, _ = precision_recall_curve(targets_onehot[:, i], y_score[:, i])
+                            if not np.isnan(prec).any() and not np.isnan(rec).any():
+                                empty_figure = False # TODO: Figure out if there are cases where PR Curve is N/A
+                                plt.plot(rec, prec, label=f'{LABELS[i]}', color=colors(i))
                         plt.legend(loc='best', fontsize='medium', ncol=1)
                         plt.title(metric, fontsize='x-large')
 
