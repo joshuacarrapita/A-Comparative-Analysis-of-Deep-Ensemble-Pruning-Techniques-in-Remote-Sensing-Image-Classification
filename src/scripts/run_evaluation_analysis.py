@@ -374,8 +374,8 @@ def main():
                                          markersize=15, 
                                          linestyle='None', 
                                          color=colours(idx), 
-                                         markeredgecolor=None,
-                                         markeredgewidth=0,
+                                         markeredgecolor='Black',
+                                         #markeredgewidth=0,
                                          fillstyle=fillstyle, 
                                          zorder=5)
                             else: 
