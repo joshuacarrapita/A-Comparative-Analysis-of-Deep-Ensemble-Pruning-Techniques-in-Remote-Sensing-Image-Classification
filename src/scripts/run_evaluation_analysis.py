@@ -421,7 +421,7 @@ def main():
                         out_dir = args.out_dir / "analyses" / f"{start_time}" / f"{type}" / f"{metric_save}"
                         out_dir.mkdir(exist_ok=True, parents=True)
                         # save figure
-                        plt.savefig(out_dir / filename)
+                        plt.savefig(out_dir / filename, transparent = True, bbox_inches = 'tight', pad_inches = 0)
                         plt.close()
                         logger.info(f"[{type}] - [{metric_san}] - [{submetric_san}] - Plot saved under: {out_dir}/{filename}...")
                     except Exception as e:
