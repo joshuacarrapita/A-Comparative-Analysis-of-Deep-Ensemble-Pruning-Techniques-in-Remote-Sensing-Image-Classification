@@ -404,11 +404,11 @@ def main():
                         plt.ylabel(f"{metric_san} {submetric_san}", fontsize="x-large")
                     else: 
                         plt.ylabel(f"{metric_san}", fontsize="x-large")
-                    plt.xlabel(f"Ensemble-Size", fontsize="x-large")
+                    plt.xlabel(f"Ensemble Size", fontsize="x-large")
                     plt.plot([], [], marker=7, color='white', markeredgecolor='black', 
                              markersize=10, linestyle='None', label='Peak Performance')
                     plt.legend(loc="best", fontsize="medium", ncol=1)
-                    plt.title(f"{type.title()} Pruning Techniques - {metric_san} {submetric_san} vs. Ensemble-Size", fontsize="x-large")
+                    #plt.title(f"{type.title()} Pruning Techniques - {metric_san} {submetric_san} vs. Ensemble-Size", fontsize="x-large")
                     # save
                     logger.info(f"[{type}] - [{metric_san}] - [{submetric_san}] - Saving plot...")
                     try: 
