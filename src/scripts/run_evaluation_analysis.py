@@ -317,28 +317,6 @@ def main():
 
                             # handle overlaps
                             overlaps = overlap_tracker.get(peak_coord, 0)
-                            #fillstyle = None
-                            #markersize = 15
-                            #if overlaps == 0:
-                            #    zorder = 5
-                            #    fillstyle = 'full'
-                            #    markersize = 20
-                            #elif overlaps == 1:
-                            #    zorder = 6
-                            #    fillstyle = 'left'
-                            #    logger.info(f"[{type}] - [{metric_san}] - [{submetric_san}] - [{idx+1}/{total_algos_of_type}] - [{algo}] - Handling first peak overlap at {algo} in {type}...")
-                            #elif overlaps == 2:
-                            #    zorder = 7
-                            #    fillstyle = 'right'
-                            #    logger.info(f"[{type}] - [{metric_san}] - [{submetric_san}] - [{idx+1}/{total_algos_of_type}] - [{algo}] - Handling second peak overlap at {algo} in {type}...")
-                            #elif overlaps == 3:
-                            #    zorder = 8
-                            #    fillstyle = 'bottom'
-                            #    logger.info(f"[{type}] - [{metric_san}] - [{submetric_san}] - [{idx+1}/{total_algos_of_type}] - [{algo}] - Handling third peak overlap at {algo} in {type}...")
-                            #else:
-                            #    zorder = 9
-                            #    logger.info(f"[{type}] - [{metric_san}] - [{submetric_san}] - [{idx+1}/{total_algos_of_type}] - [{algo}] - Handling {overlaps}th peak overlap at {algo} in {type} (updating text)...") 
-                            fillstyle = 'full'
                             if overlaps == 0:
                                 marker = 7
                             elif overlaps == 1:
@@ -351,32 +329,15 @@ def main():
                                 marker = 5
                                 logger.info(f"[{type}] - [{metric_san}] - [{submetric_san}] - [{idx+1}/{total_algos_of_type}] - [{algo}] - Handling third peak overlap at {algo} in {type}...")
                             else:
-                                fillstyle = None
                                 logger.info(f"[{type}] - [{metric_san}] - [{submetric_san}] - [{idx+1}/{total_algos_of_type}] - [{algo}] - Handling {overlaps}th peak overlap at {algo} in {type} (updating text)...") 
 
-                            #if overlaps == 0:
-                            #    t = None
-                            #else:
-                            #    t = Affine2D().rotate_deg(45/overlaps)
-                            #plt.plot(peak_coord[0], peak_coord[1], 
-                            #         marker=MarkerStyle('x', transform=t),
-                            #         markersize=15, 
-                            #         linestyle='None', 
-                            #         color=colours(idx), 
-                            #         #markeredgecolor='Black', 
-                            #         #markeredgewidth=0,
-                            #         #fillstyle=fillstyle, 
-                            #         zorder=5)
-                            
-                            if fillstyle:
+                            if overlaps < 4:
                                 plt.plot(subensemble_sizes[best_idx], subensemble_metrics[best_idx], 
                                          marker=marker,
                                          markersize=15, 
                                          linestyle='None', 
                                          color=colours(idx), 
                                          markeredgecolor='Black',
-                                         #markeredgewidth=0,
-                                         fillstyle=fillstyle, 
                                          zorder=5)
                             else: 
                                 total_algos = overlaps + 1
