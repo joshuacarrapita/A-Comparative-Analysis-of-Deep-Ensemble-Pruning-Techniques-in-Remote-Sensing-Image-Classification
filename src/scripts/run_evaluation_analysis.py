@@ -153,10 +153,10 @@ def parse_args():
     # change log level if debug flag was given
     if args.debug:
         global logger
-        logger.info("Log-Level set to DEBUG")
+        logger.info("Log-Level set to DEBUG...")
         logger = create_logger("Analyse Evaluation Results Logger (DEBUG)", log_level=logging.DEBUG)
     else:
-        logger.info("Log-Level set to INFO")
+        logger.info("Log-Level set to INFO...")
 
 
     # print info about parsed args
@@ -234,7 +234,7 @@ def main():
 
     # plot results
     for type, algos_of_type in types.items():
-        logger.info(f"Creating combined plots for {type} ensemble pruning algorithms...")
+        logger.info(f"[{type}] - Creating combined plots...")
 
         total_algos_of_type = len(algos_of_type)
 
@@ -248,7 +248,7 @@ def main():
                 # convert strings
                 metric_san = sanitize(metric)
                 submetric_san = f"({sanitize(submetric)})" if submetric else ""
-                logger.info(f"Creating plot for {metric_san} {submetric_san}...")
+                logger.info(f"[{type}] - [{metric_san}] - [{submetric_san}] - Creating plot...")
 
                 # prepare figure
                 plt.figure(figsize=(12,16))
@@ -271,7 +271,7 @@ def main():
                 for idx, algo in enumerate(algos_of_type):
                     results = [x for x in algo_bins[algo] if int(x["Size"]) <= 75]
                     if results:
-                        logger.info(f"({idx+1}/{total_algos_of_type}) Creating curve for {algo}...")
+                        logger.info(f"[{type}] - [{metric_san}] - [{submetric_san}] - [{idx+1}/{total_algos_of_type}] - [{algo}] - Creating curve...")
                         # place all sizes and metric values for selected algo in lists
                         subensemble_sizes = [int(x["Size"]) for x in results]
                         subensemble_metrics = [float(x["Metrics"][metric][submetric]) for x in results]
@@ -311,7 +311,7 @@ def main():
                     plt.legend(loc="best", fontsize="medium", ncol=1)
                     plt.title(f"{type.title()} Pruning Techniques - {metric_san} {submetric_san} vs. Ensemble-Size", fontsize="x-large")
                     # save
-                    logger.info(f"Saving plot for {metric_san} {submetric_san}...")
+                    logger.info(f"[{type}] - [{metric_san}] - [{submetric_san}] - Saving plot...")
                     try: 
                         # sanitize strings
                         metric_save = sanitize(metric, save_conform=True)
@@ -324,14 +324,14 @@ def main():
                         # save figure
                         plt.savefig(out_dir / filename)
                         plt.close()
-                        logger.info(f"Plot for {metric_san} {submetric_san} saved under: {out_dir}/{filename}")
+                        logger.info(f"[{type}] - [{metric_san}] - [{submetric_san}] - Plot saved under: {out_dir}/{filename}...")
                     except Exception as e:
                         logger.critical(f"Error while saving plot for {metric_san} {submetric_san}: {e}")
                         raise
                         sys.exit(1)
                 else: 
                     logger.warning("Had nothing to plot")
-    logger.info("DONE")
+    logger.info("FINISHED SUCCESSFULLY!")
 
 if __name__ == "__main__":
     main()
