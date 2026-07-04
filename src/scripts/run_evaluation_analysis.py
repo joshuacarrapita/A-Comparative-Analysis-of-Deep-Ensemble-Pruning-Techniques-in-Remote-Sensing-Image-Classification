@@ -40,7 +40,7 @@ PYPRUNING_ALGOS = [
 
 BASELINE_ALGOS = [
         "bsm",
-        "wsm",
+        #"wsm",
         #"random",
         "random_no_replacement",
 ]
@@ -87,7 +87,7 @@ TYPE_OF = {
         "cluster_centroids": "clustering", # clustering | clustering | clustering
         #"random": "baseline", # random | random | baseline
         "bsm": "baseline", # baseline | ranking | ranking
-        "wsm": "baseline", # baseline | ranking | ranking
+        #"wsm": "baseline", # baseline | ranking | ranking
         "random_no_replacement": "baseline", # baseline | random | baseline
 }
 
