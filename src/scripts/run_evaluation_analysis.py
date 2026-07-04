@@ -267,6 +267,11 @@ def main():
                 if full_ensemble_val is not None:
                     plt.plot(range(len(custom_ticks)), [full_ensemble_val] * len(custom_ticks), label="full ensemble", color="grey", linestyle=":")
 
+                # track overlapping markers
+                overlap_tracker = {}
+                text_tracker = {}
+                segment_tracker = []
+
                 # add each metric for all algos to the plot
                 for idx, algo in enumerate(algos_of_type):
                     results = [x for x in algo_bins[algo] if int(x["Size"]) <= 75]
@@ -288,7 +293,19 @@ def main():
                         else:
                             subensemble_sizes = np.interp(subensemble_sizes, custom_ticks, range(len(custom_ticks))) 
                             plt.scatter(subensemble_sizes, subensemble_metrics, color=colours(idx))
-                            plt.plot(subensemble_sizes, subensemble_metrics, label=f"{algo}", color=colours(idx))
+                            
+                            # handle overlapping lines
+                            linestyle="-"
+                            coords = list(zip(subensemble_sizes, np.round(subensemble_metrics, 3)))
+                            current_segments = set(zip(coords[:-1], coords[1:]))
+                            for saved_segments in segment_tracker:
+                                if len(current_segments & saved_segments) >= 1:
+                                    linestyle = (0,(5,5))
+                                    break
+                            segment_tracker.append(current_segments)
+                            plt.plot(subensemble_sizes, subensemble_metrics, label=f"{algo}", color=colours(idx), linestyle=linestyle, zorder=4)
+
+                            # handle peaks
                             if "Loss" in metric or "Error" in metric:
                                 best_idx = np.argmin(subensemble_metrics)
                             else:
