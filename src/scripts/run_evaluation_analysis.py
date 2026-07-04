@@ -48,7 +48,7 @@ BASELINE_ALGOS = [
 ALL_ALGOS = EPFD_ALGOS + GASEN_ALGOS + PYPRUNING_ALGOS + BASELINE_ALGOS
 
 ALL_TYPES = [
-        "all", 
+        #"all", 
         "greedy",
         "ranking", 
         "optimization", 
@@ -231,7 +231,7 @@ def main():
     types = {type: deepcopy(BASELINE_ALGOS) for type in ALL_TYPES} # every type of pruning algorithm has all baseline algos
     for algo, _ in algo_bins.items():
         if algo not in BASELINE_ALGOS: # prevent baseline from redundantly being added here
-            types['all'].append(algo) # the all type get's all algos 
+            #types['all'].append(algo) # the all type get's all algos 
             types[TYPE_OF[algo]].append(algo) # the specific algo gets assigned to its type
 
     # plot results
