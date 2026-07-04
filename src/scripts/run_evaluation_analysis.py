@@ -377,7 +377,7 @@ def main():
                         metric_save = sanitize(metric, save_conform=True)
                         submetric_save = sanitize(submetric, save_conform=True)
                         # create filename
-                        filename = f"{submetric_save}.png" if submetric_save else f"out.png"
+                        filename = f"{submetric_save}.svg" if submetric_save else f"out.svg"
                         # create outdir
                         out_dir = args.out_dir / "analyses" / f"{start_time}" / f"{type}" / f"{metric_save}"
                         out_dir.mkdir(exist_ok=True, parents=True)
