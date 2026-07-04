@@ -41,7 +41,7 @@ PYPRUNING_ALGOS = [
 BASELINE_ALGOS = [
         "bsm",
         "wsm",
-        "random",
+        #"random",
         "random_no_replacement",
 ]
 
@@ -85,7 +85,7 @@ TYPE_OF = {
         "largest_mean_distance": "clustering", # clustering | clustering | clustering
         "cluster_accuracy": "clustering", # clustering | clustering | clustering 
         "cluster_centroids": "clustering", # clustering | clustering | clustering
-        "random": "baseline", # random | random | baseline
+        #"random": "baseline", # random | random | baseline
         "bsm": "baseline", # baseline | ranking | ranking
         "wsm": "baseline", # baseline | ranking | ranking
         "random_no_replacement": "baseline", # baseline | random | baseline
@@ -264,8 +264,8 @@ def main():
 
                 # always plot full ensemble performance as baseline
                 full_ensemble_val = None
-                if "random" in algo_bins:
-                    for results in algo_bins["random"]:
+                if "random_no_replacement" in algo_bins:
+                    for results in algo_bins["random_no_replacement"]:
                         if int(results["Size"]) == 100:
                             full_ensemble_val = float(results["Metrics"][metric][submetric])
                             break
