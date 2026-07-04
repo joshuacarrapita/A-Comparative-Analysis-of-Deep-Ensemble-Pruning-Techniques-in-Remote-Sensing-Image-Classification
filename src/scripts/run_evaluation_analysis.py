@@ -298,10 +298,10 @@ def main():
                             
                             # handle overlapping lines
                             linestyle="-"
-                            coords = list(zip(subensemble_sizes, np.round(subensemble_metrics, 2)))
+                            coords = list(zip(subensemble_sizes, np.round(subensemble_metrics, 3)))
                             current_segments = set(zip(coords[:-1], coords[1:]))
                             for saved_segments in segment_tracker:
-                                if len(current_segments & saved_segments) >= 1:
+                                if len(current_segments & saved_segments) >= 2:
                                     linestyle = (0,(5,5))
                                     break
                             segment_tracker.append(current_segments)
