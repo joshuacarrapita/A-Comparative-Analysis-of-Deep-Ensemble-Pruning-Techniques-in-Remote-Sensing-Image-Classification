@@ -241,10 +241,7 @@ def main():
         total_algos_of_type = len(algos_of_type)
 
         # get distinct colours
-        if total_algos_of_type <=20:
-            colours = plt.get_cmap("tab20", total_algos_of_type)
-        else:
-            colours = plt.get_cmap("hsv", total_algos_of_type)
+        colours = plt.get_cmap("hsv", total_algos_of_type)
 
         # plot each metric over ensemble size
         for metric, submetrics in alive_it(GLOBAL_METRICS.items()):
