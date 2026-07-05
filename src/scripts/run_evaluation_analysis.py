@@ -91,7 +91,7 @@ TYPE_OF = {
         "random_no_replacement": "baseline", # baseline | random | baseline
 }
 
-GLOBAL_METRICS = {
+ALL_METRICS = {
     "Cohen`s Kappa": {
         "k": "",
         "Expected Accuracy": "",
@@ -135,6 +135,150 @@ GLOBAL_METRICS = {
     "Average F1-Score": {
         "Macro": "",
         "Weighted": "",
+    },
+    "0": {
+        "precision": "",
+        "recall": "",
+        "f1-score": "",
+        #"support": "",
+        "ROC AUC": "",
+        "PR AUC": "",
+        "Brier Score": "",
+    },
+    "1": {
+        "precision": "",
+        "recall": "",
+        "f1-score": "",
+        #"support": "",
+        "ROC AUC": "",
+        "PR AUC": "",
+        "Brier Score": "",
+    },
+    "2": {
+        "precision": "",
+        "recall": "",
+        "f1-score": "",
+        #"support": "",
+        "ROC AUC": "",
+        "PR AUC": "",
+        "Brier Score": "",
+    },
+    "3": {
+        "precision": "",
+        "recall": "",
+        "f1-score": "",
+        #"support": "",
+        "ROC AUC": "",
+        "PR AUC": "",
+        "Brier Score": "",
+    },
+    "4": {
+        "precision": "",
+        "recall": "",
+        "f1-score": "",
+        #"support": "",
+        "ROC AUC": "",
+        "PR AUC": "",
+        "Brier Score": "",
+    },
+    "5": {
+        "precision": "",
+        "recall": "",
+        "f1-score": "",
+        #"support": "",
+        "ROC AUC": "",
+        "PR AUC": "",
+        "Brier Score": "",
+    },
+    "6": {
+        "precision": "",
+        "recall": "",
+        "f1-score": "",
+        #"support": "",
+        "ROC AUC": "",
+        "PR AUC": "",
+        "Brier Score": "",
+    },
+    "7": {
+        "precision": "",
+        "recall": "",
+        "f1-score": "",
+        #"support": "",
+        "ROC AUC": "",
+        "PR AUC": "",
+        "Brier Score": "",
+    },
+    "8": {
+        "precision": "",
+        "recall": "",
+        "f1-score": "",
+        #"support": "",
+        "ROC AUC": "",
+        "PR AUC": "",
+        "Brier Score": "",
+    },
+    "9": {
+        "precision": "",
+        "recall": "",
+        "f1-score": "",
+        #"support": "",
+        "ROC AUC": "",
+        "PR AUC": "",
+        "Brier Score": "",
+    },
+    "10": {
+        "precision": "",
+        "recall": "",
+        "f1-score": "",
+        #"support": "",
+        "ROC AUC": "",
+        "PR AUC": "",
+        "Brier Score": "",
+    },
+    "11": {
+        "precision": "",
+        "recall": "",
+        "f1-score": "",
+        #"support": "",
+        "ROC AUC": "",
+        "PR AUC": "",
+        "Brier Score": "",
+    },
+    "12": {
+        "precision": "",
+        "recall": "",
+        "f1-score": "",
+        #"support": "",
+        "ROC AUC": "",
+        "PR AUC": "",
+        "Brier Score": "",
+    },
+    "13": {
+        "precision": "",
+        "recall": "",
+        "f1-score": "",
+        #"support": "",
+        "ROC AUC": "",
+        "PR AUC": "",
+        "Brier Score": "",
+    },
+    "14": {
+        "precision": "",
+        "recall": "",
+        "f1-score": "",
+        #"support": "",
+        "ROC AUC": "",
+        "PR AUC": "",
+        "Brier Score": "",
+    },
+    "15": {
+        "precision": "",
+        "recall": "",
+        "f1-score": "",
+        #"support": "",
+        "ROC AUC": "",
+        "PR AUC": "",
+        "Brier Score": "",
     },
 }
 
@@ -227,6 +371,16 @@ def main():
     for algo, _ in alive_it(algo_bins.items()):
         algo_bins[algo] = sorted(algo_bins[algo], key=lambda x: x["Size"])
 
+    # move the classification report metrics up so they can be processed as the others
+    logger.info(f"Adjusting classification report metrics...")
+    for algo in alive_it(ALL_ALGOS):
+        for size_metric_pair in algo_bins[algo]:
+            df = size_metric_pair["Metrics"]
+            if "Classification Report" in df.columns:
+                expanded_metrics = df["Classification Report"].dropna().apply(pd.Series)
+                
+                size_metric_pair["Metrics"] = df.drop(columns=["Classification Report"]).join(expanded_metrics.T, how="outer")
+
     # assign each algo bin to a type
     types = {type: deepcopy(BASELINE_ALGOS) for type in ALL_TYPES} # every type of pruning algorithm has all baseline algos
     for algo, _ in algo_bins.items():
@@ -244,7 +398,7 @@ def main():
         colours = plt.get_cmap("hsv", total_algos_of_type)
 
         # plot each metric over ensemble size
-        for metric, submetrics in alive_it(GLOBAL_METRICS.items()):
+        for metric, submetrics in alive_it(ALL_METRICS.items()):
             for submetric, _ in submetrics.items():
 
                 # convert strings
