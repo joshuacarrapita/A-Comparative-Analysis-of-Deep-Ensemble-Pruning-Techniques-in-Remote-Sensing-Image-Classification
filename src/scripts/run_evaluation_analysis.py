@@ -121,8 +121,8 @@ ALL_METRICS = {
     },
     "Average Accuracy": {
         "Micro<br>(= Micro Precision, Recall, F1-Score)": "",
-        "Macro<br>(= Macro Recall)": "",
-        "Weighted<br>(= Weighted Recall)": "",
+    #    "Macro<br>(= Macro Recall)": "",
+    #    "Weighted<br>(= Weighted Recall)": "",
     },
     "Average Precision": {
         "Macro": "",
@@ -317,7 +317,7 @@ def sanitize(string: str, save_conform: bool = False):
     if save_conform:
         return string.replace(", ","-").replace(" ", "_").replace("`", "").replace("<br>", "").replace('"', '').replace("(", "_").replace(")", "").replace("=","eq").lower()
     else: 
-        return string.replace("<br>", " ", 1).replace("<br>", "")
+        return string.split("<br>")[0]
 
 
 # === MAIN EXECUTION LOOP ===
@@ -403,7 +403,7 @@ def main():
 
                 # convert strings
                 metric_san = sanitize(metric)
-                submetric_san = f"({sanitize(submetric)})" if submetric else ""
+                submetric_san = f"{sanitize(submetric)}" if submetric else ""
                 logger.info(f"[{type}] - [{metric_san}] - [{submetric_san}] - Creating plot...")
 
                 # prepare figure
@@ -517,9 +517,20 @@ def main():
 
                     if submetric_san:
                         if metric.isdigit():
+                            if submetric_san not in ["ROC AUC","PR AUC"]:
+                                submetric_san = submetric_san.title()
+                            plt.ylabel(f"{submetric_san}", fontsize="x-large")
+                        elif metric_san == "Average Accuracy":
+                            plt.ylabel(f"Accuracy", fontsize="x-large")
+                        elif metric_san == "Brier Score Loss":
+                            if submetric_san == "Micro (Overall)":
+                                plt.ylabel(f"Brier Score Loss", fontsize="x-large")
+                            else:
+                                plt.ylabel(f"{submetric_san} Average {metric_san}", fontsize="x-large")
+                        elif metric_san == "Cohen`s Kappa":
                             plt.ylabel(f"{submetric_san}", fontsize="x-large")
                         else:
-                            plt.ylabel(f"{metric_san} {submetric_san}", fontsize="x-large")
+                            plt.ylabel(f"{submetric_san} {metric_san}", fontsize="x-large")
                     else: 
                         plt.ylabel(f"{metric_san}", fontsize="x-large")
                     plt.xlabel(f"Ensemble Size", fontsize="x-large")
