@@ -17,7 +17,7 @@ import numpy as np
 
 # local imports
 from shared_utils.custom_logging import create_logger
-
+from configilm.extra.BENv2_utils import NEW_LABELS, NEW_LABELS_ORIGINAL_ORDER, NEW_LABELS_16, NEW_LABELS_16_ORIGINAL_ORDER
 
 # === GLOBAL VARIABLES ===
 logger = create_logger("Analyse Evaluation Results Logger", log_level=logging.INFO)
@@ -516,7 +516,10 @@ def main():
                     plt.xlim(0,len(custom_ticks)-1)
 
                     if submetric_san:
-                        plt.ylabel(f"{metric_san} {submetric_san}", fontsize="x-large")
+                        if metric.isdigit():
+                            plt.ylabel(f"{submetric_san}", fontsize="x-large")
+                        else:
+                            plt.ylabel(f"{metric_san} {submetric_san}", fontsize="x-large")
                     else: 
                         plt.ylabel(f"{metric_san}", fontsize="x-large")
                     plt.xlabel(f"Ensemble Size", fontsize="x-large")
@@ -528,7 +531,11 @@ def main():
                     logger.info(f"[{type}] - [{metric_san}] - [{submetric_san}] - Saving plot...")
                     try: 
                         # sanitize strings
-                        metric_save = sanitize(metric, save_conform=True)
+                        # if metric is class number append class name
+                        display_metric = metric
+                        if metric.isdigit() and int(metric) < len(NEW_LABELS_16):
+                            display_metric = f"{metric}_{NEW_LABELS_16[int(metric)]}"
+                        metric_save = sanitize(display_metric, save_conform=True)
                         submetric_save = sanitize(submetric, save_conform=True)
                         # create filename
                         filename = f"{submetric_save}.svg" if submetric_save else f"out.svg"
