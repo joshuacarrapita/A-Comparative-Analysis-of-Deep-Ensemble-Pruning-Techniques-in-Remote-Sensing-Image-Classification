@@ -488,7 +488,7 @@ def main():
                             plt.scatter(subensemble_sizes, subensemble_metrics, color=colours(idx))
                             
                             # handle overlapping lines
-                            linestyle = "-" if algo != "KP" else: (0,(5,5))
+                            linestyle = "-" if algo != "KP" else (0,(5,5))
                             #coords = list(zip(subensemble_sizes, np.round(subensemble_metrics, 3)))
                             #current_segments = set(zip(coords[:-1], coords[1:]))
                             #for saved_segments in segment_tracker:
