@@ -25,7 +25,7 @@ start_time = time.strftime('%d-%m-%Y_%H-%M-%S')
 
 EPFD_ALGOS = [
         "ES", "KP", "KL", "RE", "OO", "SEP", "OEP", "PEP", 
-        "GMM", "LCS", "COMEP", "DOMEP",
+        "GMA", "LCS", "COMEP", "DOMEP",
 ]
 
 GASEN_ALGOS = ["GASEN"]
@@ -65,7 +65,7 @@ TYPE_OF = {
         "SEP": "optimization", # optimization | optimization | optimization
         "OEP": "greedy", # ranking | greedy | greedy
         "PEP": "optimization", # optimization | optimization | optimization
-        "GMM": "clustering",  # composable | clustering | clustering / greedy
+        "GMA": "clustering",  # composable | clustering | clustering / greedy
         "LCS": "greedy", # composable | greedy | greedy
         "COMEP": "greedy", # entropy | greedy | greedy
         "DOMEP": "greedy", # entropy | greedy | greedy
