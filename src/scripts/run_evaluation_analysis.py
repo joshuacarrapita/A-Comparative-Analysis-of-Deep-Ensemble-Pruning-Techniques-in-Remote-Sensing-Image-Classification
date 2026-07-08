@@ -91,6 +91,43 @@ TYPE_OF = {
         "random_no_replacement": "baseline", # baseline | random | baseline
 }
 
+ACRONYMS = {
+        # Library categorizes | Library implements | Algorithm is
+        "ES": "ES (EPFD)", 
+        "KP": "KP (EPFD)", 
+        "KL": "KLD (EPFD)", 
+        "RE": "RE (EPFD)",
+        "OO": "OO (EPFD)",
+        "SEP": "SEP (EPFD)",
+        "OEP": "OEP (EPFD)", 
+        "PEP": "PEP (EPFD)", 
+        "GMA": "GMA (EPFD)",  
+        "LCS": "LCS (EPFD)", 
+        "COMEP": "COMEP (EPFD)", 
+        "DOMEP": "DOMEP (EPFD)",
+        "GASEN": "GASEN (GASEN)", 
+        #"DREP": "DREP (EPFD)",
+        "individual_margin_diversity": "MDEP (PyPruning)",  
+        "individual_contribution": "EPIC (PyPruning)", 
+        "individual_error": "IE (PyPruning)", 
+        "individual_kappa_statistic": "KP (PyPruning)", 
+        "reduced_error": "RE (PyPruning)", 
+        "complementariness": "CC (PyPruning)", 
+        "drep": "DREP (PyPruning)", 
+        "margin_distance": "MDSQ (PyPruning)", 
+        "combined": "DIVP (PyPruning)", 
+        "reference_vector": "OO (PyPruning)", 
+        "combined_error": "SDP (PyPruning)", 
+        "error_ambiguity": "EAP (PyPruning)", 
+        "largest_mean_distance": "LMD (PyPruning)", 
+        "cluster_accuracy": "KMIC (PyPruning)", 
+        "cluster_centroids": "DA (PyPruning)", 
+        #"random": "RD (PyPruning)", 
+        "bsm": "BSM", 
+        #"wsm": "WSM", 
+        "random_no_replacement": "RD", 
+}
+
 ALL_METRICS = {
     "Cohen`s Kappa": {
         "k": "",
@@ -421,7 +458,7 @@ def main():
                             full_ensemble_val = float(results["Metrics"][metric][submetric])
                             break
                 if full_ensemble_val is not None:
-                    plt.plot(range(len(custom_ticks)), [full_ensemble_val] * len(custom_ticks), label="full ensemble", color="grey", linestyle=":")
+                    plt.plot(range(len(custom_ticks)), [full_ensemble_val] * len(custom_ticks), label="FULL", color="grey", linestyle=":")
 
                 # track overlapping markers
                 overlap_tracker = {}
@@ -443,23 +480,23 @@ def main():
                             logger.debug(f"subensemble_sizes: {subensemble_sizes}")
                             logger.debug(f"subensemble_metrics: {subensemble_metrics}")
                             if algo == 'bsm':
-                                plt.plot(subensemble_sizes, subensemble_metrics, label=f"{algo}", color="grey", linestyle="--")
+                                plt.plot(subensemble_sizes, subensemble_metrics, label=f"{ACRONYMS[algo]}", color="grey", linestyle="--")
                             else: 
-                                plt.plot(subensemble_sizes, subensemble_metrics, label=f"{algo}", color="grey", linestyle="-.")
+                                plt.plot(subensemble_sizes, subensemble_metrics, label=f"{ACRONYMS[algo]}", color="grey", linestyle="-.")
                         else:
                             subensemble_sizes = np.interp(subensemble_sizes, custom_ticks, range(len(custom_ticks))) 
                             plt.scatter(subensemble_sizes, subensemble_metrics, color=colours(idx))
                             
                             # handle overlapping lines
-                            linestyle="-"
-                            coords = list(zip(subensemble_sizes, np.round(subensemble_metrics, 3)))
-                            current_segments = set(zip(coords[:-1], coords[1:]))
-                            for saved_segments in segment_tracker:
-                                if len(current_segments & saved_segments) >= 2:
-                                    linestyle = (0,(5,5))
-                                    break
-                            segment_tracker.append(current_segments)
-                            plt.plot(subensemble_sizes, subensemble_metrics, label=f"{algo}", color=colours(idx), linestyle=linestyle, zorder=4)
+                            linestyle = "-" if algo != "KP" else: (0,(5,5))
+                            #coords = list(zip(subensemble_sizes, np.round(subensemble_metrics, 3)))
+                            #current_segments = set(zip(coords[:-1], coords[1:]))
+                            #for saved_segments in segment_tracker:
+                            #    if len(current_segments & saved_segments) >= 2:
+                            #        linestyle = (0,(5,5))
+                            #        break
+                            #segment_tracker.append(current_segments)
+                            plt.plot(subensemble_sizes, subensemble_metrics, label=f"{ACRONYMS[algo]}", color=colours(idx), linestyle=linestyle, zorder=4)
 
                             # handle peaks
                             if "Loss" in metric or "Error" in metric:
