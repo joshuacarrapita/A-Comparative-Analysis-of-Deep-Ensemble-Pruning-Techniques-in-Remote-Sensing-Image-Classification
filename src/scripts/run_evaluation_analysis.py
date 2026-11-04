@@ -433,7 +433,7 @@ def main():
                 size_metric_pair["Metrics"] = df.drop(columns=["Classification Report"]).join(expanded_metrics.T, how="outer")
 
     # assign each algo bin to a type
-    types = {type: deepcopy(BASELINE_ALGOS) for type in ALL_TYPES} # every type of pruning algorithm has all baseline algos
+    types = {type: [deepcopy(BASELINE_ALGOS[0])] for type in ALL_TYPES} # every type of pruning algorithm has all baseline algos
     for algo, _ in algo_bins.items():
         if algo not in BASELINE_ALGOS: # prevent baseline from redundantly being added here
             #types['all'].append(algo) # the all type get's all algos 
