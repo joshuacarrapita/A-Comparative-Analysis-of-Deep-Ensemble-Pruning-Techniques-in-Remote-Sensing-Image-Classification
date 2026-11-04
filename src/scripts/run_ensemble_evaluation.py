@@ -478,18 +478,22 @@ def main():
 
                         empty_figure = False
 
-                        fig, axes = plt.subplots(1, 2, width_ratios=[5,1], figsize=(15,10))
-                        fig.tight_layout(pad=2)
-
                         cm = confusion_matrix(targets, y_pred, normalize=args.normalizeheatmap)
-                        sns.heatmap(cm, annot=False, cmap='Blues', ax=axes[0])
-                        axes[0].set_title(metric, fontsize='xx-large')
-                        axes[0].set_xlabel("Predicted", fontsize='x-large')
-                        axes[0].set_ylabel("Reference", fontsize='x-large')
+                        sns.heatmap(cm, annot=False, cmap='Blues')
 
-                        axes[1].set_axis_off()
-                        axes[1].set_title('Legend', fontsize='xx-large')
-                        axes[1].text(-0.2, 0, s='\n'.join(LABELS), fontsize='xx-large', wrap=True, bbox=dict(boxstyle='round', facecolor='white')) 
+                        plt.xlabel('Prediction', fontsize='x-large')
+                        plt.ylabel('Reference', fontsize='x-large')
+
+                        #fig, axes = plt.subplots(1, 2, width_ratios=[5,1], figsize=(15,10))
+                        #fig.tight_layout(pad=2)
+
+                        #axes[0].set_title(metric, fontsize='xx-large')
+                        #axes[0].set_xlabel("Predicted", fontsize='x-large')
+                        #axes[0].set_ylabel("Reference", fontsize='x-large')
+
+                        #axes[1].set_axis_off()
+                        #axes[1].set_title('Legend', fontsize='xx-large')
+                        #axes[1].text(-0.2, 0, s='\n'.join(LABELS), fontsize='xx-large', wrap=True, bbox=dict(boxstyle='round', facecolor='white')) 
 
                     if metric == 'Per-Class One-vs-Rest ROC Curves':
                         resources = outdir_run / 'resources'
