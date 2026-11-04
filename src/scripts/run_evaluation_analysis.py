@@ -47,12 +47,26 @@ BASELINE_ALGOS = [
 
 ALL_ALGOS = EPFD_ALGOS + GASEN_ALGOS + PYPRUNING_ALGOS + BASELINE_ALGOS
 
+FINAL_SELECTION = [
+        "RE",
+        "OEP",
+        "reduced_error",
+        "complementariness",
+        "OO",
+        "individual_margin_diversity",
+        "individual_contribution",
+        "individual_error",
+        "GASEN",
+        "cluster_accuracy",
+]
+
 ALL_TYPES = [
         #"all", 
-        "greedy",
-        "ranking", 
-        "optimization", 
-        "clustering",
+        #"greedy",
+        #"ranking", 
+        #"optimization", 
+        #"clustering",
+        "final",
 ]
 
 TYPE_OF = {
@@ -423,7 +437,9 @@ def main():
     for algo, _ in algo_bins.items():
         if algo not in BASELINE_ALGOS: # prevent baseline from redundantly being added here
             #types['all'].append(algo) # the all type get's all algos 
-            types[TYPE_OF[algo]].append(algo) # the specific algo gets assigned to its type
+            #types[TYPE_OF[algo]].append(algo) # the specific algo gets assigned to its type
+            if algo in FINAL_SELECTION:
+                types['final'].append(algo)
 
     # plot results
     for type, algos_of_type in types.items():
