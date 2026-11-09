@@ -1,6 +1,6 @@
-configilm @ git+https://git.tu-berlin.de/joshuacar/ConfigILM.git@main",
-PyPruning @ git+https://git.tu-berlin.de/joshuacar/PyPruning.git@main",
-epfd @ git+https://git.tu-berlin.de/joshuacar/EPFD.git@main",
-pyensemble @ git+https://git.tu-berlin.de/joshuacar/PyEnsemble.git@main",
-gasen @ git+https://git.tu-berlin.de/joshuacar/GASEN.git@main",
+configilm @ git+https://github.com/joshuacarrapita/ConfigILM.git@main",
+PyPruning @ git+https://github.com/joshuacarrapita/PyPruning.git@main",
+epfd @ git+https://github.com/joshuacarrapita/EPFD.git@main",
+pyensemble @ git+https://github.com/joshuacarrapita/PyEnsemble.git@main",
+gasen @ git+https://github.com/joshuacarrapita/GASEN.git@main",
 .

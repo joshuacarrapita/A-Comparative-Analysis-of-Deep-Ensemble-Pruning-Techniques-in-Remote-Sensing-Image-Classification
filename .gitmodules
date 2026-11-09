@@ -1,15 +1,15 @@
 [submodule "PyPruning"]
 	path = src/pruning_submodules/PyPruning
-	url = https://git.tu-berlin.de/joshuacar/PyPruning.git
+	url = https://github.com/joshuacarrapita/PyPruning.git
 [submodule "ConfigILM"]
 	path = src/training_submodules/ConfigILM
-	url = https://git.tu-berlin.de/joshuacar/ConfigILM.git
+	url = https://github.com/joshuacarrapita/ConfigILM.git
 [submodule "EPFD"]
 	path = src/pruning_submodules/EPFD
-	url = https://git.tu-berlin.de/joshuacar/EPFD.git
+	url = https://github.com/joshuacarrapita/EPFD.git
 [submodule "PyEnsemble"]
 	path = src/pruning_submodules/PyEnsemble
-	url = https://git.tu-berlin.de/joshuacar/PyEnsemble.git
+	url = https://github.com/joshuacarrapita/PyEnsemble.git
 [submodule "GASEN"]
 	path = src/pruning_submodules/GASEN
-	url = https://git.tu-berlin.de/joshuacar/GASEN
+	url = https://github.com/joshuacarrapita/GASEN.git
